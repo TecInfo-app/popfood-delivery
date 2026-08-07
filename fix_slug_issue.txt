@@ -1,0 +1,13 @@
+Os erros de 404 (Not Found) no console ocorrem porque o banco de dados Supabase não possui as tabelas (`restaurants`, `categories`, `products`, etc.) criadas. Como o projeto não encontrou as tabelas remotas, ele ativou o modo de contingência (LocalStorage) para não deixar a tela em branco. Você precisará executar a criação de tabelas (SQL) no painel do Supabase futuramente.
+
+Sobre o link gerado com `store_5ckd6k`: 
+Isso acontece porque, ao fazer login pela primeira vez sem ter a loja pré-cadastrada por um super-administrador (ou ao manter um link antigo no navegador), o sistema gera um "slug" temporário de testes. 
+
+Para configurar o seu link exato (`loja-1`):
+1. Acesse a rota secreta de administração adicionando `/superadmin.html` no final da URL.
+2. Digite a senha administrativa (`tec@2027` ou `admin321`).
+3. Clique em **+ Nova Loja / Cliente**. 
+4. No campo **Identificador Único (Slug)** coloque o nome que deseja no link (ex: `loja1`). Preencha também o e-mail e a senha desejados para a loja.
+5. Volte para a página de login (`index.html` limpa, sem o "?store=" na barra de endereços) e entre com o e-mail que você acabou de criar.
+
+Agora o sistema carregará o painel da sua loja oficial e, ao clicar em "Link Cliente", ele vai gerar corretamente `cliente.html?store=loja1`.
