@@ -1,0 +1,19 @@
+Olá! Analisei as suas telas e descobri exatamente o que aconteceu nas duas situações. Ambas ocorrem porque o **banco de dados Supabase ainda não foi configurado** (as tabelas não existem e o painel acusa erro 404). Por causa disso, o sistema está salvando as lojas na **memória local do seu navegador (localStorage)**.
+
+Aqui está o que aconteceu:
+
+**1. O caso do e-mail chopp@gmail.com (E-mail inválido):**
+- Você criou a loja "CIA-1" na sua janela normal do Chrome.
+- Mas, pela sua primeira captura de tela, você tentou fazer login em uma **Guia Anônima**.
+- Guias anônimas **não compartilham a memória local** com as guias normais. Como o banco de dados online (Supabase) não tem nada, a guia anônima tentou ler a própria memória, viu que estava vazia e deu erro de credencial inválida.
+
+**2. O caso do cia@gmail.com (caindo no link store_x6mxw4):**
+- Antes de eu corrigir aquele "slug fantasma", você havia tentado logar com `cia@gmail.com`. O sistema criou o perfil provisório `store_x6mxw4` e **salvou ele na memória do seu navegador**.
+- Depois, você foi no painel e criou a loja correta `cia-teste` com o mesmo e-mail.
+- Quando você foi fazer login, o sistema leu a memória do navegador, achou o e-mail `cia@gmail.com` associado ao perfil antigo (`store_x6mxw4`) primeiro e te logou nele, ignorando o novo.
+
+**Como eu resolvi:**
+- Já alterei o código do sistema agora mesmo para **sempre buscar a loja mais recente** criada na memória. Se você tentar logar agora com `cia@gmail.com`, ele vai acessar o `cia-teste` corretamente.
+
+**A solução definitiva para o seu projeto:**
+- Para que o login funcione em janelas anônimas, no celular, e pare de gerar esses conflitos de memória, é **obrigatório criar as tabelas no Supabase**. Enquanto o Supabase estiver dando erro 404 (visível no seu F12), o sistema sempre dependerá da memória local frágil do seu navegador atual. Você já rodou o código SQL no seu Supabase para criar as tabelas?

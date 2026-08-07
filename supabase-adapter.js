@@ -60,7 +60,8 @@ export const auth = {
             const raw = localStorage.getItem('popfood_fb_restaurants');
             if (raw) {
                 const stores = JSON.parse(raw);
-                const found = stores.find(s => {
+                // Busca de trás pra frente (reverse) para pegar a loja mais recente caso existam duplicadas antigas
+                const found = stores.slice().reverse().find(s => {
                     const sEmail = (s.adminEmail || s.email || s.ownerEmail || '').toLowerCase().trim();
                     const sPass = String(s.adminPassword || s.password || '').trim();
                     return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass.length >= 4);
