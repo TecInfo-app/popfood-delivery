@@ -1063,7 +1063,25 @@ storeId: window.currentStoreId
           }
         }
 
-        const finalStoreId = matchedStoreId || urlStoreId || loggedUser.uid;
+        const finalStoreId = matchedStoreId || urlStoreId || loggedUser.uid || loggedUser.id || 'main';
+
+        // Auto-provision initial profile if it doesn't exist yet
+        if (!matchedStoreDoc || !matchedStoreDoc.exists()) {
+          try {
+            await setDoc(doc(db, COLLECTIONS.restaurantProfile, finalStoreId), {
+              id: finalStoreId,
+              storeId: finalStoreId,
+              name: "PopFood Estabelecimento",
+              adminEmail: mail.toLowerCase(),
+              adminPassword: pass,
+              createdAt: new Date().toISOString(),
+              isOpen: true
+            }, { merge: true });
+          } catch (profileErr) {
+            console.warn("Notice during initial profile creation:", profileErr);
+          }
+        }
+
         localStorage.setItem('popfood_custom_store_id', finalStoreId);
         localStorage.setItem('popfood_custom_store_email', mail);
 
