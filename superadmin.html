@@ -453,6 +453,12 @@
     window.customAlert = window.customAlert || function(msg) {
       alert(msg);
     };
+    window.customConfirm = window.customConfirm || function(msg) {
+      return confirm(msg);
+    };
+    window.customPrompt = window.customPrompt || function(msg, def) {
+      return prompt(msg, def);
+    };
 
     let loadedStores = [];
     let activeFilterKeyword = '';
