@@ -41,11 +41,11 @@ export const auth = {
         try {
             const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) {
-                // If signup fails due to existing or mock, return dummy user or throw
-                console.warn("Auth signup notice:", error.message);
+                console.warn("Auth signUp handled notice:", error.message);
             }
             return data || { user: { email } };
         } catch (e) {
+            console.warn("Auth signUp exception caught:", e);
             return { user: { email } };
         }
     },
