@@ -257,12 +257,45 @@ export const getDocs = async (queryRef) => {
             });
         }
         const { data, error } = await q;
-        if (error || !data) {
-            throw new Error(error?.message || 'Table not found');
+        if (error) {
+            throw new Error(error.message || 'Table query failed');
         }
+        
+        let items = getLocalCollection(queryRef.path);
+        if (queryRef.path === 'restaurants' && items.length === 0) {
+            items = [{
+                id: 'main',
+                name: 'PopFood Cia do Chopp',
+                phone: '11999999999',
+                adminEmail: 'iranildo.tecnologia@outlook.com',
+                isSuperAdmin: true,
+                active: true,
+                whatsappBotEnabled: true,
+                createdAt: new Date().toISOString()
+            }];
+            saveLocalCollection('restaurants', items);
+        }
+
+        const mergedMap = new Map();
+        items.forEach(i => mergedMap.set(String(i.id), i));
+        if (data && Array.isArray(data)) {
+            data.forEach(s => mergedMap.set(String(s.id), { ...(mergedMap.get(String(s.id)) || {}), ...s }));
+        }
+        let mergedItems = Array.from(mergedMap.values());
+
+        if (queryRef.queryArgs) {
+            queryRef.queryArgs.forEach(arg => {
+                if (arg.type === 'where') {
+                    if (arg.op === '==') {
+                        mergedItems = mergedItems.filter(i => i[arg.field] === arg.value);
+                    }
+                }
+            });
+        }
+
         return {
-            empty: !data || data.length === 0,
-            docs: (data || []).map(d => ({
+            empty: mergedItems.length === 0,
+            docs: mergedItems.map(d => ({
                 id: d.id,
                 data: () => d,
                 exists: () => true
