@@ -450,6 +450,10 @@
   <script type="module">
     import { db, auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, COLLECTIONS, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot } from './supabase-adapter.js';
 
+    window.customAlert = window.customAlert || function(msg) {
+      alert(msg);
+    };
+
     let loadedStores = [];
     let activeFilterKeyword = '';
     let showHiddenStores = false;
