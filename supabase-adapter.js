@@ -33,9 +33,38 @@ export const auth = {
         }
     },
     signInWithEmailAndPassword: async (authObj, email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        return data;
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (!error && data?.user) {
+                auth.currentUser = data.user;
+                return data;
+            }
+        } catch (e) {
+            console.warn("Supabase signIn exception, checking store fallback:", e?.message);
+        }
+
+        // Superadmin check
+        if (email.toLowerCase() === 'iranildo.tecnologia@outlook.com' && password === 'tec@2027') {
+            const mockUser = { email, id: 'superadmin-id' };
+            auth.currentUser = mockUser;
+            return { user: mockUser };
+        }
+
+        // Store login check in localStorage
+        try {
+            const raw = localStorage.getItem('popfood_fb_restaurants');
+            if (raw) {
+                const stores = JSON.parse(raw);
+                const found = stores.find(s => s.adminEmail?.toLowerCase() === email.toLowerCase() && s.adminPassword === password);
+                if (found) {
+                    const mockUser = { email, id: found.id };
+                    auth.currentUser = mockUser;
+                    return { user: mockUser };
+                }
+            }
+        } catch (err) {}
+
+        throw new Error("E-mail ou senha inválidos. Verifique as credenciais cadastradas para esta loja.");
     },
     createUserWithEmailAndPassword: async (authObj, email, password) => {
         try {
