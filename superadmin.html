@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Super-Admin Consola - PopFood Delivery</title>
+  <script type="importmap">
+{
+      "imports": {
+        }
+    }
+</script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            brand: {
+              primary: '#f97316',
+              secondary: '#22c55e',
+              danger: '#ef4444',
+              light: '#f3f4f6',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-55 bg-slate-50 font-sans text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Super admin Password Sign In Gate -->
+  <div id="admin-auth-gate" class="fixed inset-0 bg-slate-900 z-[1000] flex items-center justify-center p-4 transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-8 shadow-2xl flex flex-col space-y-6 text-center">
+      <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-orange-100 text-2xl animate-bounce">
+        🔑
+      </div>
+      <div>
+        <h2 class="font-display font-black text-xl text-gray-900 tracking-tight">Acesso Dono do App</h2>
+        <p class="text-xs text-gray-500 mt-1 leading-relaxed">Painel restrito de monitoramento e controle global de lojas do ecossistema PopFood.</p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail do Firebase (Obrigatório para Editar):</label>
+        <input type="email" id="admin-email" placeholder="admin@popfood.com" class="w-full text-center p-3 text-sm font-bold border border-gray-250 rounded-xl focus:border-orange-500 focus:outline-none transition-all tracking-widest bg-gray-50 mb-2" />
+        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Código de Acesso / Senha Firebase:</label>
+        <input type="password" id="admin-passcode" placeholder="••••••••" class="w-full text-center p-3 text-lg font-bold border border-gray-250 rounded-xl focus:border-orange-500 focus:outline-none transition-all tracking-widest bg-gray-50" />
+      </div>
+
+      <button onclick="attemptAdminAccess()" class="w-full bg-slate-920 bg-slate-900 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition-all uppercase tracking-wider cursor-pointer font-sans">
+        Entrar no Console Geral
+      </button>
+
+      <div class="pt-2 text-[10px] text-gray-400 font-medium">
+        Desenvolvido com carinho para o Admin Geral do Aplicativo
+      </div>
+    </div>
+  </div>
+
+  <!-- Real Super Admin Layout (Will display upon correct code inputted) -->
+  <header class="bg-slate-900 text-white shadow-md border-b border-white/10 hidden" id="real-dashboard-header">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-tr from-orange-400 to-red-500 rounded-xl flex items-center justify-center font-display font-black text-white text-base shadow-md">
+          🍔
+        </div>
+        <div>
+          <h1 class="font-display font-extrabold text-lg tracking-tight flex items-center gap-2">
+            Multi-Loja Super-Admin <span class="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Global</span>
+          </h1>
+          <p class="text-[10px] text-gray-400 font-medium mt-0.5">Visão unificada das lojas e faturamento do aplicativo</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <button onclick="toggleGlobalSettingsModal(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all">
+          ⚙️ Configurações Globais
+        </button>
+        <button onclick="toggleUsersModal(true)" class="bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all">
+          👥 Usuários
+        </button>
+        <button onclick="toggleRegisterStoreModal(true)" class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all">
+          ➕ Cadastrar Nova Loja
+        </button>
+        <button onclick="signOutSuperAdmin()" class="bg-white/10 hover:bg-white/20 text-white font-medium text-xs py-2.5 px-3 rounded-xl transition-colors">
+          Sair do Console
+        </button>
+        <a href="index.html" class="bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all border border-white/10">
+          Voltar ao App de Pedidos
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 flex flex-col gap-6 hidden whitespace-normal" id="real-dashboard-main">
+    
+    <!-- Active Override Notice Ribbon -->
+    <div id="active-override-banner" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-4 shadow-lg items-center justify-between hidden transition-all">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <h4 class="font-bold text-sm">MODO SUPER-USUÁRIO ATIVO!</h4>
+          <p class="text-xs opacity-95">Você está simulando o painel de pedidos da loja: <strong id="override-store-name-lbl" class="font-black">...</strong>. Qualquer alteração ou visualização em pedidos, cardápio e relatórios será feita nesta loja.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="clearOverrideStoreId()" class="bg-white text-orange-700 font-bold px-3.5 py-1.5 rounded-xl text-xs hover:bg-orange-50 cursor-pointer shadow-sm active:scale-95 transition-all">Desativar Modo Simulação</button>
+      </div>
+    </div>
+
+    <!-- Quick Cards Widgets Statistics -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl">
+          🏪
+        </div>
+        <div>
+          <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Lojas Parceiras</span>
+          <h3 id="stat-total-stores" class="font-display font-black text-2xl text-slate-800 leading-tight">0</h3>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+        <div class="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center text-xl">
+          🟢
+        </div>
+        <div>
+          <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Lojas Abertas</span>
+          <h3 id="stat-open-stores" class="font-display font-black text-2xl text-slate-800 leading-tight">0</h3>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+        <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+          📊
+        </div>
+        <div>
+          <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total de Pedidos Geral</span>
+          <h3 id="stat-total-orders" class="font-display font-black text-2xl text-slate-800 leading-tight">0</h3>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+        <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+          👥
+        </div>
+        <div>
+          <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Clientes Cadastrados</span>
+          <h3 id="stat-total-clients" class="font-display font-black text-2xl text-slate-800 leading-tight">0</h3>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Search Tool and Filter Layout -->
+    <section class="bg-white rounded-2xl p-4.5 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h3 class="font-display font-extrabold text-gray-800 text-base">Lojas Registradas no Sistema</h3>
+        <p class="text-[11px] text-gray-500 mt-0.5">Monitore os parâmetros, status do estabelecimento e controle as configurações globais.</p>
+      </div>
+
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-500 whitespace-nowrap">
+          <input type="checkbox" id="show-hidden-stores-cb" onchange="toggleShowHiddenStores(this.checked)" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-gray-300">
+          Mostrar Ocultas
+        </label>
+        <div class="relative w-full md:w-80">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 text-xs">🔍</span>
+          <input type="text" id="store-search-input" oninput="filterStoresList(this.value)" placeholder="Pesquisar por nome, WhatsApp ou ID..." class="w-full pl-9 pr-8 py-2 border border-gray-200 focus:border-orange-500 rounded-xl text-xs focus:outline-none transition-all shadow-xs" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Tenant Grid List -->
+    <section id="stores-visual-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Loaded dynamically -->
+      <div id="shimmer-loading" class="col-span-full py-12 text-center text-gray-400">
+        <p class="text-sm">Buscando informações gerais das lojas no Firebase...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: GLOBAL SETTINGS -->
+  <div id="global-settings-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl scale-95 transition-transform duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span>⚙️</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Configurações Globais</h3>
+        </div>
+        <button onclick="toggleGlobalSettingsModal(false)" class="text-gray-400 hover:text-gray-600 font-sans font-bold text-sm">✕</button>
+      </div>
+
+      <form id="global-settings-form" onsubmit="handleGlobalSettingsSubmit(event)" class="space-y-4 overflow-y-auto pr-1 flex-grow font-sans">
+        
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">WhatsApp Suporte</label>
+          <input type="text" id="global-admin-whatsapp" placeholder="Ex: 5511999999999" class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+          <p class="text-[9px] text-gray-400 mt-0.5">Sem espaços e formatação. Usado como contato de suporte.</p>
+        </div>
+
+        <div class="space-y-1 pt-2 border-t border-gray-100">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Token Master AbacatePay (Mensalidades)</label>
+          <input type="password" id="global-abacatepay-master-token" placeholder="abc_prod_xxxxxxxxxxxx" class="w-full p-2.5 text-xs font-mono font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+          <p class="text-[9px] text-gray-400 mt-0.5">Chave da SUA conta AbacatePay. Usada para gerar a cobrança Pix automática das mensalidades de todas as lojas.</p>
+        </div>
+
+        <div class="pt-4 flex gap-3 shrink-0">
+          <button type="button" onclick="toggleGlobalSettingsModal(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all font-display">Cancelar</button>
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer font-display">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: USERS MANAGEMENT -->
+  <div id="users-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-3xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">👥</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Gestão de Permissões de Usuários</h3>
+        </div>
+        <button onclick="toggleUsersModal(false)" class="text-gray-400 hover:text-gray-600 font-bold text-sm">✕</button>
+      </div>
+      <div class="overflow-y-auto pr-1 flex-grow font-sans space-y-3" id="users-list-container">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BILLING SETTINGS -->
+  <div id="billing-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">💰</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Configuração de Cobrança</h3>
+        </div>
+        <button onclick="document.getElementById('billing-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-sm">✕</button>
+      </div>
+      
+      <form id="billing-settings-form" class="space-y-4" onsubmit="handleBillingSubmit(event)">
+        <input type="hidden" id="billing-store-id" />
+        
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Dia de Pagamento / Vencimento</label>
+          <input type="number" min="1" max="31" id="billing-day" placeholder="Ex: 5" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-green-500 focus:outline-none" />
+          <p class="text-[9px] text-gray-400">A notificação será enviada ao lojista 5 dias antes desse dia.</p>
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Valor da Mensalidade (R$)</label>
+          <input type="number" step="0.01" min="0" id="billing-fee" placeholder="Ex: 149.90" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-green-500 focus:outline-none" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Chave PIX para Recebimento</label>
+          <input type="text" id="billing-pix" placeholder="Ex: email@dominio.com ou CPF/CNPJ" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-green-500 focus:outline-none" />
+        </div>
+
+        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md mt-2">
+          Salvar Configurações
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTER NEW STORE -->
+  <div id="register-store-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl scale-95 transition-transform duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🏪</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Cadastrar Nova Loja Parceira</h3>
+        </div>
+        <button onclick="toggleRegisterStoreModal(false)" class="text-gray-400 hover:text-gray-600 font-sans font-bold text-sm">✕</button>
+      </div>
+
+      <!-- Scrollable Form wrapper -->
+      <form id="new-store-form" onsubmit="handleNewStoreSubmit(event)" class="space-y-4 overflow-y-auto pr-1 flex-grow font-sans">
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Identificador Único (UID/Slug)*</label>
+            <input type="text" id="new-store-id" placeholder="Ex: ciachopp" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none bg-gray-50 focus:bg-white" />
+            <p class="text-[9px] text-gray-400">Será usado no link do cliente (id-unico-da-loja).</p>
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Nome da Loja*</label>
+            <input type="text" id="new-store-name" placeholder="Ex: Cia do Chopp" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Telefone / WhatsApp*</label>
+            <input type="text" id="new-store-phone" placeholder="Ex: (16) 99999-9999" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Descrição Comercial Cortesia</label>
+            <input type="text" id="new-store-desc" placeholder="Ex: Cerveja gelada e os melhores petiscos" class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between">
+          <div class="space-y-0.5">
+            <h4 class="text-xs font-bold text-emerald-900">Serviço WhatsApp Bot</h4>
+            <p class="text-[9px] text-emerald-600 font-semibold">Liberar o menu do WhatsApp Bot no perfil do restaurante</p>
+          </div>
+          <label class="flex items-center cursor-pointer">
+            <input type="checkbox" id="new-store-whatsapp-bot" class="w-4.5 h-4.5 text-emerald-600 rounded-lg focus:ring-emerald-500 border-gray-300">
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-orange-500">E-mail de Login do Cliente*</label>
+            <input type="email" id="new-store-email" placeholder="cliente@email.com" required class="w-full p-2.5 text-xs font-semibold border border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl focus:outline-none" />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-orange-500">Senha de Acesso (Login)*</label>
+            <input type="text" id="new-store-password" placeholder="Mínimo 6 dígitos" required class="w-full p-2.5 text-xs font-semibold border border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="pt-4 flex gap-3 shrink-0">
+          <button type="button" onclick="toggleRegisterStoreModal(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all font-display">Cancelar</button>
+          <button type="submit" class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer font-display">Inicializar e Ativar Loja</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT STORE CANDIDATE -->
+  <div id="edit-store-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl scale-95 transition-transform duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span>✏️</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Editar Cadastro de Loja Parceira</h3>
+        </div>
+        <button onclick="toggleEditStoreModal(false)" class="text-gray-400 hover:text-gray-600 font-sans font-bold text-sm">✕</button>
+      </div>
+
+      <!-- Scrollable Form wrapper -->
+      <form id="edit-store-form" onsubmit="handleEditStoreSubmit(event)" class="space-y-4 overflow-y-auto pr-1 flex-grow font-sans">
+        <input type="hidden" id="edit-store-id" />
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Nome da Loja*</label>
+          <input type="text" id="edit-store-name" placeholder="Ex: Cia do Chopp" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Telefone / WhatsApp*</label>
+            <input type="text" id="edit-store-phone" placeholder="Ex: (16) 99999-9999" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Descrição Comercial Cortesia</label>
+            <input type="text" id="edit-store-desc" placeholder="Ex: Cerveja gelada e os melhores petiscos" class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between">
+          <div class="space-y-0.5">
+            <h4 class="text-xs font-bold text-emerald-900">Serviço WhatsApp Bot</h4>
+            <p class="text-[9px] text-emerald-600 font-semibold">Liberar o menu do WhatsApp Bot no perfil do restaurante</p>
+          </div>
+          <label class="flex items-center cursor-pointer">
+            <input type="checkbox" id="edit-store-whatsapp-bot" class="w-4.5 h-4.5 text-emerald-600 rounded-lg focus:ring-emerald-500 border-gray-300">
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-orange-550">E-mail de Login*</label>
+            <input type="email" id="edit-store-email" placeholder="cliente@email.com" required class="w-full p-2.5 text-xs font-semibold border border-orange-200 focus:border-orange-550 rounded-xl focus:outline-none" />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] uppercase font-bold text-orange-550">Senha de Acesso (Login)*</label>
+            <input type="text" id="edit-store-password" placeholder="Mínimo 6 dígitos" required class="w-full p-2.5 text-xs font-semibold border border-orange-200 focus:border-orange-550 rounded-xl focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="pt-4 flex gap-3 shrink-0">
+          <button type="button" onclick="toggleEditStoreModal(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all font-display">Cancelar</button>
+          <button type="submit" class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer font-display">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PLAN SETTINGS -->
+  <div id="plan-settings-modal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl scale-95 transition-transform duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span>⚙️</span>
+          <h3 class="font-display font-extrabold text-gray-800 text-sm">Configuração de Plano</h3>
+        </div>
+        <button onclick="togglePlanSettingsModal(false)" class="text-gray-400 hover:text-gray-600 font-sans font-bold text-sm">✕</button>
+      </div>
+
+      <form id="plan-settings-form" onsubmit="handlePlanSettingsSubmit(event)" class="space-y-4 overflow-y-auto pr-1 flex-grow font-sans">
+        <input type="hidden" id="plan-store-id" />
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Total de Meses do Plano</label>
+          <input type="number" id="plan-total-months" placeholder="Ex: 12" min="1" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Meses Já Pagos <span class="text-[9px] font-normal lowercase">(Progresso)</span></label>
+          <input type="number" id="plan-paid-months" placeholder="Ex: 0" min="0" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Valor Mensal (R$)</label>
+          <input type="number" id="plan-value" step="0.01" placeholder="Ex: 50.00" class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">Dia do Vencimento</label>
+          <input type="number" id="plan-billing-day" min="1" max="31" placeholder="Ex: 10" required class="w-full p-2.5 text-xs font-semibold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+        </div>
+
+        <div class="pt-4 flex gap-3 shrink-0">
+          <button type="button" onclick="togglePlanSettingsModal(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all font-display">Cancelar</button>
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer font-display">Salvar Plano</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, COLLECTIONS, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot } from './supabase-adapter.js';
+
+    let loadedStores = [];
+    let activeFilterKeyword = '';
+    let showHiddenStores = false;
+
+    // Verify passcode sign-in
+    window.attemptAdminAccess = async function() {
+      const email = document.getElementById('admin-email')?.value.trim().toLowerCase();
+      const code = document.getElementById('admin-passcode').value;
+
+      if (!email) {
+        // Fallback backward compatibility for view-only local codes
+        if (code === 'admin321' || code === '120934' || code === 'popfood' || code === 'admin') {
+          sessionStorage.setItem('popfood_super_admin_verified', 'true');
+          document.getElementById('admin-auth-gate').classList.add('hidden');
+          document.getElementById('real-dashboard-header').classList.remove('hidden');
+          document.getElementById('real-dashboard-main').classList.remove('hidden');
+          initDashboardData();
+        } else {
+          window.customAlert("Por favor, preencha o E-mail e Senha (ou digite o código de acesso correto).");
+        }
+        return;
+      }
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, code);
+        const loggedEmail = userCredential.user.email.toLowerCase();
+
+        let isAuthorized = false;
+
+        // 🚨 DONO DO APP ABSOLUTO 🚨
+        if (loggedEmail === 'iranildo@popfood.com') {
+          isAuthorized = true;
+        } else {
+          // Verifica se a loja pertencente a este email tem permissão concedida
+          const profilesRef = collection(db, COLLECTIONS.restaurantProfile);
+          const q = query(profilesRef, where("adminEmail", "==", loggedEmail));
+          const qSnap = await getDocs(q);
+          
+          if (!qSnap.empty) {
+            qSnap.forEach(doc => {
+              if (doc.data().isSuperAdmin === true || doc.data().isSuperAdmin === 'true') {
+                isAuthorized = true;
+              }
+            });
+          }
+        }
+
+        if (!isAuthorized) {
+          // Se o login for de uma loja comum que não ganhou acesso
+          await signOut(auth);
+          window.customAlert("Acesso Negado!\n\nEste e-mail não tem permissões globais de Super Administrador.\nO Dono do App precisa conceder permissão para o seu E-mail no Painel Geral.");
+          return;
+        }
+
+        // Se passou, logou com sucesso e é superadmin!
+        sessionStorage.setItem('popfood_super_admin_verified', 'true');
+        document.getElementById('admin-auth-gate').classList.add('hidden');
+        document.getElementById('real-dashboard-header').classList.remove('hidden');
+        document.getElementById('real-dashboard-main').classList.remove('hidden');
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao logar no Firebase Authentication.\n" + err.message + "\n\nSeu painel exige um Login real para editar valores no Firestore devido às Regras de Segurança (allow write: if isSignedIn).");
+      }
+    }
+
+    // Auto load verification if logged in previously
+    window.onload = () => {
+      if (sessionStorage.getItem('popfood_super_admin_verified') === 'true') {
+        document.getElementById('admin-auth-gate').classList.add('hidden');
+        document.getElementById('real-dashboard-header').classList.remove('hidden');
+        document.getElementById('real-dashboard-main').classList.remove('hidden');
+        initDashboardData();
+      }
+      
+      const currentOverride = localStorage.getItem('popfood_admin_store_override');
+      if (currentOverride) {
+        document.getElementById('active-override-banner').classList.remove('hidden');
+        document.getElementById('active-override-banner').classList.add('flex');
+        (document.getElementById('override-store-name-lbl') || {}).textContent = currentOverride;
+      }
+    }
+
+    window.signOutSuperAdmin = async () => {
+      try { await signOut(auth); } catch(e) {}
+      sessionStorage.removeItem('popfood_super_admin_verified');
+      window.location.reload();
+    }
+
+    // Load metrics and multi-tenant profiles list natively from Firestore
+    async function initDashboardData() {
+      try {
+        // 1. Load Stores List
+        const storesRef = collection(db, COLLECTIONS.restaurantProfile);
+        const storesSnapshot = await getDocs(storesRef);
+        
+        let allStores = [];
+        storesSnapshot.forEach(docSnap => {
+          const sData = docSnap.data();
+          const docId = docSnap.id;
+          
+          // Filter out auxiliary document nodes that are system metadata, not actual stores
+          if (docId !== "logo" && !docId.startsWith("banner") && (sData.name || sData.storeId)) {
+            allStores.push({
+              ...sData,
+              id: docId
+            });
+          }
+        });
+
+        loadedStores = allStores;
+        
+        // 2. Fetch overall metrics from orders (Global collection)
+        const ordersSnap = await getDocs(collection(db, COLLECTIONS.orders));
+        let totalOrdersCount = ordersSnap.size;
+
+        // 3. Fetch overall clients
+        const clientsSnap = await getDocs(collection(db, COLLECTIONS.clients));
+        let totalClientsCount = clientsSnap.size;
+
+        // Calculate and paint stats
+        (document.getElementById('stat-total-stores') || {}).textContent = loadedStores.length;
+        (document.getElementById('stat-open-stores') || {}).textContent = loadedStores.filter(s => s.isOpen === true || s.isOpen === 'true').length;
+        (document.getElementById('stat-total-orders') || {}).textContent = totalOrdersCount;
+        (document.getElementById('stat-total-clients') || {}).textContent = totalClientsCount;
+
+        renderStoresListUI();
+      } catch (err) {
+        console.error("Failure fetching general dashboard telemetry: ", err);
+      }
+    }
+
+    // Draw grid list UI elements
+    function renderStoresListUI() {
+      const grid = document.getElementById('stores-visual-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      let filtered = loadedStores;
+      if (!showHiddenStores) {
+        filtered = filtered.filter(s => s.isHidden !== true && s.isHidden !== 'true');
+      }
+
+      if (activeFilterKeyword) {
+        filtered = filtered.filter(s => {
+          const n = (s.name || '').toLowerCase();
+          const p = (s.phone || '').toLowerCase();
+          const i = (s.id || '').toLowerCase();
+          return n.includes(activeFilterKeyword) || p.includes(activeFilterKeyword) || i.includes(activeFilterKeyword);
+        });
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-400 bg-white border border-gray-100 rounded-2xl">Não há lojas compatíveis com a busca.</div>`;
+        return;
+      }
+
+      filtered.forEach(store => {
+        const storeCard = document.createElement('div');
+        storeCard.className = "bg-white rounded-2xl p-5 border border-gray-105 border-gray-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative overflow-hidden";
+        
+        const openBadgeColor = (store.isOpen === true || store.isOpen === 'true') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-650';
+        const openBadgeText = (store.isOpen === true || store.isOpen === 'true') ? 'Aberto' : 'Fechado';
+
+        const isSuspended = store.suspended === true;
+        const opacityClass = isSuspended ? 'opacity-80 grayscale-[0.2]' : '';
+
+        const today = new Date();
+        const currentMonthYear = `${today.getMonth()}-${today.getFullYear()}`;
+        const isPaidThisMonth = store.lastPaidMonthYear === currentMonthYear;
+
+        const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+        const clientUrl = `${window.location.origin}${basePath}/cliente.html?store=${store.id}`;
+        const motoboyUrl = `${window.location.origin}${basePath}/motoboy.html?store=${store.id}`;
+
+        storeCard.innerHTML = `
+          <div class="${opacityClass}">
+            <div class="flex gap-2 mb-2">
+              ${isSuspended ? '<div class="flex-1 bg-red-50 text-red-600 text-[9px] font-bold px-2 py-1 rounded-lg shadow-sm border border-red-300 text-center uppercase tracking-wider flex items-center justify-center gap-1 font-sans">⛔ Suspensa</div>' : ''}
+              ${isPaidThisMonth ? '<div class="flex-1 bg-emerald-50 text-emerald-600 text-[9px] font-bold px-2 py-1 rounded-lg shadow-sm border border-emerald-300 text-center uppercase tracking-wider flex items-center justify-center gap-1 font-sans">✅ Pago</div>' : ''}
+            </div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[9px] font-mono uppercase bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md truncate max-w-[130px]" title="ID do Estabelecimento / Slug">ID: ${store.id}</span>
+              <span id="badge-open-${store.id}" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${openBadgeColor}">${openBadgeText}</span>
+            </div>
+
+            <h4 class="font-display font-bold text-gray-800 text-sm tracking-tight leading-tight">${store.name || 'Loja sem nome'}</h4>
+            <p class="text-[11px] text-gray-400 mt-1 line-clamp-1 font-semibold">📞 ${store.phone || 'Sem WhatsApp'}</p>
+            ${store.adminEmail ? `<p class="text-[10px] text-gray-600 mt-1.5"><span class="font-extrabold text-orange-500 text-[9px] uppercase tracking-wider">🔐 Acesso:</span> <span class="font-mono font-bold text-slate-800">${store.adminEmail}</span> / <span class="font-mono text-slate-700">${store.adminPassword}</span></p>` : ''}
+            <p class="text-[10px] text-gray-400 mt-1 line-clamp-1">📍 ${store.address || 'Sem endereço'}</p>
+            
+            <div class="mt-2.5 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[10px]">
+              <span class="text-gray-400">Horário: <strong class="text-gray-600">${store.openTime || '18:00'} às ${store.closeTime || '23:00'}</strong></span>
+              <span class="text-gray-400">Min: <strong class="text-gray-600">R$ ${(store.minimumOrderPrice || 0).toFixed(2)}</strong></span>
+            </div>
+          </div>
+
+          <div class="space-y-2.5 pt-3 border-t border-gray-100 flex flex-col justify-end">
+            <!-- Quick Actions Grid -->
+            <div class="grid grid-cols-[1fr_auto_auto_auto] gap-2">
+              <button onclick="overrideSessionIntoStore('${store.id}', '${store.name}')" class="w-full bg-slate-900 text-white hover:bg-orange-600 font-bold text-[11px] py-2.5 rounded-xl transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1.5" title="Acessar Painel da Loja">
+                👁️ Acessar Painel
+              </button>
+              <button onclick="openEditStoreModal('${store.id}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 w-10 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center justify-center font-bold" title="Editar Cadastro">
+                ✏️
+              </button>
+              <button onclick="toggleStoreVisibility('${store.id}', ${store.isHidden === true || store.isHidden === 'true'})" class="${store.isHidden === true || store.isHidden === 'true' ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'} w-10 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center justify-center font-bold" title="${store.isHidden === true || store.isHidden === 'true' ? 'Loja Oculta (Clique para Mostrar)' : 'Loja Visível (Clique para Ocultar)'}">
+                ${store.isHidden === true || store.isHidden === 'true' ? '🙈' : '👁️'}
+              </button>
+              <button onclick="deleteStoreData('${store.id}', '${store.name}')" class="bg-red-50 text-red-600 hover:bg-red-100 w-10 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center justify-center font-bold" title="Excluir Loja">
+                🗑️
+              </button>
+            </div>
+
+            <!-- Launcher Links -->
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="copyToClipboard('${clientUrl}', 'Link do Cliente copiado!')" class="bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 py-2.5 text-[10px] rounded-xl font-bold cursor-pointer transition-all flex items-center justify-center gap-1 shadow-sm">
+                🏪 Link Loja
+              </button>
+              <button onclick="copyToClipboard('${motoboyUrl}', 'Link do Motoboy copiado!')" class="bg-purple-50 border border-purple-100 text-purple-700 hover:bg-purple-100 py-2.5 text-[10px] rounded-xl font-bold cursor-pointer transition-all flex items-center justify-center gap-1 shadow-sm">
+                🏍️ Link Motoboy
+              </button>
+            </div>
+
+            <!-- Operating / Status Control -->
+            <div class="grid grid-cols-2 gap-2">
+               <button onclick="toggleStoreStatusDirectly('${store.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-colors">
+                 ${store.isOpen === true || store.isOpen === 'true' ? 'Fechar Caixa' : 'Abrir Caixa'}
+               </button>
+               ${store.id !== 'main' ? `
+               <button onclick="toggleStoreSuspension('${store.id}', ${isSuspended})" class="font-bold text-[10px] py-2.5 rounded-xl uppercase transition-colors ${isSuspended ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'}">
+                 ${isSuspended ? 'Liberar Acesso' : 'Suspender Acesso'}
+               </button>
+               ` : '<div></div>'}
+            </div>
+            
+            ${store.id !== 'main' ? `
+            <!-- Novo Box Financeiro / Plano -->
+            <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 flex flex-col gap-2 mt-1">
+              <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                  <div class="flex text-[10px] items-center gap-1.5">
+                     <span class="font-bold text-indigo-900">Plano Assinatura</span>
+                     ${store.planMonths ? `<span class="bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded-[4px] font-bold leading-none">${store.planMonths} ${store.planMonths > 1 ? 'Meses' : 'Mês'}</span>` : `<span class="bg-gray-100 text-gray-500 px-1 py-0.5 rounded-[4px] font-bold leading-none text-[8px]">MENSAL</span>`}
+                  </div>
+                  <span class="text-[9px] text-indigo-500 font-medium whitespace-nowrap mt-0.5">Valor: ${store.planValue ? `R$ ${parseFloat(store.planValue).toFixed(2).replace('.', ',')}` : 'Não def.'} | Vence: dia ${store.billingDay || '--'}</span>
+                </div>
+                <button onclick="openPlanSettingsModal('${store.id}')" class="text-indigo-600 hover:bg-indigo-100 bg-white border border-indigo-200 rounded-lg px-2 py-1 text-[9px] font-bold shadow-sm transition-colors cursor-pointer shrink-0">⚙️ Ajustar</button>
+              </div>
+              <div class="flex items-center justify-between bg-white rounded-lg border border-indigo-50 p-1.5 mb-1 mt-0.5">
+                <div class="flex items-center gap-2 flex-grow">
+                  <div class="flex-grow bg-indigo-100 rounded-full h-2 relative">
+                    <div class="bg-indigo-500 h-2 rounded-full absolute left-0" style="width: ${store.planMonths ? Math.min(100, ((store.paidMonths || 0) / store.planMonths) * 100) : 100}%"></div>
+                  </div>
+                  <span class="text-[9px] font-bold text-indigo-700 whitespace-nowrap min-w-[30px] text-right">${store.paidMonths || 0}/${store.planMonths || 1}</span>
+                </div>
+              </div>
+              <button onclick="confirmPayment('${store.id}')" class="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm font-bold text-[10px] py-2 rounded-lg uppercase tracking-wider transition-all w-full flex items-center justify-center gap-1.5 cursor-pointer">
+                💰 Confirmar Pagamento ${store.paidMonths !== undefined && store.planMonths && store.paidMonths < store.planMonths ? `(Mês ${(store.paidMonths || 0) + 1})` : ''}
+              </button>
+            </div>
+            ` : ''}
+          </div>
+        `;
+
+        grid.appendChild(storeCard);
+      });
+    }
+
+    // Set search dynamic filter variables
+    window.filterStoresList = function(keyword) {
+      activeFilterKeyword = keyword.toLowerCase().trim();
+      renderStoresListUI();
+    }
+
+    window.toggleShowHiddenStores = function(checked) {
+      showHiddenStores = checked;
+      renderStoresListUI();
+    }
+
+    window.toggleStoreVisibility = async function(storeId, currentVisibility) {
+      const match = loadedStores.find(s => s.id === storeId);
+      if (!match) return;
+
+      const nextHidden = !currentVisibility;
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          isHidden: nextHidden
+        }, { merge: true });
+        
+        match.isHidden = nextHidden;
+        renderStoresListUI();
+      } catch (err) {
+        window.customAlert("Erro ao ocultar/mostrar loja: " + err.message);
+      }
+    }
+
+    // Direct Aberto/Fechado switcher natively updating on Firestore
+    window.toggleStoreStatusDirectly = async function(storeId) {
+      const match = loadedStores.find(s => s.id === storeId);
+      if (!match) return;
+
+      const currentStatus = (match.isOpen === true || match.isOpen === 'true');
+      const nextStatus = !currentStatus;
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          isOpen: nextStatus
+        }, { merge: true });
+        
+        match.isOpen = nextStatus;
+        
+        // Update UI locally immediately
+        const b = document.getElementById(`badge-open-${storeId}`);
+        if (b) {
+          b.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold ${nextStatus ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-650'}`;
+          b.textContent = nextStatus ? 'Aberto' : 'Fechado';
+        }
+        
+        // Recalculate operational stores
+        (document.getElementById('stat-open-stores') || {}).textContent = loadedStores.filter(s => s.isOpen === true || s.isOpen === 'true').length;
+        console.log(`Instant status changed for store ${storeId} to ${nextStatus}`);
+      } catch (err) {
+        window.customAlert("Erro ao alterar o status da loja: " + err.message);
+      }
+    }
+
+    window.toggleUsersModal = function(show) {
+      const modal = document.getElementById('users-modal');
+      if(show) {
+        modal.classList.remove('hidden');
+        renderUsersList();
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function renderUsersList() {
+      const container = document.getElementById('users-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      // Ensure the absolute owner is always in the list visually
+      let allUsers = [...loadedStores];
+      const hasOwner = allUsers.some(s => s.adminEmail === 'iranildo@popfood.com');
+      if (!hasOwner) {
+        allUsers.unshift({
+          id: 'owner-system-record',
+          adminEmail: 'iranildo@popfood.com',
+          name: 'Painel Geral PopFood',
+          isSuperAdmin: true,
+          isStoreOwner: true
+        });
+      }
+
+      if(allUsers.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 py-8">Nenhum usuário encontrado.</div>`;
+        return;
+      }
+
+      allUsers.forEach(store => {
+        const email = store.adminEmail || 'Sem email cadastrado';
+        const isSuperAdmin = store.isSuperAdmin === true || store.isSuperAdmin === 'true';
+        const isStoreOwner = store.isStoreOwner !== false && store.isStoreOwner !== 'false';
+
+        // O dono do app sempre tem tudo.
+        const isAbsoluteOwner = email === 'iranildo@popfood.com';
+
+        const div = document.createElement('div');
+        div.className = "flex flex-col sm:flex-row items-start justify-between p-3 border border-gray-100 rounded-xl bg-gray-50 gap-3";
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg shrink-0">
+              👤
+            </div>
+            <div>
+              <h4 class="font-bold text-sm text-gray-800">${email} ${isAbsoluteOwner ? '<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[10px] ml-1">Dono</span>' : ''}</h4>
+              <p class="text-[10px] text-gray-400">Loja vinculada: ${store.name || 'Sem nome'}</p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3 w-full sm:w-auto mt-2 sm:mt-0 items-end">
+            <div class="flex flex-wrap items-center justify-end gap-4">
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold ${isSuperAdmin ? 'text-amber-600' : 'text-gray-400'}">
+                <input type="checkbox" onchange="updateUserRole('${store.id}', 'isSuperAdmin', this.checked)" ${isSuperAdmin ? 'checked' : ''} ${isAbsoluteOwner ? 'disabled' : ''} class="w-4 h-4 text-amber-500 rounded focus:ring-amber-500 border-gray-300">
+                Super-Admin
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold ${isStoreOwner ? 'text-blue-600' : 'text-gray-400'}">
+                <input type="checkbox" onchange="updateUserRole('${store.id}', 'isStoreOwner', this.checked)" ${isStoreOwner ? 'checked' : ''} ${isAbsoluteOwner ? 'disabled' : ''} class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-300">
+                Dono de Loja
+              </label>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto mt-2">
+              ${!isAbsoluteOwner ? `<button onclick="openBillingSettings('${store.id}')" class="flex-1 sm:flex-none text-[10px] bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg font-bold transition-all">💰 Cobrança / PIX</button>` : ''}
+              ${!isAbsoluteOwner ? `<button onclick="editUserEmail('${store.id}', '${store.adminEmail || ''}')" class="flex-1 sm:flex-none text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition-all">E-mail/Senha</button>` : ''}
+              ${!isAbsoluteOwner ? `<button onclick="deleteUser('${store.id}')" class="flex-1 sm:flex-none text-[10px] bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg font-bold transition-all">Excluir</button>` : ''}
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    window.editUserEmail = async function(storeId, currentEmail) {
+      const newEmail = prompt("Digite o NOVO E-mail de login para este usuário:", currentEmail);
+      if (!newEmail || newEmail.trim() === "" || newEmail === currentEmail) return;
+      
+      const newPassword = prompt("Digite a NOVA Senha para este usuário (mínimo 6 caracteres):");
+      if (!newPassword || newPassword.trim().length < 6) {
+        window.customAlert("Senha inválida ou muito curta (mínimo 6 caracteres). Operação cancelada.");
+        return;
+      }
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          adminEmail: newEmail.trim().toLowerCase(),
+          adminPassword: newPassword.trim()
+        });
+        
+        const store = loadedStores.find(s => s.id === storeId);
+        if(store) {
+          store.adminEmail = newEmail.trim().toLowerCase();
+          store.adminPassword = newPassword.trim();
+        }
+        
+        window.customAlert("Credenciais atualizadas com sucesso!");
+        renderUsersList();
+      } catch (err) {
+        window.customAlert("Erro ao atualizar credenciais: " + err.message);
+      }
+    }
+
+    window.openBillingSettings = function(storeId) {
+      const store = loadedStores.find(s => s.id === storeId);
+      if(!store) return;
+      (document.getElementById('billing-store-id') || {}).value = storeId;
+      (document.getElementById('billing-day') || {}).value = store.billingDay || '';
+      (document.getElementById('billing-fee') || {}).value = store.monthlyFee || '';
+      (document.getElementById('billing-pix') || {}).value = store.pixKey || '';
+      document.getElementById('billing-modal').classList.remove('hidden');
+    }
+
+    window.handleBillingSubmit = async function(event) {
+      event.preventDefault();
+      const storeId = document.getElementById('billing-store-id').value;
+      const billingDay = parseInt(document.getElementById('billing-day').value, 10);
+      const monthlyFee = parseFloat(document.getElementById('billing-fee').value);
+      const pixKey = document.getElementById('billing-pix').value.trim();
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          billingDay: billingDay,
+          monthlyFee: monthlyFee,
+          pixKey: pixKey
+        });
+        
+        const store = loadedStores.find(s => s.id === storeId);
+        if(store) {
+          store.billingDay = billingDay;
+          store.monthlyFee = monthlyFee;
+          store.pixKey = pixKey;
+        }
+
+        document.getElementById('billing-modal').classList.add('hidden');
+        window.customAlert("Configurações de cobrança salvas com sucesso!");
+        renderUsersList();
+      } catch (err) {
+        window.customAlert("Erro ao salvar cobrança: " + err.message);
+      }
+    }
+
+    window.deleteUser = async function(storeId) {
+      if(!await window.customConfirm("Tem CERTEZA que deseja EXCLUIR este usuário permanentemente? Isso apagará também os dados da loja vinculada a este perfil.")) {
+        return;
+      }
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId));
+        loadedStores = loadedStores.filter(s => s.id !== storeId);
+        window.customAlert("Usuário e loja excluídos com sucesso!");
+        renderUsersList();
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao excluir usuário: " + err.message);
+      }
+    }
+
+    window.updateUserRole = async function(storeId, roleField, newValue) {
+      if(!await window.customConfirm(`Deseja alterar esta permissão de acesso?`)) {
+        renderUsersList(); // revert UI toggle if cancelled
+        return;
+      }
+      try {
+        const payload = {};
+        payload[roleField] = newValue;
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), payload);
+        
+        // update local cache to keep UI fresh
+        const store = loadedStores.find(s => s.id === storeId);
+        if(store) store[roleField] = newValue;
+        
+        renderUsersList(); 
+        initDashboardData(); // sync general dashboard lists if we changed superAdmin logic
+      } catch(err) {
+        window.customAlert("Erro ao atualizar: " + err.message);
+        renderUsersList();
+      }
+    }
+
+    window.toggleStoreSuspension = async function(storeId, currentStatus) {
+      if(storeId === 'main') return;
+      const newStatus = !currentStatus;
+      
+      const confirmMsg = newStatus ? 'Deseja BLOQUEAR o acesso desta loja?\n\nO cliente verá uma mensagem de suspensão e não poderá receber pedidos ou acessar o painel administrativo.' : 'Deseja DESBLOQUEAR e reativar o acesso desta loja livremente?';
+      if(!await window.customConfirm(confirmMsg)) return;
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          suspended: newStatus
+        });
+        window.customAlert(newStatus ? "Loja suspensa com sucesso." : "Loja liberada com sucesso.");
+        initDashboardData();
+      } catch(err) {
+        window.customAlert("Erro ao alterar status de suspensão: " + err.message);
+      }
+    }
+
+    window.updateBillingDay = async function(storeId) {
+      const dayInput = document.getElementById(`billing-day-${storeId}`);
+      const newDay = dayInput.value;
+      
+      if(!newDay || newDay < 1 || newDay > 31) {
+        window.customAlert("Por favor, insira um dia válido entre 1 e 31.");
+        return;
+      }
+      
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          billingDay: newDay,
+          updatedAt: new Date().toISOString()
+        });
+        window.customAlert("Dia de vencimento atualizado com sucesso!");
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao atualizar dia de vencimento: " + err.message);
+      }
+    }
+
+    window.toggleGlobalSettingsModal = async function(show) {
+      document.getElementById('global-settings-modal').classList.toggle('hidden', !show);
+      if(show) {
+        try {
+          const snap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'));
+          if(snap.exists()) {
+            (document.getElementById('global-admin-whatsapp') || {}).value = snap.data().adminWhatsApp || '';
+            (document.getElementById('global-abacatepay-master-token') || {}).value = snap.data().abacatePayMasterToken || '';
+          }
+        } catch(e) {
+          console.error("Erro ao carregar settings", e);
+        }
+      }
+    }
+
+    window.handleGlobalSettingsSubmit = async function(e) {
+      e.preventDefault();
+      const adminWhatsApp = document.getElementById('global-admin-whatsapp').value.replace(/\D/g, '');
+      const masterToken = document.getElementById('global-abacatepay-master-token').value.trim();
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'), {
+          adminWhatsApp: adminWhatsApp,
+          abacatePayMasterToken: masterToken
+        }, { merge: true });
+        window.customAlert("Configuração salva com sucesso!");
+        toggleGlobalSettingsModal(false);
+      } catch(err) {
+        window.customAlert("Erro ao salvar opções globais: " + err.message);
+      }
+    }
+
+    window.togglePlanSettingsModal = function(show) {
+      document.getElementById('plan-settings-modal').classList.toggle('hidden', !show);
+    }
+
+    window.openPlanSettingsModal = function(storeId) {
+      const store = loadedStores.find(s => s.id === storeId);
+      if(!store) return;
+      (document.getElementById('plan-store-id') || {}).value = store.id;
+      (document.getElementById('plan-total-months') || {}).value = store.planMonths || 1;
+      (document.getElementById('plan-paid-months') || {}).value = store.paidMonths || 0;
+      (document.getElementById('plan-value') || {}).value = store.planValue || '';
+      (document.getElementById('plan-billing-day') || {}).value = store.billingDay || '';
+      togglePlanSettingsModal(true);
+    }
+
+    window.handlePlanSettingsSubmit = async function(e) {
+      e.preventDefault();
+      const storeId = document.getElementById('plan-store-id').value;
+      const planMonths = parseInt(document.getElementById('plan-total-months').value, 10);
+      const paidMonths = parseInt(document.getElementById('plan-paid-months').value, 10);
+      const planValue = parseFloat(document.getElementById('plan-value').value);
+      const billingDay = parseInt(document.getElementById('plan-billing-day').value, 10);
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          planMonths,
+          paidMonths,
+          planValue,
+          billingDay,
+          updatedAt: new Date().toISOString()
+        });
+        window.customAlert("Plano configurado com sucesso!");
+        togglePlanSettingsModal(false);
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao salvar configuração do plano: " + err.message);
+      }
+    }
+
+    window.confirmPayment = async function(storeId) {
+      const store = loadedStores.find(s => s.id === storeId);
+      if(!store) return;
+
+      const planMonths = store.planMonths || 1;
+      let paidMonths = store.paidMonths || 0;
+
+      if (paidMonths >= planMonths && planMonths > 0) {
+         if(await window.customConfirm("O plano selecionado já atingiu o total de meses pagos (" + paidMonths + "/" + planMonths + ").\n\nDeseja iniciar um novo ciclo e registrar o pagamento do 1º mês?")) {
+             paidMonths = 1;
+         } else {
+             return;
+         }
+      } else {
+         if(!await window.customConfirm("Deseja confirmar o pagamento desta mensalidade?\nIsso avançará o progresso de pagamento em 1 mês e liberará o acesso (se suspenso).")) return;
+         paidMonths += 1;
+      }
+
+      try {
+        const today = new Date();
+        const currentMonthYear = `${today.getMonth()}-${today.getFullYear()}`;
+        
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          suspended: false,
+          lastPaidMonthYear: currentMonthYear,
+          paidMonths: paidMonths,
+          updatedAt: new Date().toISOString()
+        });
+        
+        window.customAlert("Pagamento confirmado com sucesso!");
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao confirmar pagamento: " + err.message);
+      }
+    }
+
+    window.deleteStoreData = async function(storeId, storeName) {
+      if(storeId === 'main') {
+        window.customAlert("A loja 'main' não pode ser excluída por questões de compatibilidade do sistema.");
+        return;
+      }
+      
+      const confirmText = await window.customPrompt(`ATENÇÃO DESTRUTIVA EM CASCATA!\n\nTem certeza que quer EXCLUIR DEFINITIVAMENTE a loja "${storeName}" (${storeId})?\n\nISSO APAGARÁ: login/senha, produtos, categorias, adicionais/complementos, pedidos, clientes da loja e cupons de uma vez por todas.\n\nPara confirmar a exclusão de tudo, digite o ID da loja correspondente:`);
+      if(confirmText !== storeId) {
+        if(confirmText !== null && confirmText !== undefined) window.customAlert("Cancelado: O ID digitado não confere.");
+        return;
+      }
+      
+      try {
+        console.log(`[CASCADE DELETE] Iniciando remoção completa da loja: ${storeId}`);
+        
+        // Define as coleções dependentes que possuem storeId
+        const dependentCollections = [
+          COLLECTIONS.products,
+          COLLECTIONS.categories,
+          COLLECTIONS.complements,
+          COLLECTIONS.orders,
+          COLLECTIONS.clients,
+          COLLECTIONS.coupons
+        ];
+
+        let totalDeleted = 0;
+
+        for (const colName of dependentCollections) {
+          console.log(`[CASCADE DELETE] Buscando documentos na coleção: ${colName}`);
+          const q = query(collection(db, colName), where("storeId", "==", storeId));
+          const snap = await getDocs(q);
+          
+          if (!snap.empty) {
+            console.log(`[CASCADE DELETE] Encontrados ${snap.size} documentos em ${colName}`);
+            // Deletar cada documento
+            const deletePromises = snap.docs.map(docSnap => deleteDoc(doc(db, colName, docSnap.id)));
+            await Promise.all(deletePromises);
+            totalDeleted += snap.size;
+            console.log(`[CASCADE DELETE] Sucesso ao remover documentos de: ${colName}`);
+          }
+        }
+
+        // Agora exclui o documento do perfil do restaurante e suas fotos/banners associados
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId));
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId + "_logo"));
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId + "_banner0"));
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId + "_banner1"));
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, storeId + "_banner2"));
+        
+        window.customAlert(`Sucesso total!\n\nA loja "${storeName}" e todas as suas configurações de login, senha, fotos de logomarca/banners e dados relacionados (${totalDeleted} sub-documentos deletados) foram completamente excluídos do banco de dados.`);
+        initDashboardData();
+      } catch (err) {
+        console.error("Erro durante a exclusão em cascata: ", err);
+        window.customAlert("Erro ao excluir dados em cascata: " + err.message);
+      }
+    }
+
+    // Override active session user UID override variables
+    window.overrideSessionIntoStore = function(storeId, storeName) {
+      localStorage.setItem('popfood_admin_store_override', storeId);
+      localStorage.setItem('popfood_admin_store_name_override', storeName);
+      
+      // Paint visual notice
+      document.getElementById('active-override-banner').classList.remove('hidden');
+      document.getElementById('active-override-banner').classList.add('flex');
+      (document.getElementById('override-store-name-lbl') || {}).textContent = storeName;
+      
+      window.customAlert(`Fabuloso! Modo simulação ativo.\nRedirecionando para o Painel de Pedidos da loja "${storeName}".`);
+      window.location.href = "pedidos.html";
+    }
+
+    // Restore standard session variables
+    window.clearOverrideStoreId = function() {
+      localStorage.removeItem('popfood_admin_store_override');
+      localStorage.removeItem('popfood_admin_store_name_override');
+      document.getElementById('active-override-banner').classList.add('hidden');
+      window.customAlert("Modo Simulação desativado! Retornando ao comportamento padrão.");
+      window.location.reload();
+    }
+
+    // New store initialization model
+    window.toggleRegisterStoreModal = function(show) {
+      const modal = document.getElementById('register-store-modal');
+      if (!modal) return;
+      if (show) {
+        modal.classList.remove('hidden');
+        document.getElementById('new-store-form').reset();
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // Copying URLs helper to facilitate testing
+    window.copyToClipboard = function(text, successMsg) {
+      navigator.clipboard.writeText(text).then(() => {
+        window.customAlert(successMsg);
+      }).catch(err => {
+        // Fallback prompt
+        window.prompt("Copie o link abaixo:", text);
+      });
+    }
+
+    // Form submit pipeline
+    window.handleNewStoreSubmit = async function(event) {
+      event.preventDefault();
+      
+      let storeId = document.getElementById('new-store-id').value.toLowerCase().replace(/[^a-z0-9_-]/g, '').trim();
+      const name = document.getElementById('new-store-name').value.trim();
+      const phone = document.getElementById('new-store-phone').value.trim();
+      const description = document.getElementById('new-store-desc').value.trim() || 'Melhor restaurante da região';
+      const adminEmail = document.getElementById('new-store-email').value.trim().toLowerCase();
+      const adminPassword = document.getElementById('new-store-password').value.trim();
+
+      if (!storeId) {
+        window.customAlert("Favor definir o ID Slug de identificação único!");
+        return;
+      }
+
+      // Check if store ID already is used
+      const existing = loadedStores.some(s => s.id === storeId);
+      if (existing) {
+        window.customAlert("Este Identificador Único / Slug já está em uso! Escolha outro (ex: choppcia2).");
+        return;
+      }
+
+      // Feed base JSON profile details matches perfil.html schema values
+      const initialProfile = {
+        storeId: storeId,
+        name: name,
+        phone: phone,
+        description: description,
+        adminEmail: adminEmail,
+        adminPassword: adminPassword,
+        openTime: '18:00',
+        closeTime: '23:30',
+        cep: '14000-000',
+        address: 'A preencher pelo perfil do estabelecimento',
+        isOpen: true,
+        logo: '',
+        minimumOrderPrice: 0.0,
+        abacatePayToken: '',
+        mpAccessToken: '',
+        mpPublicKey: '',
+        stripePublicKey: '',
+        stripeSecretKey: '',
+        latitude: -23.55052,
+        longitude: -46.633308,
+        createdAt: new Date().toISOString(),
+        whatsappBotEnabled: document.getElementById('new-store-whatsapp-bot').checked,
+        deliveryRates: {
+          "1": 5.0,
+          "2": 6.5,
+          "3": 8.0,
+          "4": 9.5,
+          "5": 11.0,
+          "6": 12.5,
+          "7": 14.0,
+          "8": 15.5,
+          "9": 17.0,
+          "10": 18.5
+        },
+        deliveryTimes: {
+          "1": 25, "2": 30, "3": 35, "4": 40, "5": 45, "6": 50, "7": 55, "8": 60, "9": 65, "10": 70
+        }
+      };
+
+      try {
+        // Create matching standard Firebase Auth user dynamically
+        try {
+          await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+        } catch (authErr) {
+          if (authErr.code !== 'auth/email-already-in-use') {
+            throw authErr;
+          }
+          console.log("Firebase Auth account already exists, matching document directly.");
+        }
+
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), initialProfile);
+        window.customAlert(`Sucesso magnífico!\nLoja "${name}" cadastrada com sucesso.\nID slug: ${storeId}\nLink do cliente: /cliente.html?store=${storeId}\n\nO cliente agora pode acessar o painel de pedidos usando:\nE-mail: ${adminEmail}\nSenha: ${adminPassword}`);
+        toggleRegisterStoreModal(false);
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro no setup de cadastro da loja: " + err.message);
+      }
+    }
+
+    window.toggleEditStoreModal = function(show) {
+      const modal = document.getElementById('edit-store-modal');
+      if (!modal) return;
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    window.openEditStoreModal = function(storeId) {
+      const store = loadedStores.find(s => s.id === storeId);
+      if (!store) {
+        window.customAlert("Loja não encontrada!");
+        return;
+      }
+      (document.getElementById('edit-store-id') || {}).value = store.id;
+      (document.getElementById('edit-store-name') || {}).value = store.name || '';
+      (document.getElementById('edit-store-phone') || {}).value = store.phone || '';
+      (document.getElementById('edit-store-desc') || {}).value = store.description || '';
+      (document.getElementById('edit-store-email') || {}).value = store.adminEmail || '';
+      (document.getElementById('edit-store-password') || {}).value = store.adminPassword || '';
+      
+      const whatsappBotCb = document.getElementById('edit-store-whatsapp-bot');
+      if (whatsappBotCb) {
+        whatsappBotCb.checked = store.whatsappBotEnabled === true || store.whatsappBotEnabled === 'true';
+      }
+
+      toggleEditStoreModal(true);
+    }
+
+    window.handleEditStoreSubmit = async function(event) {
+      event.preventDefault();
+      const storeId = document.getElementById('edit-store-id').value;
+      const name = document.getElementById('edit-store-name').value.trim();
+      const phone = document.getElementById('edit-store-phone').value.trim();
+      const description = document.getElementById('edit-store-desc').value.trim();
+      const adminEmail = document.getElementById('edit-store-email').value.trim().toLowerCase();
+      const adminPassword = document.getElementById('edit-store-password').value.trim();
+      const whatsappBotEnabled = document.getElementById('edit-store-whatsapp-bot').checked;
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), {
+          name: name,
+          phone: phone,
+          description: description,
+          adminEmail: adminEmail,
+          adminPassword: adminPassword,
+          whatsappBotEnabled: whatsappBotEnabled,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        window.customAlert(`Cadastro da loja "${name}" atualizado com sucesso!`);
+        toggleEditStoreModal(false);
+        initDashboardData();
+      } catch (err) {
+        window.customAlert("Erro ao editar dados da loja: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

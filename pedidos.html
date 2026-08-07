@@ -1,0 +1,4274 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel de Pedidos - PopFood Delivery</title>
+    <script type="importmap">
+{
+        "imports": {
+          }
+      }
+</script>
+<script>
+window.copyStoreLink = function() {
+      if (!window.currentStoreId) return;
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const link = `${window.location.origin}${basePath}/cliente.html?store=${window.currentStoreId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        window.customAlert ? window.customAlert("Link do seu cardápio copiado!") : alert("Link copiado!");
+      }).catch(err => {
+        console.error('Falha ao copiar', err);
+        window.customAlert ? window.customAlert("Não foi possível copiar automaticamente. Use este link: " + link) : alert("Use este link: " + link);
+      });
+    };
+</script>
+    <script>
+      // Generate dynamic manifest based on URL parameters
+      (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const storeId = urlParams.get("store");
+        if (storeId) {
+          const manifest = {
+            name: "PopFood Lojista",
+            short_name: "PopFood Lojista",
+            description: "Painel de Pedidos PopFood",
+            start_url: window.location.href, // This includes ?store=loja
+            display: "standalone",
+            background_color: "#ffffff",
+            theme_color: "#FF4500",
+            icons: [
+              {
+                src: window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "") + "/favicon.png",
+                sizes: "192x192",
+                type: "image/png"
+              },
+              {
+                src: window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "") + "/favicon.png",
+                sizes: "512x512",
+                type: "image/png"
+              }
+            ]
+          };
+          const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+          const manifestURL = URL.createObjectURL(blob);
+          document.write(`<link rel="manifest" href="${manifestURL}" />`);
+        } else {
+          document.write('<link rel="manifest" href="manifest.json" />');
+        }
+      })();
+    </script>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Outfit", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            colors: {
+              brand: {
+                primary: "#f97316",
+                secondary: "#22c55e",
+                danger: "#ef4444",
+                light: "#f3f4f6",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* Collapsable Sidebar Styles */
+      #main-sidebar {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #main-sidebar.collapsed {
+        width: 0 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      @media (max-width: 1023px) {
+        #main-sidebar {
+          transform: translateX(-100%) !important;
+        }
+        #main-sidebar.show-mobile {
+          transform: translateX(0) !important;
+        }
+      }
+      /* Side navigation active state indicators */
+      .menu-active {
+        background-color: #1e293b !important; /* bg-slate-800 */
+        color: #f97316 !important; /* text-brand-primary */
+        border-left: 4px solid #f97316 !important;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-brand-light font-sans text-gray-800 min-h-screen flex flex-col"
+  >
+    <!-- Authenticated Layout container -->
+    <div
+      class="flex-grow flex flex-col lg:flex-row min-h-screen relative bg-slate-50"
+    >
+      <!-- Mobile Sidebar overlay backdrop -->
+      <div
+        id="sidebar-overlay"
+        onclick="window.toggleSidebar(false)"
+        class="hidden fixed inset-0 bg-slate-900/40 z-40"
+      ></div>
+
+      <!-- MAIN SIDEBAR MENU -->
+      <aside
+        id="main-sidebar"
+        class="bg-slate-900 text-white w-64 flex-shrink-0 fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col justify-between transition-all duration-300"
+      >
+        <!-- Top Branding Section -->
+        <div class="p-5 border-b border-slate-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="text-3xl">🍔</span>
+              <div>
+                <h2
+                  class="font-display font-black text-sm tracking-wide text-orange-500 uppercase"
+                >
+                  PopFood
+                </h2>
+                <p class="text-[9px] text-slate-400">Painel Administrativo</p>
+              </div>
+            </div>
+            <!-- Close button for mobile -->
+            <button
+              onclick="window.toggleSidebar(false)"
+              class="lg:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Menu Items -->
+        <div
+          class="flex-grow overflow-y-auto px-3.5 py-5 space-y-1.5 font-sans"
+        >
+          <!-- Link: Cardápio / Painel -->
+          <a
+            href="index.html"
+            id="menu-link-cardapio"
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform"
+              >🍔</span
+            >
+            <span>Cardápio / Painel</span>
+          </a>
+
+          <!-- Link: Meus Pedidos -->
+          <a
+            href="pedidos.html"
+            id="menu-link-pedidos"
+            class="flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group menu-active"
+          >
+            <div class="flex items-center gap-3">
+              <span class="text-base group-hover:scale-110 transition-transform"
+                >🛵</span
+              >
+              <span>Meus Pedidos</span>
+            </div>
+          </a>
+
+          <!-- Link: Editar Perfil -->
+          <a
+            href="perfil.html"
+            id="menu-link-perfil"
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform"
+              >⚙️</span
+            >
+            <span>Editar Perfil</span>
+          </a>
+
+          <!-- Link: Clientes -->
+          <a
+            href="clientes.html"
+            id="menu-link-clientes"
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform"
+              >👥</span
+            >
+            <span>Clientes</span>
+          </a>
+
+          <!-- Link: Relatórios -->
+          <a
+            href="relatorios.html"
+            id="menu-link-relatorios"
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform"
+              >📊</span
+            >
+            <span>Relatórios</span>
+          </a>
+
+          <!-- Divider -->
+          <div class="border-t border-slate-800 my-4"></div>
+
+          <!-- Copiar Link Cliente Button -->
+          <button
+            onclick="window.copyStoreLink()"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white text-left cursor-pointer"
+          >
+            <span class="text-base">🔗</span>
+            <span>Copiar Link Cliente</span>
+          </button>
+
+          <!-- Ver Cardápio Live Link -->
+          <a
+            id="btn-view-cardapio-sidebar"
+            href="cliente.html"
+            target="_blank"
+            class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white"
+          >
+            <span class="text-base">👁️</span>
+            <span>Ver Cardápio Live</span>
+          </a>
+        </div>
+
+        <!-- Sair e logout bar at bottom -->
+        <div class="p-4 border-t border-slate-800">
+          <button
+            onclick="window.logoutAdmin()"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-red-950/30 text-red-400 hover:bg-red-900/40 hover:text-white cursor-pointer"
+            id="btn-logout-sidebar"
+          >
+            <span class="text-base">🚪</span>
+            <span>Sair e Deslogar</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- CONTENT WRAPPER FOR SIDEBAR LAYOUT -->
+      <div class="flex-grow flex flex-col min-w-0">
+        <!-- Admin Top Header Bar -->
+        <header
+          class="bg-white border-b border-gray-200 sticky top-0 z-30 px-4 py-3 flex flex-col lg:flex-row items-center justify-between gap-4"
+        >
+          <!-- Left details and menu toggle -->
+          <div class="flex items-center justify-between w-full lg:w-auto">
+            <div class="flex items-center gap-2.5">
+              <!-- Toggle Menu Button -->
+              <button
+                onclick="window.toggleSidebar()"
+                class="p-2 -ml-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                title="Mostrar/Ocultar Menu Lateral"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  ></path>
+                </svg>
+              </button>
+              <div class="flex items-center gap-3">
+                <span class="text-2xl hidden sm:inline">📋</span>
+                <div>
+                  <h1
+                    class="font-display font-bold text-base text-gray-800 leading-none"
+                  >
+                    Painel de Pedidos
+                  </h1>
+                  <div class="flex items-center gap-1.5 mt-1 leading-none">
+                    <span
+                      class="inline-block w-2 h-2 bg-green-500 rounded-full animate-ping"
+                    ></span>
+                    <span
+                      class="text-[9px] font-bold text-gray-400 uppercase tracking-wider"
+                      >Tempo Real 🔴</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Dropdown Menu -->
+          <div class="relative inline-block text-left" id="panel-settings-container">
+            <button
+              id="panel-settings-toggle-btn"
+              onclick="toggleSettingsDropdown(event)"
+              class="bg-orange-500 hover:bg-orange-600 text-white text-[11px] sm:text-[11.5px] font-bold py-2 px-3.5 sm:py-2.5 sm:px-4 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 hover:shadow-orange-500/10"
+              title="Configurações e Alertas do Painel"
+            >
+              <span>⚙️ Configurações do Painel</span>
+              <svg class="w-3.5 h-3.5 transition-transform duration-200" id="settings-caret-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Dropdown list -->
+            <div
+              id="panel-settings-dropdown"
+              class="hidden absolute right-0 mt-2.5 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 z-50 text-left space-y-4"
+            >
+              <!-- Impressão Auto Toggle Button -->
+              <div class="flex items-center justify-between border-b border-gray-50 pb-3">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  🖨️ Impressão Auto
+                </span>
+                <button
+                  onclick="toggleAutoPrint()"
+                  id="btn-autoprint"
+                  class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span id="lbl-auto-indicator">🖨️ Impressão Auto: OFF</span>
+                </button>
+              </div>
+
+              <!-- Desktop Notifications Toggle Button -->
+              <div class="flex items-center justify-between border-b border-gray-50 pb-3">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  🔔 Notificações
+                </span>
+                <button
+                  onclick="requestDesktopNotificationPermission()"
+                  id="btn-desktop-notifications"
+                  class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
+                  title="Ativar Alertas no Computador"
+                >
+                  <span id="lbl-notification-indicator">🔔 Notificações: Inativo</span>
+                </button>
+              </div>
+
+              <!-- Install PWA Button (Hidden by default) -->
+              <div id="pwa-install-container" class="hidden flex items-center justify-between border-b border-gray-50 pb-3">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  📱 Instalar App
+                </span>
+                <button
+                  onclick="installPWA()"
+                  id="btn-pwa-install"
+                  class="bg-brand-primary hover:bg-orange-600 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg shadow-sm transition-colors cursor-pointer"
+                  title="Instalar na Tela Inicial"
+                >
+                  Instalar PopFood
+                </button>
+              </div>
+
+              <!-- Sound Selector for Pedidos -->
+              <div class="space-y-1">
+                <label class="block text-[10px] uppercase font-bold text-gray-400">📢 Som de Novos Pedidos</label>
+                <div class="relative">
+                  <select
+                    id="sound-selector"
+                    onchange="changeNotificationSound(this.value)"
+                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer outline-none border-none appearance-none pr-8"
+                  >
+                    <option value="default">🔔 Pedidos: Bell Padrão</option>
+                    <option value="modern">🎵 Pedidos: Digital Sip</option>
+                    <option value="urgent">📢 Pedidos: Alerta Urgente</option>
+                    <option value="old_phone">☎️ Pedidos: Telefone Antigo</option>
+                  </select>
+                  <div class="absolute inset-y-0 right-2.5 flex items-center pointer-events-none text-[8px] text-gray-400">
+                    ▼
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sound Selector for Messages -->
+              <div class="space-y-1 pb-1">
+                <label class="block text-[10px] uppercase font-bold text-gray-400">💬 Som de Novas Mensagens</label>
+                <div class="relative">
+                  <select
+                    id="message-sound-selector"
+                    onchange="changeMessageSound(this.value)"
+                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer outline-none border-none appearance-none pr-8"
+                  >
+                    <option value="msg_digital">💬 Msg: Digital Beep</option>
+                    <option value="msg_bell">💬 Msg: Sino Suave</option>
+                    <option value="msg_bubble">💬 Msg: Bolha Pop</option>
+                    <option value="msg_chime">💬 Msg: Chime Chord</option>
+                  </select>
+                  <div class="absolute inset-y-0 right-2.5 flex items-center pointer-events-none text-[8px] text-gray-400">
+                    ▼
+                  </div>
+                </div>
+              </div>
+
+              <!-- Continuous Buzzer Toggle Button -->
+              <div class="flex items-center justify-between border-t border-b border-gray-50 py-3">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  🚨 Alerta Contínuo
+                </span>
+                <button
+                  onclick="toggleContinuousBuzzer()"
+                  id="btn-continuous-buzzer"
+                  class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Repetir som a cada 10 segundos para novos pedidos pendentes"
+                >
+                  <span id="lbl-continuous-buzzer">🚨 Campainha: ON</span>
+                </button>
+              </div>
+
+              <!-- Auto Accept Toggle Button -->
+              <div class="flex items-center justify-between border-b border-gray-50 pb-3">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  ⚡ Auto-Aceitar
+                </span>
+                <button
+                  onclick="toggleAutoAccept()"
+                  id="btn-auto-accept"
+                  class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Aceitar novos pedidos de forma automática"
+                >
+                  <span id="lbl-auto-accept">⚡ Auto-Aceitar: OFF</span>
+                </button>
+              </div>
+
+              <!-- Uber Direct Config Button -->
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  🚗 Uber Direct
+                </span>
+                <button
+                  onclick="openUberDirectModal()"
+                  class="bg-black hover:bg-slate-800 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Configurar credenciais da Uber Direct API"
+                >
+                  <span>Configurar</span>
+                </button>
+              </div>
+
+              <!-- Printer Config -->
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-xs font-semibold text-gray-700">🖨️ Configuração Térmica</span>
+                <button
+                  onclick="togglePrinterSettingsModal(true); toggleSettingsDropdown(event)"
+                  class="bg-orange-50 hover:bg-orange-100 text-orange-600 text-[11px] font-bold py-1.5 px-3.5 rounded-lg transition-colors cursor-pointer"
+                  title="Configurar Impressora Local"
+                >
+                  Configurar ⚙️
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main
+          class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 flex flex-col gap-6"
+        >
+          <!-- Visual Sound Indicator Banner -->
+          <div
+            id="new-order-banner"
+            class="bg-orange-500 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between hidden transition-all animate-bounce"
+          >
+            <div class="flex items-center gap-3">
+              <span class="text-2xl animate-pulse">🔔</span>
+              <div>
+                <h4 class="font-bold text-sm">NOVO PEDIDO RECEBIDO!</h4>
+                <p class="text-xs opacity-90">
+                  Um novo pedido acaba de ser enviado à cozinha. Verifique a aba
+                  Pendentes.
+                </p>
+              </div>
+            </div>
+            <button
+              onclick="dismissNewOrderBanner()"
+              class="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full outline-none font-bold text-xs"
+            >
+              OK
+            </button>
+          </div>
+
+          <!-- Filter selectors row -->
+          <section
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                onclick="selectStateFilter('Todos')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border transition-all cursor-pointer bg-orange-500 border-orange-500 text-white"
+                data-status="Todos"
+              >
+                Todos
+              </button>
+              <button
+                onclick="selectStateFilter('Pendente')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                data-status="Pendente"
+              >
+                Pendentes
+              </button>
+              <button
+                onclick="selectStateFilter('Preparando')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                data-status="Preparando"
+              >
+                Preparando
+              </button>
+              <button
+                onclick="selectStateFilter('Saiu para entrega')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                data-status="Saiu para entrega"
+              >
+                Rota de Entrega
+              </button>
+              <button
+                onclick="selectStateFilter('Entregue')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                data-status="Entregue"
+              >
+                Entregues
+              </button>
+              <button
+                onclick="selectStateFilter('Cancelado')"
+                class="filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                data-status="Cancelado"
+              >
+                Cancelados
+              </button>
+
+              <div class="h-6 w-[1px] bg-gray-200 mx-1 hidden sm:block"></div>
+
+              <!-- Layout Toggle -->
+              <div
+                class="flex items-center bg-gray-100 rounded-full p-1 border border-gray-200"
+              >
+                <button
+                  onclick="setLayout('list')"
+                  id="btn-layout-list"
+                  class="p-1.5 rounded-full transition-all cursor-pointer"
+                  title="Visualização em Lista"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 6h16M4 12h16M4 18h16"
+                    ></path>
+                  </svg>
+                </button>
+                <button
+                  onclick="setLayout('grid')"
+                  id="btn-layout-grid"
+                  class="p-1.5 rounded-full transition-all cursor-pointer"
+                  title="Visualização em Mosaico"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Search Box input element -->
+            <div class="relative w-full md:w-72">
+              <span
+                class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400 text-xs"
+                >🔍</span
+              >
+              <input
+                type="text"
+                id="order-search-input"
+                oninput="handleOrderSearch(this.value)"
+                placeholder="Pesquisar por cliente, ID, itens, fone..."
+                class="w-full pl-9 pr-8 py-2.5 border border-gray-200 focus:border-orange-550 focus:border-orange-500 rounded-xl text-xs focus:outline-none transition-all shadow-xs"
+              />
+              <button
+                onclick="clearOrderSearch()"
+                id="btn-clear-search"
+                class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 hidden text-xs transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          </section>
+
+          <!-- Content Columns splits: Em Andamento vs Finalizados -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- SUBSECTION: ACTIVE PIPELINE orders (Pendente, Preparando, Em Rota) -->
+            <div class="space-y-4">
+              <h3
+                class="font-display font-semibold text-sm text-gray-500 flex items-center gap-2"
+              >
+                <span>🛠️ Em Andamento</span>
+                <span
+                  id="active-pipes-count"
+                  class="bg-orange-100 text-brand-primary px-2 py-0.5 rounded-md text-[10px] font-bold"
+                  >0</span
+                >
+              </h3>
+
+              <div id="active-orders-grid" class="space-y-4">
+                <!-- Populated dynamically -->
+                <div
+                  class="text-center py-12 bg-white rounded-xl border border-gray-100 text-gray-400"
+                >
+                  <p class="text-sm">
+                    Buscando transações do banco de dados...
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- SUBSECTION: FINALIZED orders (Entregue, Cancelado) -->
+            <div class="space-y-4">
+              <h3
+                class="font-display font-semibold text-sm text-gray-500 flex items-center gap-2"
+              >
+                <span>✅ Histórico Finalizados</span>
+                <span
+                  id="finish-pipes-count"
+                  class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md text-[10px] font-bold"
+                  >0</span
+                >
+              </h3>
+
+              <div id="archived-orders-grid" class="space-y-4">
+                <!-- Populated dynamically -->
+                <div
+                  class="text-center py-12 bg-white rounded-xl border border-gray-100 text-gray-400"
+                >
+                  <p class="text-sm border-gray-50">
+                    Sem registros finalizados
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      <!-- Closing content wrapper -->
+    </div>
+    <!-- Closing layout container -->
+
+    <!-- MODAL: UBER DIRECT SETTINGS -->
+    <div
+      id="uber-direct-modal"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative transform scale-95 duration-200 transition-transform"
+      >
+        <button
+          onclick="closeUberDirectModal()"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10 cursor-pointer"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+        <div class="p-6 pb-2 border-b border-gray-50 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-black flex items-center justify-center shadow-sm">
+            <span class="text-white text-lg">🚗</span>
+          </div>
+          <div>
+            <h2 class="font-display font-bold text-lg text-gray-800 tracking-tight">Uber Direct API</h2>
+            <div class="text-[10px] text-gray-400 font-mono">Configurações de Integração</div>
+          </div>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4">
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-gray-700">ID de cliente do desenvolvedor (Client ID)</label>
+            <input type="text" id="uber-client-id" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-black focus:outline-none transition-all" placeholder="Ex: C_TmOb4cwWRXY...">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-gray-700">ID do usuário (Customer ID)</label>
+            <input type="text" id="uber-customer-id" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-black focus:outline-none transition-all" placeholder="Ex: 2d3bdca3-516f...">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-gray-700">Client Secret</label>
+            <input type="password" id="uber-client-secret" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-black focus:outline-none transition-all" placeholder="••••••••••••••••••••••••">
+          </div>
+        </div>
+        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+          <button onclick="closeUberDirectModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors cursor-pointer">Cancelar</button>
+          <button onclick="saveUberDirectSettings()" id="btn-save-uber" class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-black hover:bg-slate-800 transition-colors cursor-pointer shadow-sm">Salvar Dados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: DETALHES COMPLETOS DO PEDIDO (Drawer popup) -->
+    <div
+      id="details-modal"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col relative transform scale-95 duration-200 transition-transform"
+      >
+        <button
+          onclick="toggleDetailsModal(false)"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer"
+        >
+          ✕
+        </button>
+
+        <div class="p-6 border-b border-gray-100 pb-0">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <span id="modal-lbl-date" class="text-[10px] text-gray-400 font-mono">--/--/-- --:--</span>
+              <h2 id="modal-lbl-orderid" class="font-display font-bold text-lg text-gray-800 tracking-tight">Pedido #------</h2>
+              <div id="modal-lbl-status" class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold">Status</div>
+            </div>
+          </div>
+          
+          <!-- Tabs -->
+          <div class="flex items-center gap-4 border-b border-gray-100 text-xs font-semibold mt-2">
+            <button onclick="switchModalTab('details')" id="modal-tab-details" class="pb-2 border-b-2 border-orange-500 text-orange-600 transition-colors">Detalhes do Pedido</button>
+            <button onclick="switchModalTab('chat')" id="modal-tab-chat" class="pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-colors relative">
+              Chat com Cliente
+              <span id="modal-tab-chat-badge" class="absolute -top-1 -right-2 bg-red-500 text-white w-3 h-3 rounded-full text-[8px] flex items-center justify-center font-bold hidden">!</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable segment details -->
+        <div id="modal-content-details" class="p-6 overflow-y-auto max-h-[50vh] space-y-5">
+          <!-- Customer details -->
+          <div
+            class="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100 text-xs"
+          >
+            <h4 class="font-bold text-gray-700">Cliente & Entrega</h4>
+            <p>
+              <strong class="text-gray-500 font-medium">Nome:</strong>
+              <span id="modal-lbl-name">--</span>
+            </p>
+            <p>
+              <strong class="text-gray-500 font-medium">WhatsApp:</strong>
+              <span id="modal-lbl-phone">--</span>
+            </p>
+            <p>
+              <strong class="text-gray-500 font-medium" id="modal-title-address"
+                >Endereço:</strong
+              >
+              <span id="modal-lbl-address">--</span>
+            </p>
+            <p id="modal-lbl-comp-row">
+              <strong class="text-gray-500 font-medium">Complemento:</strong>
+              <span id="modal-lbl-comp">--</span>
+            </p>
+            <p id="modal-lbl-ref-row">
+              <strong class="text-gray-500 font-medium">Referência:</strong>
+              <span id="modal-lbl-ref">--</span>
+            </p>
+            <p>
+              <strong class="text-gray-500 font-medium">Pagamento:</strong>
+              <span id="modal-lbl-payment">--</span>
+            </p>
+            <p id="modal-lbl-troco-row">
+              <strong class="text-gray-500 font-medium">Troco:</strong>
+              <span id="modal-lbl-troco">--</span>
+            </p>
+            <div id="modal-lbl-uber-row" class="hidden border-t border-gray-200 pt-2 mt-2 space-y-1">
+              <h5 class="font-bold text-gray-700">Uber Direct</h5>
+              <p>
+                <strong class="text-gray-500 font-medium">Link de Rastreio:</strong>
+                <a id="modal-lbl-uber-link" href="#" target="_blank" class="text-blue-600 underline font-semibold">Acompanhar Entrega 📍</a>
+              </p>
+              <p>
+                <strong class="text-gray-500 font-medium">PIN de Confirmação:</strong>
+                <span id="modal-lbl-uber-pin" class="font-mono bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">----</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Rating Feedback details (Visible when order is rated) -->
+          <div
+            id="modal-lbl-rating-row"
+            class="hidden space-y-2 bg-amber-50/50 p-4 rounded-xl border border-amber-100 text-xs text-left"
+          >
+            <h4 class="font-bold text-amber-800 flex items-center gap-1">
+              ⭐ Avaliação do Cliente
+            </h4>
+            <div class="space-y-1">
+              <p>
+                <strong class="text-gray-655 font-medium"
+                  >🍔 Qualidade da Comida:</strong
+                >
+                <span
+                  id="modal-lbl-rating-food"
+                  class="font-bold text-amber-600"
+                  >--</span
+                >
+              </p>
+              <p>
+                <strong class="text-gray-655 font-medium"
+                  >🛵 Serviço de Entrega:</strong
+                >
+                <span
+                  id="modal-lbl-rating-delivery"
+                  class="font-bold text-amber-600"
+                  >--</span
+                >
+              </p>
+              <p id="modal-lbl-rating-comment-sec" class="hidden">
+                <strong class="text-gray-655 font-bold block mt-1.5"
+                  >💬 Comentário:</strong
+                >
+                <span
+                  id="modal-lbl-rating-comment"
+                  class="italic text-gray-705 pl-1 inline-block"
+                  >--</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <!-- Order Items lists -->
+          <div class="space-y-3">
+            <h4
+              class="font-bold text-xs text-gray-600 uppercase tracking-widest"
+            >
+              Itens requisitados
+            </h4>
+            <div id="modal-items-container" class="space-y-2"></div>
+          </div>
+
+          <hr class="border-gray-100" />
+
+          <!-- Totals index table -->
+          <div class="space-y-1.5 text-xs text-gray-500 font-medium">
+            <div class="flex justify-between">
+              <span>Subtotal:</span>
+              <span id="modal-subtotal" class="font-bold text-gray-700"
+                >R$ 0,00</span
+              >
+            </div>
+            <div class="flex justify-between text-brand-secondary">
+              <span>Desconto:</span>
+              <span id="modal-desconto" class="font-bold">- R$ 0,00</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Taxa do Delivery:</span>
+              <span id="modal-taxa" class="font-bold text-gray-700"
+                >R$ 0,00</span
+              >
+            </div>
+            <div
+              class="flex justify-between text-sm font-bold text-gray-800 pt-2 border-t border-gray-100"
+            >
+              <span>Total da Fatura:</span>
+              <span id="modal-total" class="text-brand-primary text-base"
+                >R$ 0,00</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat segment details -->
+        <div id="modal-content-chat" class="hidden overflow-hidden flex flex-col h-[50vh]">
+          <!-- AI Toggle Header -->
+          <div class="bg-indigo-50 border-b border-indigo-100 p-3 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-600 text-lg">🤖</span>
+              <div>
+                <p class="text-xs font-bold text-indigo-900">Resposta Automática</p>
+                <p class="text-[9px] text-indigo-700">O robô responderá dúvidas comuns automaticamente.</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="ai-chat-toggle" class="sr-only peer" onchange="toggleAiChat()">
+              <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+            </label>
+          </div>
+          
+          <div id="store-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 flex flex-col">
+            <!-- Store chat messages injected here -->
+          </div>
+          
+          <div class="p-3 bg-white border-t border-gray-100 shrink-0 space-y-2">
+            <!-- Quick Replies -->
+            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <button onclick="insertQuickReply('Olá! Em que posso ajudar?')" class="whitespace-nowrap bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-[10px] font-bold border border-orange-200 transition-colors">👋 Saudação</button>
+              <button onclick="insertQuickReply('Seu pedido já está quase pronto!')" class="whitespace-nowrap bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-[10px] font-bold border border-orange-200 transition-colors">⏳ Quase pronto</button>
+              <button onclick="insertQuickReply('O motoboy acabou de sair com o seu pedido.')" class="whitespace-nowrap bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-[10px] font-bold border border-orange-200 transition-colors">🛵 A caminho</button>
+            </div>
+            
+            <form onsubmit="sendStoreChatMessage(event)" class="flex items-center gap-2">
+              <input type="text" id="store-chat-input" placeholder="Responder ao cliente..." class="flex-1 bg-gray-100 border-none outline-none focus:ring-2 focus:ring-orange-500 rounded-xl px-4 py-3 text-xs" autocomplete="off">
+              <button type="submit" id="store-chat-send-btn" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-xl font-bold text-xs shadow-md transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Action Footer control keys -->
+        <div
+          class="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-2.5"
+        >
+          <button
+            id="btn-action-preparar"
+            class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-semibold py-2.5 rounded-lg text-xs transition-colors cursor-pointer"
+          >
+            Preparar
+          </button>
+          <button
+            id="btn-action-despachar"
+            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-lg text-xs transition-colors cursor-pointer"
+          >
+            Despachar
+          </button>
+          <button
+            id="btn-action-cancelar"
+            class="flex-1 border border-brand-danger hover:bg-red-50 text-brand-danger font-semibold py-2.5 rounded-lg text-xs transition-colors cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OFFSOUND BUZZER / AUDIO PLAYER FOR SOUND INTEGRATION -->
+    <audio id="bell-beep-player" src="som.mp3" preload="auto"></audio>
+
+    <!-- OFFSITE mono style receipt container targeted by specialized print window frames -->
+    <div id="receipt-print-layout" class="hidden"></div>
+
+    <!-- STYLE SHEETS INJECTED TO ENFORCE RECEIPT THERMAL DISPLAY MONOCHROME WIDTH -->
+    <style>
+      @media print {
+        @page {
+          margin: 0;
+        }
+        body {
+          margin: 0;
+          background: white;
+        }
+        body * {
+          visibility: hidden;
+        }
+        #receipt-print-layout,
+        #receipt-print-layout * {
+          visibility: visible;
+        }
+        #receipt-print-layout {
+          display: block !important;
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100% !important;
+          max-width: 100% !important;
+          background: white !important;
+          color: black !important;
+          font-family: monospace, "Courier New", Courier, monospace-bold !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        #receipt-print-layout pre,
+        #receipt-print-layout code {
+          font-family: monospace, "Courier New", Courier, monospace-bold !important;
+          white-space: pre !important;
+          word-break: break-all !important;
+        }
+        #receipt-print-layout div,
+        #receipt-print-layout span,
+        #receipt-print-layout p {
+          font-family: monospace, "Courier New", Courier, monospace-bold !important;
+          white-space: normal !important;
+        }
+      }
+    </style>
+
+    <!-- MODAL: CONFIGURAÇÃO DE IMPRESSORA -->
+    <div
+      id="printer-settings-modal"
+      class="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 hidden backdrop-blur-xs"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col space-y-4"
+      >
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-gray-800">⚙️ Impressoras Locais</h3>
+          <button
+            onclick="togglePrinterSettingsModal(false)"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-500">
+          Configure múltiplos destinos de impressão para automatizar seu fluxo
+          de trabalho.
+        </p>
+
+        <!-- List of Configured Printers -->
+        <div
+          id="printers-list-container"
+          class="space-y-2 max-h-[220px] overflow-y-auto pr-1"
+        >
+          <!-- List will be rendered here -->
+        </div>
+
+        <div class="pt-3 border-t border-gray-100 space-y-3">
+          <p class="text-[10px] font-bold text-gray-400 uppercase">
+            Adicionar Nova
+          </p>
+
+          <div class="space-y-2">
+            <input
+              type="text"
+              id="printer-server-url"
+              class="w-full text-xs p-2.5 border border-gray-200 rounded-xl focus:outline-none"
+              placeholder="URL: http://localhost:8080"
+            />
+            <div class="flex gap-2">
+              <select
+                id="printer-select"
+                class="flex-grow text-xs p-2.5 border border-gray-200 rounded-xl focus:outline-none bg-white"
+              >
+                <option value="">Aguardando URL...</option>
+              </select>
+              <button
+                onclick="fetchPrinters()"
+                class="bg-slate-100 hover:bg-slate-200 px-3 rounded-xl text-[10px] font-bold text-slate-700 transition-colors uppercase"
+              >
+                Listar
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <select
+              id="printer-width"
+              class="flex-grow text-xs p-2.5 border border-gray-200 rounded-xl focus:outline-none bg-white"
+            >
+              <option value="58">58mm (Padrão)</option>
+              <option value="80">80mm (Grande)</option>
+            </select>
+            <button
+              onclick="addNewPrinterToList()"
+              class="bg-brand-primary hover:bg-orange-600 text-white px-4 rounded-xl text-xs font-bold transition-all shadow-sm"
+            >
+              + ADICIONAR
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button
+            onclick="printTestPage()"
+            class="w-full bg-slate-50 border border-slate-100 text-slate-500 py-2.5 rounded-xl font-bold text-[10px] hover:bg-slate-100 transition-colors uppercase tracking-wider"
+          >
+            🧪 Imprimir Página de Teste (Piloto)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ESTIMAÇÃO DE TEMPO DO PREPARO -->
+    <div
+      id="prep-time-modal"
+      class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 hidden backdrop-blur-xs transition-all"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-gray-100 scale-95 transition-transform duration-200"
+      >
+        <div class="text-center space-y-4">
+          <div
+            class="mx-auto w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-xl"
+          >
+            ⏳
+          </div>
+          <div>
+            <h3 class="font-display font-extrabold text-gray-800 text-sm">
+              Tempo Estimado de Preparo
+            </h3>
+            <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">
+              Selecione em quantos minutos o pedido estará pronto para entrega
+              ou retirada.
+            </p>
+          </div>
+
+          <!-- Pre-selected option labels -->
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              onclick="confirmPrepTimeSelection(20)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              ⏱️ 20 min
+            </button>
+            <button
+              onclick="confirmPrepTimeSelection(30)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-sans"
+            >
+              ⏱️ 30 min
+            </button>
+            <button
+              onclick="confirmPrepTimeSelection(40)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-sans"
+            >
+              ⏱️ 40 min
+            </button>
+            <button
+              onclick="confirmPrepTimeSelection(50)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              ⏱️ 50 min
+            </button>
+            <button
+              onclick="confirmPrepTimeSelection(60)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-sans"
+            >
+              ⏱️ 60 min
+            </button>
+            <button
+              onclick="confirmPrepTimeSelection(80)"
+              class="bg-gray-50 hover:bg-orange-50 hover:text-orange-500 text-gray-700 border border-gray-100 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-sans"
+            >
+              ⏱️ 80 min
+            </button>
+          </div>
+
+          <div class="space-y-1">
+            <label
+              class="block text-[10px] uppercase font-bold text-gray-400 text-left"
+              >Ou digite o tempo personalizado (min):</label
+            >
+            <input
+              type="number"
+              id="custom-prep-minutes"
+              placeholder="Ex: 45"
+              class="w-full text-center p-2.5 text-sm font-semibold border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all"
+            />
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button
+              onclick="togglePrepTimeModal(false)"
+              class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              onclick="confirmCustomPrepTime()"
+              class="flex-1 py-2.5 bg-brand-primary hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer transition-all"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Required for Client-Side FCM Sender OAuth generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.9.0/jsrsasign-all-min.js"></script>
+    <script type="module">
+      const sendPushNotification = async () => {};
+      import {
+        db,
+        auth,
+        Timestamp,
+        COLLECTIONS,
+        collection,
+        doc,
+        query,
+        orderBy,
+        onSnapshot,
+        getDoc,
+        updateDoc,
+        onAuthStateChanged,
+        where,
+        signOut,
+        messaging,
+        arrayUnion,
+        getToken,
+        onMessage,
+        VAPID_KEY,
+      } from './supabase-adapter.js';
+
+      window.fcmMessaging = messaging;
+
+      if ('serviceWorker' in navigator) {
+        Promise.resolve()
+          .then(function(registration) {
+            console.log('Registration successful, scope is:', (registration?.scope || '/'));
+            registration.update().catch(err => console.log('Error updating registration:', err));
+          }).catch(function(err) {
+            console.log('Service worker registration failed, error:', err);
+          });
+      }
+
+      if (messaging) {
+        try {
+          onMessage(messaging, (payload) => {
+            console.log("Foreground notification received in pedidos.html:", payload);
+            const title = payload.notification?.title || "Nova Notificação! 🔔";
+            const body = payload.notification?.body || "";
+            const icon = payload.notification?.image || "favicon.png";
+
+            // Trigger sound and alerts depending on payload type
+            const type = payload.data?.type || "";
+            if (type === "new_order") {
+              if (typeof triggerNewOrderAlert === "function") {
+                triggerNewOrderAlert();
+              }
+            } else if (type === "chat") {
+              if (typeof triggerNewMessageAlert === "function") {
+                triggerNewMessageAlert();
+              }
+            } else {
+              // Standard notification beep
+              try {
+                if (typeof synthesizeBellRingerBeep === "function") {
+                  synthesizeBellRingerBeep("default");
+                }
+              } catch(e) {}
+            }
+
+            // Also show an elegant toast in UI
+            const toast = document.createElement("div");
+            toast.className = "fixed top-6 right-6 bg-slate-900 border border-slate-800 text-white p-4 rounded-2xl shadow-2xl z-[99999] max-w-sm flex items-start gap-3 transition-all duration-300 transform translate-y-0 opacity-100 animate-bounce";
+            toast.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.5)";
+            toast.innerHTML = `
+              <div class="bg-orange-500/10 p-2 rounded-xl text-orange-400 text-lg flex items-center justify-center">
+                🔔
+              </div>
+              <div class="flex-1 text-left">
+                <h4 class="font-bold text-xs text-slate-100">${title}</h4>
+                <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">${body}</p>
+              </div>
+              <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition-colors text-xs font-bold px-1">✕</button>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+              toast.style.opacity = "0";
+              toast.style.transform = "translateY(-10px)";
+              setTimeout(() => toast.remove(), 300);
+            }, 7000);
+          });
+        } catch (err) {
+          console.error("Failed to register onMessage handler in pedidos.html:", err);
+        }
+      }
+
+      window.logoutAdmin = async function () {
+        localStorage.removeItem("popfood_custom_store_id");
+        localStorage.removeItem("popfood_custom_store_email");
+        localStorage.removeItem("popfood_admin_store_override");
+        try {
+          await signOut(auth);
+        } catch (err) {
+          console.error("Signout error: ", err);
+        }
+        window.location.href = "index.html";
+      };
+
+      let activeFilter = "Todos";
+      let orderSearchKeyword = "";
+      let globalOrdersList = [];
+      let autoPrintSetting =
+        localStorage.getItem("popfood_autoprint") === "true";
+      let continuousBuzzerSetting =
+        localStorage.getItem("popfood_continuous_buzzer") !== "false";
+      let autoAcceptSetting =
+        localStorage.getItem("popfood_auto_accept") === "true";
+
+      // Support for multiple printers
+      let localPrinters = [];
+      try {
+        localPrinters = JSON.parse(
+          localStorage.getItem("popfood_printers_list") || "[]",
+        );
+      } catch (e) {
+        localPrinters = [];
+      }
+
+      // Migration for old single printer settings
+      const oldUrl = localStorage.getItem("popfood_printer_url");
+      if (oldUrl && localPrinters.length === 0) {
+        localPrinters.push({
+          url: oldUrl,
+          name: localStorage.getItem("popfood_printer_name") || "",
+          width: localStorage.getItem("popfood_printer_width") || "58",
+        });
+        localStorage.setItem(
+          "popfood_printers_list",
+          JSON.stringify(localPrinters),
+        );
+        localStorage.removeItem("popfood_printer_url");
+        localStorage.removeItem("popfood_printer_name");
+        localStorage.removeItem("popfood_printer_width");
+      }
+
+      let currentLayout =
+        localStorage.getItem("popfood_orders_layout") || "list";
+      let selectedSound =
+        localStorage.getItem("popfood_notification_sound") || "default";
+      let selectedMessageSound =
+        localStorage.getItem("popfood_message_sound") || "msg_digital";
+      let loadedRestaurantProfile = null;
+      let firstLoadDone = false;
+
+      // Load printer settings
+      window.onload = async () => {
+        // Validate administrator active session
+        window.currentStoreId = null;
+        onAuthStateChanged(auth, async (user) => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlStoreId = urlParams.get("store");
+          const customStoreId = localStorage.getItem("popfood_custom_store_id");
+          const overrideStoreId = localStorage.getItem(
+            "popfood_admin_store_override",
+          );
+
+          if (urlStoreId) {
+            window.currentStoreId = urlStoreId;
+          } else if (overrideStoreId) {
+            window.currentStoreId = overrideStoreId;
+          } else if (customStoreId) {
+            window.currentStoreId = customStoreId;
+          } else if (user) {
+            window.currentStoreId = user.uid;
+          }
+
+          if (!user && !customStoreId && !urlStoreId) {
+            alert("Acesso restrito! Por favor faça login primeiro.");
+            window.location.href = "index.html";
+            return;
+          }
+
+          if (!window.currentStoreId) {
+            window.location.href = "index.html";
+            return;
+          }
+
+          // Auto-register merchant FCM token if notification permission is already granted
+          if (messaging && "Notification" in window && Notification.permission === "granted") {
+            try {
+              const registration = await Promise.resolve();
+              try {
+                await registration.update();
+              } catch (err) {
+                console.log("Failed to update SW registration:", err);
+              }
+              let currentToken = null;
+              try {
+                currentToken = await getToken(messaging, {
+                   vapidKey: VAPID_KEY,
+                   serviceWorkerRegistration: registration
+                });
+              } catch (e) {
+                console.warn("FCM auto-register token failed:", e);
+              }
+              if (currentToken && window.currentStoreId) {
+                console.log("Auto-registering merchant FCM Token:", currentToken);
+                const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+                await updateDoc(profileRef, {
+                  merchantTokens: arrayUnion(currentToken)
+                });
+                console.log("Merchant FCM Token updated successfully via load.");
+              }
+            } catch (err) {
+              console.error("Auto-register FCM token failed on load:", err);
+            }
+          }
+
+          // Apply override visual styling if override exists
+          if (overrideStoreId && window.currentStoreId === overrideStoreId) {
+            injectOverrideBannerUI();
+          }
+
+          // Dynamically update address bar URL if store parameter is missing or different
+          if (window.currentStoreId) {
+            const currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.get("store") !== window.currentStoreId) {
+              currentUrl.searchParams.set("store", window.currentStoreId);
+              window.history.replaceState(null, "", currentUrl.toString());
+            }
+          }
+
+          // Dynamically append currentStoreId universally to ALL internal admin links
+          document.querySelectorAll("a").forEach((el) => {
+            const href = el.getAttribute("href");
+            if (href) {
+              const adminPages = [
+                "index.html",
+                "perfil.html",
+                "pedidos.html",
+                "clientes.html",
+                "relatorios.html",
+                "cliente.html",
+                "motoboy.html",
+              ];
+              const basePath = href.split("?")[0];
+              if (adminPages.includes(basePath)) {
+                el.href = `${basePath}?store=${window.currentStoreId}`;
+              }
+            }
+          });
+
+          // Synchronize auto indicator tags
+          (document.getElementById("lbl-auto-indicator") || {}).textContent =
+            autoPrintSetting
+              ? "🖨️ Impressão Auto: ON"
+              : "🖨️ Impressão Auto: OFF";
+          (document.getElementById("lbl-continuous-buzzer") || {}).textContent =
+            continuousBuzzerSetting ? "🚨 Campainha: ON" : "🚨 Campainha: OFF";
+          (document.getElementById("lbl-auto-accept") || {}).textContent =
+            autoAcceptSetting ? "⚡ Auto-Aceitar: ON" : "⚡ Auto-Aceitar: OFF";
+          (document.getElementById("sound-selector") || {}).value = selectedSound;
+          const msgSoundSel = document.getElementById("message-sound-selector");
+          if (msgSoundSel) {
+            msgSoundSel.value = selectedMessageSound;
+          }
+          updateLayoutUI();
+          if (typeof updateNotificationIndicator === "function") {
+            updateNotificationIndicator();
+          }
+          const lastUrl =
+            localPrinters.length > 0
+              ? localPrinters[localPrinters.length - 1].url
+              : "";
+          (document.getElementById("printer-server-url") || {}).value = lastUrl;
+          if (lastUrl) fetchPrinters(false);
+
+          // Handle default printer width fallback persistence
+          const widthSel = document.getElementById("printer-width");
+          if (widthSel) {
+            widthSel.value = localStorage.getItem("popfood_default_print_width") || "58";
+            widthSel.addEventListener("change", function() {
+              localStorage.setItem("popfood_default_print_width", this.value);
+            });
+          }
+
+          // Load restaurant settings realtime
+          try {
+            const profileRef = doc(
+              db,
+              COLLECTIONS.restaurantProfile,
+              window.currentStoreId,
+            );
+            onSnapshot(profileRef, (docSnap) => {
+              const isSuperUserOverride =
+                localStorage.getItem("popfood_admin_store_override") ===
+                window.currentStoreId;
+
+              if (!docSnap.exists() && !isSuperUserOverride) {
+                document.body.innerHTML = `
+                  <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]">
+                     <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                        <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                        <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                     </div>
+                     <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Loja Excluída</h1>
+                     <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                       A sua loja foi completamente <strong>removida</strong> do sistema e este painel está inativo.
+                     </p>
+                     <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Sair</button>
+                  </div>
+                `;
+                return;
+              }
+
+              if (docSnap.exists()) {
+                loadedRestaurantProfile = docSnap.data();
+
+                // Apply Lock Screen
+                if (
+                  loadedRestaurantProfile.suspended === true &&
+                  !isSuperUserOverride
+                ) {
+                  document.body.innerHTML = `
+                  <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]">
+                     <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                        <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                        <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                     </div>
+                     <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Acesso Suspenso</h1>
+                     <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                       O sistema da sua loja está temporariamente <strong>indisponível</strong> devido a pendências administrativas ou atraso de pagamento.
+                       <br><br>Entre em contato com o suporte para regularizar a situação.
+                     </p>
+                     <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Voltar</button>
+                  </div>
+                `;
+                }
+              }
+            });
+          } catch (err) {
+            console.warn("Could not retrieve profile metadata: ", err);
+          }
+
+          // Boot firestore snapshots listeners
+          startRealtimeOrdersPipeline();
+        });
+      };
+
+      // Printer settings toggler
+      window.togglePrinterSettingsModal = function (show) {
+        const modal = document.getElementById("printer-settings-modal");
+        if (show) {
+          modal.classList.remove("hidden");
+          renderPrintersList();
+        } else {
+          modal.classList.add("hidden");
+        }
+      };
+
+      // Uber Direct settings toggler & logic
+      window.openUberDirectModal = async function() {
+        const modal = document.getElementById("uber-direct-modal");
+        if(modal) modal.classList.remove("hidden");
+        // Load current data from profile if exists
+        try {
+          const profileDoc = await getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId));
+          if(profileDoc.exists()) {
+            const data = profileDoc.data();
+            if(data.uberDirect) {
+              (document.getElementById("uber-client-id") || {}).value = data.uberDirect.clientId || "";
+              (document.getElementById("uber-customer-id") || {}).value = data.uberDirect.customerId || "";
+              (document.getElementById("uber-client-secret") || {}).value = data.uberDirect.clientSecret || "";
+            }
+          }
+        } catch(e) { console.error("Error loading Uber Direct config", e); }
+      };
+
+      window.closeUberDirectModal = function() {
+        const modal = document.getElementById("uber-direct-modal");
+        if(modal) modal.classList.add("hidden");
+      };
+
+      window.saveUberDirectSettings = async function() {
+        const clientId = document.getElementById("uber-client-id").value.trim();
+        const customerId = document.getElementById("uber-customer-id").value.trim();
+        const clientSecret = document.getElementById("uber-client-secret").value.trim();
+        
+        try {
+          const btn = document.getElementById("btn-save-uber");
+          const originalText = btn.innerText;
+          btn.innerText = "Salvando...";
+          btn.disabled = true;
+
+          const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+          await updateDoc(profileRef, {
+            uberDirect: {
+              clientId,
+              customerId,
+              clientSecret
+            }
+          });
+          
+          btn.innerText = "Salvo com sucesso!";
+          setTimeout(() => {
+            btn.innerText = originalText;
+            btn.disabled = false;
+            closeUberDirectModal();
+          }, 1500);
+        } catch (error) {
+          console.error("Erro ao salvar config da Uber", error);
+          alert("Erro ao salvar. Tente novamente.");
+        }
+      };
+
+      // Settings dropdown toggle & click outside logic
+      window.toggleSettingsDropdown = function (event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById("panel-settings-dropdown");
+        const caret = document.getElementById("settings-caret-icon");
+        if (menu) {
+          const isHidden = menu.classList.contains("hidden");
+          if (isHidden) {
+            menu.classList.remove("hidden");
+            if (caret) caret.classList.add("rotate-180");
+          } else {
+            menu.classList.add("hidden");
+            if (caret) caret.classList.remove("rotate-180");
+          }
+        }
+      };
+
+      document.addEventListener("click", function (event) {
+        const container = document.getElementById("panel-settings-container");
+        const menu = document.getElementById("panel-settings-dropdown");
+        const caret = document.getElementById("settings-caret-icon");
+        if (container && menu && !container.contains(event.target)) {
+          menu.classList.add("hidden");
+          if (caret) caret.classList.remove("rotate-180");
+        }
+      });
+
+      function renderPrintersList() {
+        const container = document.getElementById("printers-list-container");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (localPrinters.length === 0) {
+          container.innerHTML =
+            '<div class="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 text-[10px] font-medium">Nenhuma impressora configurada.</div>';
+          return;
+        }
+
+        localPrinters.forEach((printer, index) => {
+          const item = document.createElement("div");
+          const isActive = printer.active !== false;
+          item.className = `bg-slate-50 border ${isActive ? "border-brand-primary/30" : "border-slate-100 opacity-50"} rounded-xl p-3 flex items-center justify-between gap-3 group hover:border-orange-200 transition-all`;
+          item.innerHTML = `
+          <div class="flex-grow min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="sr-only peer" ${isActive ? "checked" : ""} onchange="togglePrinterActive(${index}, this.checked)">
+                <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-primary"></div>
+              </label>
+              <p class="text-[11px] font-bold text-slate-800 truncate ${!isActive ? "line-through text-slate-400" : ""}">${printer.name || "Impressora"}</p>
+              <span class="text-[8px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">${printer.width}mm</span>
+            </div>
+            <p class="text-[9px] text-slate-400 truncate">${printer.url}</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="printSpecificTestPage(${index})" class="text-slate-300 hover:text-blue-500 transition-colors cursor-pointer p-1" title="Testar Impressão">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button onclick="removePrinter(${index})" class="text-slate-300 hover:text-red-500 transition-colors cursor-pointer p-1" title="Remover Impressora">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        `;
+          container.appendChild(item);
+        });
+      }
+
+      window.togglePrinterActive = function (index, checked) {
+        localPrinters[index].active = checked;
+        localStorage.setItem(
+          "popfood_printers_list",
+          JSON.stringify(localPrinters),
+        );
+        renderPrintersList();
+      };
+
+      window.removePrinter = function (index) {
+        if (!confirm("Deseja remover esta impressora?")) return;
+        localPrinters.splice(index, 1);
+        localStorage.setItem(
+          "popfood_printers_list",
+          JSON.stringify(localPrinters),
+        );
+        renderPrintersList();
+      };
+
+      window.addNewPrinterToList = function () {
+        const url = document.getElementById("printer-server-url").value.trim();
+        const name = document.getElementById("printer-select").value;
+        const width = document.getElementById("printer-width").value;
+
+        if (!url) {
+          alert("Por favor, informe a URL do servidor.");
+          return;
+        }
+        if (!name) {
+          alert("Por favor, selecione uma impressora da lista.");
+          return;
+        }
+
+        // Check for duplicates
+        const isDup = localPrinters.some(
+          (p) => p.url === url && p.name === name,
+        );
+        if (isDup) {
+          alert("Esta impressora já foi adicionada.");
+          return;
+        }
+
+        localPrinters.push({ url, name, width, active: true });
+        localStorage.setItem(
+          "popfood_printers_list",
+          JSON.stringify(localPrinters),
+        );
+
+        // Reset form but keep URL for convenience maybe
+        (document.getElementById("printer-select") || {}).value = "";
+        renderPrintersList();
+        alert("Impressora adicionada com sucesso!");
+      };
+
+      window.fetchPrinters = async function (showAlert = true) {
+        let url = document.getElementById("printer-server-url").value.trim();
+        if (!url) {
+          alert("Informe a URL do servidor primeiro.");
+          return;
+        }
+
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          url = "http://" + url;
+        }
+
+        (document.getElementById("printer-server-url") || {}).value = url; // Update the input to show the corrected URL
+
+        try {
+          const resp = await fetch(`${url.replace(/\/$/, "")}/impressoras`);
+          const data = await resp.json();
+          const printers = data.impressoras || [];
+
+          const select = document.getElementById("printer-select");
+          select.innerHTML =
+            '<option value="">Selecione a impressora...</option>';
+          printers.forEach((p) => {
+            const opt = document.createElement("option");
+            opt.value = p;
+            opt.textContent = p;
+            select.appendChild(opt);
+          });
+          if (showAlert) alert("Impressoras listadas com sucesso!");
+        } catch (err) {
+          console.error(err);
+          alert("Erro ao buscar impressoras: " + (err.message || err));
+        }
+      };
+
+      window.printSpecificTestPage = function (index) {
+        const p = localPrinters[index];
+        if (!p) return;
+        const mockOrder = {
+          id: "TESTE",
+          customer: {
+            name: "CLIENTE TESTE",
+            phone: "00000000",
+            type: "delivery",
+            address: "RUA DE TESTE, 123",
+          },
+          items: [
+            {
+              quantity: 1,
+              name: "item de teste",
+              price: 10,
+              totalItemPrice: 10,
+            },
+          ],
+          paymentMethod: "Dinheiro",
+          subtotal: 10,
+          total: 10,
+          deliveryFee: 0,
+          desconto: 0,
+          createdAt: new Date(),
+        };
+
+        const temp = [...localPrinters];
+        localPrinters = [{ ...p, active: true }];
+        try {
+          window.triggerThermalComandaPrint(mockOrder);
+          alert("Impressão de teste enviada para " + p.name);
+        } finally {
+          localPrinters = temp;
+        }
+      };
+
+      window.printTestPage = function () {
+        const url = document.getElementById("printer-server-url").value.trim();
+        const name = document.getElementById("printer-select").value;
+        const width = document.getElementById("printer-width").value || "58";
+
+        if (!url) {
+          alert("Informe a URL do servidor primeiro.");
+          return;
+        }
+        if (!name) {
+          alert("Selecione uma impressora da lista primeiro.");
+          return;
+        }
+
+        const mockOrder = {
+          id: "TESTE",
+          customer: {
+            name: "CLIENTE TESTE",
+            phone: "00000000",
+            type: "delivery",
+            address: "RUA DE TESTE, 123",
+          },
+          items: [
+            {
+              quantity: 1,
+              name: "item de teste",
+              price: 10,
+              totalItemPrice: 10,
+            },
+          ],
+          paymentMethod: "Dinheiro",
+          subtotal: 10,
+          total: 10,
+          deliveryFee: 0,
+          desconto: 0,
+          createdAt: new Date(),
+        };
+
+        // Specialized test call
+        const temp = [...localPrinters];
+        localPrinters = [{ url, name, width, active: true }];
+        try {
+          window.triggerThermalComandaPrint(mockOrder);
+          alert("Impressão de teste enviada para " + name);
+        } finally {
+          localPrinters = temp;
+        }
+      };
+
+      window.savePrinterSettings = function () {
+        // Logic handled by individual add/remove actions now
+        window.togglePrinterSettingsModal(false);
+      };
+
+      window.setLayout = function (layout) {
+        currentLayout = layout;
+        localStorage.setItem("popfood_orders_layout", layout);
+        updateLayoutUI();
+        renderVisualOrdersGrid();
+      };
+
+      function updateLayoutUI() {
+        const btnList = document.getElementById("btn-layout-list");
+        const btnGrid = document.getElementById("btn-layout-grid");
+        const activeGrid = document.getElementById("active-orders-grid");
+        const archivedGrid = document.getElementById("archived-orders-grid");
+
+        if (currentLayout === "list") {
+          btnList.classList.add("bg-white", "text-orange-500", "shadow-sm");
+          btnList.classList.remove("text-gray-400");
+          btnGrid.classList.remove("bg-white", "text-orange-500", "shadow-sm");
+          btnGrid.classList.add("text-gray-400");
+
+          activeGrid.classList.remove(
+            "grid",
+            "grid-cols-1",
+            "md:grid-cols-2",
+            "xl:grid-cols-3",
+            "gap-4",
+          );
+          activeGrid.classList.add("space-y-4");
+          archivedGrid.classList.remove(
+            "grid",
+            "grid-cols-1",
+            "md:grid-cols-2",
+            "xl:grid-cols-3",
+            "gap-4",
+          );
+          archivedGrid.classList.add("space-y-4");
+        } else {
+          btnGrid.classList.add("bg-white", "text-orange-500", "shadow-sm");
+          btnGrid.classList.remove("text-gray-400");
+          btnList.classList.remove("bg-white", "text-orange-500", "shadow-sm");
+          btnList.classList.add("text-gray-400");
+
+          activeGrid.classList.remove("space-y-4");
+          activeGrid.classList.add(
+            "grid",
+            "grid-cols-1",
+            "md:grid-cols-2",
+            "xl:grid-cols-2",
+            "gap-4",
+          );
+          archivedGrid.classList.remove("space-y-4");
+          archivedGrid.classList.add(
+            "grid",
+            "grid-cols-1",
+            "md:grid-cols-2",
+            "xl:grid-cols-2",
+            "gap-4",
+          );
+        }
+      }
+
+      window.changeNotificationSound = function (sound) {
+        selectedSound = sound;
+        localStorage.setItem("popfood_notification_sound", sound);
+        // Play a preview
+        triggerNewOrderAlert(true);
+      };
+
+      window.changeMessageSound = function (sound) {
+        selectedMessageSound = sound;
+        localStorage.setItem("popfood_message_sound", sound);
+        // Play a preview
+        triggerNewMessageAlert(true);
+      };
+
+      // Auto print toggler
+      window.toggleAutoPrint = function () {
+        autoPrintSetting = !autoPrintSetting;
+        localStorage.setItem("popfood_autoprint", autoPrintSetting.toString());
+        (document.getElementById("lbl-auto-indicator") || {}).textContent =
+          autoPrintSetting ? "🖨️ Impressão Auto: ON" : "🖨️ Impressão Auto: OFF";
+      };
+
+      // Connect real-time snap on Firestore database orders
+      function startRealtimeOrdersPipeline() {
+        const q = query(
+          collection(db, COLLECTIONS.orders),
+          where("storeId", "==", window.currentStoreId),
+        );
+
+        onSnapshot(
+          q,
+          (snapshot) => {
+            let hasNewPendente = false;
+            const incomingOrders = [];
+
+            snapshot.forEach((docSnap) => {
+              incomingOrders.push({ id: docSnap.id, ...docSnap.data() });
+            });
+
+            // Sort orders in memory to prevent requiring Firestore composite indexes
+            incomingOrders.sort((a, b) => {
+              const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return tB - tA;
+            });
+
+            // Detect if there is a new "Pendente" order to play notification sound
+            let newlyPendenteOrders = [];
+            let hasNewMessage = false;
+
+            if (firstLoadDone) {
+              incomingOrders.forEach((order) => {
+                const oldOrderInfo = globalOrdersList.find((g) => g.id === order.id);
+                if (oldOrderInfo) {
+                  const newMessagesCount = (order.chatMessages || []).length;
+                  const oldMessagesCount = (oldOrderInfo.chatMessages || []).length;
+                  if (newMessagesCount > oldMessagesCount) {
+                    const lastMsg = order.chatMessages[newMessagesCount - 1];
+                    if (lastMsg.sender === 'customer') {
+                      hasNewMessage = true;
+                    }
+                  }
+                }
+              });
+
+              // Look if there are document creations or updates where state was introduced as "Pendente"
+              newlyPendenteOrders = incomingOrders.filter((order) => {
+                const isPendente = order.status === "Pendente";
+                // Check if this Pendente order was not already in our global list AS Pendente
+                const oldOrderInfo = globalOrdersList.find(
+                  (g) => g.id === order.id,
+                );
+                const isFreshPendente =
+                  !oldOrderInfo || oldOrderInfo.status !== "Pendente";
+                return isPendente && isFreshPendente;
+              });
+
+              if (newlyPendenteOrders.length > 0) {
+                hasNewPendente = true;
+              }
+            }
+
+            globalOrdersList = incomingOrders;
+            firstLoadDone = true;
+
+            if (typeof checkAndTriggerAutoAcceptance === "function") {
+              checkAndTriggerAutoAcceptance();
+            }
+
+            if (hasNewMessage) {
+              triggerNewMessageAlert();
+            }
+
+            if (hasNewPendente) {
+              triggerNewOrderAlert();
+
+              if (autoPrintSetting && newlyPendenteOrders.length > 0) {
+                // Avoid duplicate automatic prints
+                const printedOrders = JSON.parse(
+                  localStorage.getItem("popfood_printed_orders") || "[]",
+                );
+
+                newlyPendenteOrders.forEach((newPendente) => {
+                  if (!printedOrders.includes(newPendente.id)) {
+                    window.triggerThermalComandaPrint(newPendente);
+                    printedOrders.push(newPendente.id);
+                  }
+                });
+
+                // Keep only last 100 printed orders to prevent localstorage bloat
+                if (printedOrders.length > 100) {
+                  printedOrders.splice(0, printedOrders.length - 100);
+                }
+
+                localStorage.setItem(
+                  "popfood_printed_orders",
+                  JSON.stringify(printedOrders),
+                );
+              }
+            }
+
+            renderVisualOrdersGrid();
+
+            // Refresh modal chat if open
+            if (currentOrderViewedId) {
+              const modal = document.getElementById("details-modal");
+              if (modal && !modal.classList.contains("hidden")) {
+                const order = globalOrdersList.find((o) => o.id === currentOrderViewedId);
+                if (order) {
+                  // Mark unread as read if on chat tab
+                  const contentChat = document.getElementById('modal-content-chat');
+                  if (order.hasUnreadCustomerMessage && !contentChat.classList.contains('hidden')) {
+                    try {
+                      const docRef = doc(db, COLLECTIONS.orders, order.id);
+                      updateDoc(docRef, { hasUnreadCustomerMessage: false });
+                    } catch(e) { console.error(e); }
+                  }
+                  
+                  // Update tab badge
+                  const chatBadge = document.getElementById('modal-tab-chat-badge');
+                  if (order.hasUnreadCustomerMessage && contentChat.classList.contains('hidden')) {
+                    chatBadge.classList.remove('hidden');
+                  } else {
+                    chatBadge.classList.add('hidden');
+                  }
+                  
+                  renderStoreChatMessages();
+                }
+              }
+            }
+          },
+          (err) => {
+            console.error("Listening synchronization orders error: ", err);
+          },
+        );
+      }
+
+      // State filter switches
+      window.selectStateFilter = function (statusStr) {
+        activeFilter = statusStr;
+
+        const btns = document.querySelectorAll(".filter-btn");
+        btns.forEach((btn) => {
+          const btnStat = btn.getAttribute("data-status");
+          if (btnStat === statusStr) {
+            btn.className =
+              "filter-btn text-xs font-bold py-2 px-4 rounded-full border transition-all cursor-pointer bg-orange-500 border-orange-500 text-white";
+          } else {
+            btn.className =
+              "filter-btn text-xs font-bold py-2 px-4 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all cursor-pointer";
+          }
+        });
+
+        renderVisualOrdersGrid();
+      };
+
+      window.handleOrderSearch = function (val) {
+        orderSearchKeyword = val.toLowerCase().trim();
+        const btnClear = document.getElementById("btn-clear-search");
+        if (btnClear) {
+          if (orderSearchKeyword) {
+            btnClear.classList.remove("hidden");
+          } else {
+            btnClear.classList.add("hidden");
+          }
+        }
+        renderVisualOrdersGrid();
+      };
+
+      window.clearOrderSearch = function () {
+        const input = document.getElementById("order-search-input");
+        if (input) {
+          input.value = "";
+        }
+        window.handleOrderSearch("");
+      };
+
+      // Sort, aggregate and render orders separation (active-andamento vs finished-concluido)
+      function renderVisualOrdersGrid() {
+        const activeParent = document.getElementById("active-orders-grid");
+        const archivedParent = document.getElementById("archived-orders-grid");
+
+        activeParent.innerHTML = "";
+        archivedParent.innerHTML = "";
+
+        // Filters & Search
+        let drawingList = globalOrdersList;
+        if (activeFilter !== "Todos") {
+          drawingList = globalOrdersList.filter(
+            (o) => o.status === activeFilter,
+          );
+        }
+
+        if (orderSearchKeyword) {
+          drawingList = drawingList.filter((o) => {
+            const idMatch =
+              o.id && o.id.toLowerCase().includes(orderSearchKeyword);
+            const nameMatch =
+              o.customer &&
+              o.customer.name &&
+              o.customer.name.toLowerCase().includes(orderSearchKeyword);
+            const phoneMatch =
+              o.customer &&
+              o.customer.phone &&
+              o.customer.phone.toLowerCase().includes(orderSearchKeyword);
+            const addressMatch =
+              o.customer &&
+              o.customer.address &&
+              o.customer.address.toLowerCase().includes(orderSearchKeyword);
+            const cepMatch =
+              o.customer &&
+              o.customer.cep &&
+              o.customer.cep.toLowerCase().includes(orderSearchKeyword);
+            const payMatch =
+              o.paymentMethod &&
+              o.paymentMethod.toLowerCase().includes(orderSearchKeyword);
+
+            let itemsMatch = false;
+            if (o.items && o.items.length > 0) {
+              itemsMatch = o.items.some(
+                (item) =>
+                  item.name &&
+                  item.name.toLowerCase().includes(orderSearchKeyword),
+              );
+            }
+
+            return (
+              idMatch ||
+              nameMatch ||
+              phoneMatch ||
+              addressMatch ||
+              cepMatch ||
+              payMatch ||
+              itemsMatch
+            );
+          });
+        }
+
+        // Separate arrays
+        const andamentoList = drawingList.filter(
+          (o) =>
+            o.status === "Pendente" ||
+            o.status === "Preparando" ||
+            o.status === "Saiu para entrega",
+        );
+        const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
+        const finalizadosList = drawingList.filter((o) => {
+          if (o.status !== "Entregue" && o.status !== "Cancelado") return false;
+          let orderTime = 0;
+          if (o.createdAt) {
+            if (typeof o.createdAt === "object" && typeof o.createdAt.seconds === "number") {
+              orderTime = o.createdAt.seconds * 1000;
+            } else if (typeof o.createdAt === "object" && typeof o.createdAt.toDate === "function") {
+              orderTime = o.createdAt.toDate().getTime();
+            } else {
+              orderTime = new Date(o.createdAt).getTime();
+            }
+          }
+          return orderTime >= sixHoursAgo;
+        });
+
+        const apc = document.getElementById("active-pipes-count"); if (apc) apc.textContent = andamentoList.length;
+        const fpc = document.getElementById("finish-pipes-count"); if (fpc) fpc.textContent = finalizadosList.length;
+
+        if (andamentoList.length === 0) {
+          activeParent.innerHTML = `
+          <div class="text-center py-10 bg-white border border-gray-100 rounded-xl text-gray-400">
+            <p class="text-sm">Não há pedidos ativos nesta categoria de filtro.</p>
+          </div>`;
+        } else {
+          andamentoList.forEach((order) => {
+            activeParent.appendChild(createOrderVisualCard(order, true));
+          });
+        }
+
+        if (finalizadosList.length === 0) {
+          archivedParent.innerHTML = `
+          <div class="text-center py-10 bg-white border border-gray-100 rounded-xl text-gray-400">
+            <p class="text-sm">Não há pedidos finalizados nesta categoria de filtro.</p>
+          </div>`;
+        } else {
+          finalizadosList.forEach((order) => {
+            archivedParent.appendChild(createOrderVisualCard(order, false));
+          });
+        }
+      }
+
+      // Build responsive order element structure
+      function createOrderVisualCard(order, isActivePipeline) {
+        const card = document.createElement("div");
+
+        // If Pendente, highlight with a glowing soft light orange background
+        const pendenteBg =
+          order.status === "Pendente"
+            ? "bg-orange-50 border-orange-200 shadow-orange-500/5"
+            : "bg-white border-gray-100 shadow-sm";
+
+        if (currentLayout === "list") {
+          card.className = `${pendenteBg} rounded-2xl p-4.5 border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-all relative overflow-hidden group`;
+        } else {
+          card.className = `${pendenteBg} rounded-2xl p-4.5 border flex flex-col justify-between items-stretch gap-4 hover:shadow-md transition-all relative overflow-hidden group h-full`;
+        }
+
+        // Draw status color maps
+        let statusColor = "bg-gray-100 text-gray-500";
+        if (order.status === "Pendente")
+          statusColor = "bg-orange-200 text-orange-700 font-bold animate-pulse";
+        if (order.status === "Preparando")
+          statusColor = "bg-blue-100 text-blue-600";
+        if (order.status === "Saiu para entrega")
+          statusColor = "bg-purple-100 text-purple-600";
+        if (order.status === "Entregue")
+          statusColor = "bg-green-100 text-green-700";
+        if (order.status === "Cancelado")
+          statusColor = "bg-red-100 text-red-650";
+
+        // Consolidar simple visual descriptor of items
+        const itemsOverview = order.items
+          .map((i) => `${i.quantity}x ${i.name}`)
+          .join(", ");
+        const isPickup = order.customer && order.customer.type === "pickup";
+        let displayStatus = order.status;
+        if (isPickup && order.status === "Saiu para entrega") {
+          displayStatus = "Pronto p/ Retirada";
+        }
+
+        const addressLine = isPickup
+          ? `<span class="bg-indigo-55 rounded bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 text-[10px] inline-flex items-center gap-1 border border-indigo-100">🏪 Retirada no Local</span>`
+          : `<p class="text-[11px] text-gray-400 line-clamp-1">📍 ${order.customer.address}</p>`;
+
+        const headerLayout =
+          currentLayout === "list" ? "flex-grow space-y-1.5" : "space-y-2";
+
+        const actionsLayout =
+          currentLayout === "list"
+            ? "flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 flex-wrap justify-end"
+            : "flex items-center gap-2 w-full pt-3 border-t border-gray-100 mt-auto";
+
+        const btnFull = currentLayout === "list" ? "" : "flex-1";
+
+        const chatIndicator = order.hasUnreadCustomerMessage 
+          ? `<span class="bg-red-500 text-white rounded-full px-2 py-0.5 text-[9px] font-bold animate-pulse flex items-center gap-1"><span class="text-[10px]">💬</span> Nova Mensagem</span>` 
+          : '';
+
+        card.innerHTML = `
+        <div class="${headerLayout} cursor-pointer" onclick="showOrderDetailsDrawer('${order.id}')">
+          <div class="flex items-center justify-between sm:justify-start gap-3 flex-wrap">
+            <h4 class="font-display font-bold text-sm text-gray-800 flex items-center gap-2">Pedido #${order.id} ${chatIndicator}</h4>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusColor}">${displayStatus}</span>
+          </div>
+          <p class="text-[11px] text-gray-400 font-medium">🕒 ${order.date} | 👤 ${order.customer.name}</p>
+          <p class="text-xs text-gray-600 font-semibold line-clamp-2 capitalize">${itemsOverview}</p>
+          ${addressLine}
+        </div>
+        
+        <div class="${actionsLayout}">
+          <!-- Print -->
+          <button onclick="triggerThermalComandaPrintById('${order.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2.5 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs ${btnFull}" title="Imprimir Comanda">
+            🖨️
+          </button>
+
+          <!-- Uber Direct -->
+          ${
+            order.uberTrackingUrl
+              ? `
+              <a href="${order.uberTrackingUrl}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white p-2.5 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs ${btnFull} flex items-center justify-center gap-1" title="Acompanhar Entrega Uber">
+                📍 <span class="font-bold sm:hidden">Rastreio</span>
+              </a>
+              `
+              : `
+              <button onclick="solicitarUberDirect('${order.id}')" class="bg-black hover:bg-slate-800 text-white p-2.5 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs ${btnFull}" title="Chamar Uber Direct">
+                🚗
+              </button>
+              `
+          }
+          
+          ${
+            order.status === "Pendente"
+              ? `
+            <button onclick="changeOrderStatus('${order.id}', 'Preparando')" class="bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex-grow sm:flex-grow-0 cursor-pointer hover:scale-105 active:scale-95 transition-all ${btnFull}">
+              🚀 Preparar
+            </button>
+          `
+              : ""
+          }
+
+          ${
+            order.status === "Preparando"
+              ? `
+            <button onclick="changeOrderStatus('${order.id}', 'Saiu para entrega')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex-grow sm:flex-grow-0 cursor-pointer hover:scale-105 active:scale-95 transition-all ${btnFull}">
+              ${isPickup ? "🛍️ Pronto" : "🏍️ Despachar"}
+            </button>
+          `
+              : ""
+          }
+        </div>
+      `;
+
+        return card;
+      }
+
+      // Global Push Notification Sender helper
+      window.notifyOrderUpdate = async function(orderId, nextState, fcmToken, shortId, isPickup) {
+        if (!fcmToken) return;
+        let orderNumber = shortId || orderId.substring(0, 5).toUpperCase();
+        
+        let title = "Atualização do seu Pedido! 🍕";
+        let body = `Seu pedido #${orderNumber} mudou para o status: ${nextState}`;
+
+        if (nextState === "Preparando") {
+          title = "🧑‍🍳 Pedido na Cozinha!";
+          body = "O restaurante confirmou seu pedido e o preparo já começou.";
+        } else if (nextState === "Saiu para entrega" || nextState === "Saiu para Entrega" || nextState === "Pronto") {
+          if (isPickup) {
+            title = "🛍️ Pronto para retirada!";
+            body = "Seu pedido já está esperando por você! Dirija-se ao caixa/balcão do restaurante para retirar.";
+          } else {
+            title = "🛵 Saiu para entrega!";
+            body = "O entregador já está a caminho do seu endereço com a refeição quentinha!";
+          }
+        } else if (nextState === "Entregue") {
+          title = "💖 Entregue! Bom apetite!";
+          body = "Seu pedido foi finalizado. Não esqueça de deixar sua avaliação para nos ajudar a melhorar!";
+        } else if (nextState === "Cancelado") {
+          title = "❌ Pedido Cancelado";
+          body = "Infelizmente o estabelecimento precisou cancelar o seu pedido. Acesse o chat se precisar falar com o suporte.";
+        }
+
+        try {
+          const res = await sendPushNotification(fcmToken, title, body, { orderId: orderId });
+          console.log("Push enviado:", res);
+        } catch(e) {
+          console.error("Erro ao enviar push via cliente:", e);
+        }
+      };
+
+      // Status transitions
+      window.changeOrderStatus = async function (
+        orderId,
+        nextState,
+        prepTimeOverride = null,
+      ) {
+        if (nextState === "Preparando" && prepTimeOverride === null) {
+          window.pendingPrepOrderId = orderId;
+          window.togglePrepTimeModal(true);
+          return;
+        }
+
+        try {
+          const orderRef = doc(db, COLLECTIONS.orders, orderId);
+          
+          // Get the current order to check for fcmToken
+          const orderSnap = await getDoc(orderRef);
+          let fcmToken = null;
+          let orderNumber = orderId.substring(0, 5).toUpperCase();
+          let isPickup = false;
+          let uberDeliveryId = null;
+          if (orderSnap.exists()) {
+             const data = orderSnap.data();
+             fcmToken = data.fcmToken;
+             isPickup = data.isPickup || (data.customer && data.customer.type === "pickup") || false;
+             uberDeliveryId = data.uberDeliveryId;
+             if (data.shortId) orderNumber = data.shortId;
+          }
+
+          if (nextState === "Cancelado" && uberDeliveryId) {
+             try {
+                const clientId = loadedRestaurantProfile?.uberDirect?.clientId || "";
+                const clientSecret = loadedRestaurantProfile?.uberDirect?.clientSecret || "";
+                const customerId = loadedRestaurantProfile?.uberDirect?.customerId || "";
+
+                const UBER_WORKER_URL = "https://worker-uber.iranildo-jobs.workers.dev";
+                const apiUrl = `${UBER_WORKER_URL}/cancelar-entrega`;
+                
+                const cancelRes = await fetch(apiUrl, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ 
+                      deliveryId: uberDeliveryId,
+                      storeId: window.currentStoreId,
+                      clientId, clientSecret, customerId
+                   })
+                });
+                const cancelData = await cancelRes.json();
+                if (!cancelRes.ok) {
+                   console.error("Erro ao cancelar entrega na Uber (não bloqueante):", cancelData);
+                } else {
+                   console.log("Entrega na Uber cancelada com sucesso.");
+                }
+             } catch(uberErr) {
+                console.error("Exceção ao cancelar entrega na Uber (não bloqueante):", uberErr);
+             }
+          }
+
+          const updatePayload = {
+            status: nextState,
+          };
+
+          if (nextState === "Preparando") {
+            const minutes = parseInt(prepTimeOverride) || 40;
+            updatePayload.estimatedMinutes = minutes;
+            updatePayload.prepStartedAt = new Date().toISOString();
+          }
+
+          await updateDoc(orderRef, updatePayload);
+          
+          // Send Push Notification if FCM token exists
+          await window.notifyOrderUpdate(orderId, nextState, fcmToken, orderNumber, isPickup);
+
+          // Dynamic drawer updater
+          const modal = document.getElementById("details-modal");
+          if (modal && !modal.classList.contains("hidden")) {
+            showOrderDetailsDrawer(orderId);
+          }
+        } catch (err) {
+          console.error("Failing status transition error: ", err);
+          alert("Erro ao transicionar status: " + err.message);
+        }
+      };
+
+      // Toggles for new settings
+      window.toggleContinuousBuzzer = function () {
+        continuousBuzzerSetting = !continuousBuzzerSetting;
+        localStorage.setItem(
+          "popfood_continuous_buzzer",
+          continuousBuzzerSetting.toString(),
+        );
+        (document.getElementById("lbl-continuous-buzzer") || {}).textContent =
+          continuousBuzzerSetting ? "🚨 Campainha: ON" : "🚨 Campainha: OFF";
+      };
+
+      window.toggleAutoAccept = function () {
+        autoAcceptSetting = !autoAcceptSetting;
+        localStorage.setItem(
+          "popfood_auto_accept",
+          autoAcceptSetting.toString(),
+        );
+        (document.getElementById("lbl-auto-accept") || {}).textContent =
+          autoAcceptSetting ? "⚡ Auto-Aceitar: ON" : "⚡ Auto-Aceitar: OFF";
+
+        if (autoAcceptSetting) {
+          checkAndTriggerAutoAcceptance();
+        }
+      };
+
+      // Auto-Accept trigger checker
+      async function checkAndTriggerAutoAcceptance() {
+        if (!autoAcceptSetting) return;
+
+        for (const order of globalOrdersList) {
+          if (order.status === "Pendente") {
+            console.log(`Auto-accepting order ${order.id}`);
+            await changeOrderStatus(order.id, "Preparando", 40); // default to 40min for auto-acceptance
+          }
+        }
+      }
+
+      // Continuous Buzzer 10-second loop checker
+      let buzzerIntervalId = null;
+      function checkAndPlayBuzzerLoop() {
+        if (!continuousBuzzerSetting) return;
+
+        const hasPending = globalOrdersList.some(
+          (o) => o.status === "Pendente",
+        );
+        if (hasPending) {
+          console.log("Continuous bell ringer triggered for pending orders...");
+          const audio = document.getElementById("bell-beep-player");
+          if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch((err) => {
+              console.warn(
+                "Continuous play som.mp3 blocked. Synthesizing buzzer...",
+                err,
+              );
+              synthesizeBellRingerBeep();
+            });
+          } else {
+            synthesizeBellRingerBeep();
+          }
+        }
+      }
+
+      if (!buzzerIntervalId) {
+        buzzerIntervalId = setInterval(checkAndPlayBuzzerLoop, 10000);
+      }
+
+      // Prep time selection modal helpers
+      window.togglePrepTimeModal = function (show) {
+        const modal = document.getElementById("prep-time-modal");
+        if (!modal) return;
+        const box = modal.querySelector("div");
+        if (show) {
+          modal.classList.remove("hidden");
+          setTimeout(() => box.classList.remove("scale-100", "scale-95"), 10);
+          (document.getElementById("custom-prep-minutes") || {}).value = "";
+        } else {
+          box.classList.add("scale-95");
+          setTimeout(() => modal.classList.add("hidden"), 200);
+        }
+      };
+
+      window.confirmPrepTimeSelection = function (minutes) {
+        if (window.pendingPrepOrderId) {
+          window.changeOrderStatus(
+            window.pendingPrepOrderId,
+            "Preparando",
+            minutes,
+          );
+          window.pendingPrepOrderId = null;
+        }
+        window.togglePrepTimeModal(false);
+      };
+
+      window.confirmCustomPrepTime = function () {
+        const input = document.getElementById("custom-prep-minutes").value;
+        const val = parseInt(input);
+        if (!val || val <= 0) {
+          alert("Por favor insira um tempo válido em minutos (ex: 45)");
+          return;
+        }
+        window.confirmPrepTimeSelection(val);
+      };
+
+      function injectOverrideBannerUI() {
+        const overrideStoreName =
+          localStorage.getItem("popfood_admin_store_name_override") ||
+          "Parceiro";
+        let ribbon = document.getElementById("superuser-override-ribbon");
+        if (!ribbon) {
+          ribbon = document.createElement("div");
+          ribbon.id = "superuser-override-ribbon";
+          ribbon.className =
+            "bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold py-2.5 px-4 text-center flex items-center justify-between gap-3 shadow-md sticky top-0 z-[9999]";
+          ribbon.innerHTML = `
+          <div class="mx-auto flex items-center gap-1.5 flex-wrap justify-center">
+            <span>🛡️</span>
+            <span><strong>MODO SIMULAÇÃO SUPER-USUÁRIO ATIVO:</strong> Gerenciando a loja <strong class="underline">${overrideStoreName}</strong></span>
+          </div>
+          <button onclick="localStorage.removeItem('popfood_admin_store_override'); localStorage.removeItem('popfood_admin_store_name_override'); window.location.reload();" class="bg-white/20 hover:bg-white/35 text-white active:scale-95 transition-all px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer shrink-0">
+            Sair e Voltar ao Admin Geral
+          </button>
+        `;
+          document.body.insertBefore(ribbon, document.body.firstChild);
+        }
+      }
+
+      // Modal drawer view state configurations
+      window.toggleDetailsModal = function (show) {
+        const modal = document.getElementById("details-modal");
+        const box = modal.querySelector("div");
+
+        if (show) {
+          modal.classList.remove("hidden");
+          setTimeout(() => {
+            box.classList.remove("scale-95");
+          }, 50);
+          document.body.classList.add("overflow-hidden");
+        } else {
+          currentOrderViewedId = null;
+          box.classList.add("scale-95");
+          setTimeout(() => {
+            modal.classList.add("hidden");
+          }, 200);
+          document.body.classList.remove("overflow-hidden");
+        }
+      };
+
+      let currentOrderViewedId = null;
+
+      window.showOrderDetailsDrawer = function (orderId) {
+        currentOrderViewedId = orderId;
+        const order = globalOrdersList.find((o) => o.id === orderId);
+        if (!order) return;
+
+        // Reset to details tab
+        switchModalTab('details');
+
+        // Mark unread messages as read
+        if (order.hasUnreadCustomerMessage) {
+          try {
+            const docRef = doc(db, COLLECTIONS.orders, order.id);
+            updateDoc(docRef, { hasUnreadCustomerMessage: false });
+          } catch(e) { console.error("Error marking messages as read:", e); }
+        }
+
+        // Update Chat Badge on tab
+        const chatBadge = document.getElementById('modal-tab-chat-badge');
+        if (order.hasUnreadCustomerMessage) {
+          chatBadge.classList.remove('hidden');
+        } else {
+          chatBadge.classList.add('hidden');
+        }
+
+        (document.getElementById("modal-lbl-orderid") || {}).textContent =
+          `Pedido #${order.id}`;
+        (document.getElementById("modal-lbl-date") || {}).textContent = order.date;
+
+        const isPickup = order.customer && order.customer.type === "pickup";
+        const badge = document.getElementById("modal-lbl-status");
+
+        let displayStatus = order.status;
+        if (isPickup && order.status === "Saiu para entrega") {
+          displayStatus = "Pronto p/ Retirada";
+        }
+
+        badge.textContent = displayStatus;
+        badge.className =
+          "inline-block mt-2 px-3.5 py-1 rounded-full text-[11px] font-bold";
+        if (order.status === "Pendente")
+          badge.classList.add("bg-orange-100", "text-brand-primary");
+        else if (order.status === "Preparando")
+          badge.classList.add("bg-blue-100", "text-blue-600");
+        else if (order.status === "Saiu para entrega")
+          badge.classList.add("bg-purple-100", "text-purple-600");
+        else if (order.status === "Entregue")
+          badge.classList.add("bg-green-100", "text-green-700");
+        else badge.classList.add("bg-red-100", "text-brand-danger");
+
+        // Client details
+        (document.getElementById("modal-lbl-name") || {}).textContent =
+          order.customer.name;
+        (document.getElementById("modal-lbl-phone") || {}).textContent =
+          order.customer.phone;
+
+        const addressLabelEl = document.getElementById("modal-title-address");
+        if (addressLabelEl) {
+          addressLabelEl.textContent = isPickup
+            ? "Tipo/Retirada:"
+            : "Endereço:";
+        }
+
+        if (isPickup) {
+          (document.getElementById("modal-lbl-address") || {}).textContent =
+            "Retirada no Restaurante (Vou buscar)";
+        } else {
+          if (order.customer && order.customer.cep) {
+            (document.getElementById("modal-lbl-address") || {}).textContent =
+              `${order.customer.address} (CEP: ${order.customer.cep})`;
+          } else {
+            (document.getElementById("modal-lbl-address") || {}).textContent =
+              order.customer ? order.customer.address : "Não informado";
+          }
+        }
+
+        const compVal = document.getElementById("modal-lbl-comp");
+        const compRow = document.getElementById("modal-lbl-comp-row");
+        if (compRow) {
+          if (order.customer.complement) {
+            compRow.classList.remove("hidden");
+            if (compVal) compVal.textContent = order.customer.complement;
+          } else {
+            compRow.classList.add("hidden");
+          }
+        }
+
+        const refVal = document.getElementById("modal-lbl-ref");
+        const refRow = document.getElementById("modal-lbl-ref-row");
+        if (refRow) {
+          if (order.customer.reference) {
+            refRow.classList.remove("hidden");
+            if (refVal) refVal.textContent = order.customer.reference;
+          } else {
+            refRow.classList.add("hidden");
+          }
+        }
+
+        // Populate Payment and Troco
+        // Label de pagamento no modal
+        let modalPayLabel = order.paymentMethod || "Não informado";
+        const isOnlinePaidVal = ["abacatepay", "asaas", "mercadopago", "stripe"].includes(order.paymentProvider) || order.isPaid || false;
+        if (isOnlinePaidVal || order.paymentMethod === "Pago Online" || order.paymentMethod === "PixOnline" || order.paymentMethod === "Online") {
+          const isPix = order.paymentMethod === "PixOnline" || 
+                        order.paymentMethod === "Pix Imediato" || 
+                        order.paymentMethod === "Pix" || 
+                        order.paymentMethodType === "pix" ||
+                        (order.paymentMethod && order.paymentMethod.toUpperCase().includes("PIX"));
+          if (isPix) {
+            modalPayLabel = "⚡ Pix Pago Online ✅";
+          } else {
+            modalPayLabel = "💳 Cartão Pago Online ✅";
+          }
+        } else {
+          if (order.paymentMethod === "Pix" || order.paymentMethod === "Pix no ato") {
+            modalPayLabel = "⚡ Pix na Entrega";
+          } else if (order.paymentMethod === "Cartão" || order.paymentMethod === "Cartao") {
+            modalPayLabel = "💳 Cartão na Entrega";
+          } else if (order.paymentMethod === "Dinheiro") {
+            modalPayLabel = "💵 Dinheiro";
+          }
+        }
+        (document.getElementById("modal-lbl-payment") || {}).textContent =
+          modalPayLabel;
+
+        const trocoRow = document.getElementById("modal-lbl-troco-row");
+        const trocoVal = document.getElementById("modal-lbl-troco");
+        if (trocoRow) {
+          if (order.paymentMethod === "Dinheiro" && order.troco) {
+            trocoRow.classList.remove("hidden");
+            if (trocoVal) trocoVal.textContent = order.troco;
+          } else {
+            trocoRow.classList.add("hidden");
+          }
+        }
+
+        // Populate Uber Direct Details
+        const uberRow = document.getElementById("modal-lbl-uber-row");
+        const uberLink = document.getElementById("modal-lbl-uber-link");
+        const uberPin = document.getElementById("modal-lbl-uber-pin");
+        if (uberRow) {
+          if (order.uberTrackingUrl || order.deliveryPin) {
+            uberRow.classList.remove("hidden");
+            if (order.uberTrackingUrl) {
+              uberLink.parentElement.classList.remove("hidden");
+              uberLink.href = order.uberTrackingUrl;
+            } else {
+              uberLink.parentElement.classList.add("hidden");
+            }
+            if (order.deliveryPin) {
+              uberPin.textContent = order.deliveryPin;
+            } else {
+              uberPin.textContent = "----";
+            }
+          } else {
+            uberRow.classList.add("hidden");
+          }
+        }
+
+        // Populate Client Rating if available
+        const rRow = document.getElementById("modal-lbl-rating-row");
+        if (order.rating) {
+          if (rRow) rRow.classList.remove("hidden");
+          const starsFood = parseInt(order.rating.starsFood) || 0;
+          const starsDeliv = parseInt(order.rating.starsDelivery) || 0;
+          (document.getElementById("modal-lbl-rating-food") || {}).textContent =
+            "★".repeat(starsFood) +
+            "☆".repeat(5 - starsFood) +
+            ` (${starsFood}/5)`;
+          (document.getElementById("modal-lbl-rating-delivery") || {}).textContent =
+            "★".repeat(starsDeliv) +
+            "☆".repeat(5 - starsDeliv) +
+            ` (${starsDeliv}/5)`;
+
+          const rCommentSec = document.getElementById(
+            "modal-lbl-rating-comment-sec",
+          );
+          if (order.rating.comment && order.rating.comment.trim() !== "") {
+            if (rCommentSec) rCommentSec.classList.remove("hidden");
+            (document.getElementById("modal-lbl-rating-comment") || {}).textContent =
+              `"${order.rating.comment}"`;
+          } else {
+            if (rCommentSec) rCommentSec.classList.add("hidden");
+          }
+        } else {
+          if (rRow) rRow.classList.add("hidden");
+        }
+
+        // Populate Items details list
+        const container = document.getElementById("modal-items-container");
+        container.innerHTML = "";
+
+        order.items.forEach((item) => {
+          const row = document.createElement("div");
+          row.className =
+            "flex justify-between text-xs border-b border-gray-50 pb-2";
+
+          let compText = "";
+          if (item.complements && item.complements.length > 0) {
+            const groupedComps = {};
+            item.complements.forEach((c) => {
+              const currentGroup = (
+                c.groupName ||
+                c.group ||
+                c.grupo ||
+                c.group_name ||
+                c.category ||
+                c.gname ||
+                c.nomeGrupo ||
+                ""
+              )
+                .toUpperCase()
+                .trim();
+              if (!groupedComps[currentGroup]) {
+                groupedComps[currentGroup] = [];
+              }
+              groupedComps[currentGroup].push(c);
+            });
+
+            let compParts = [];
+            Object.keys(groupedComps).forEach((groupKey) => {
+              if (groupKey) {
+                compParts.push(
+                  `<span class="font-bold text-gray-500">${groupKey}:</span>`,
+                );
+              }
+              groupedComps[groupKey].forEach((c) => {
+                const optionLabel = (
+                  c.optionName ||
+                  c.option ||
+                  c.opcao ||
+                  c.name ||
+                  ""
+                ).trim();
+                compParts.push(optionLabel);
+              });
+            });
+
+            compText =
+              `<div class="text-[9px] text-gray-400 mt-0.5 whitespace-normal">` +
+              compParts.join(" ") +
+              `</div>`;
+          }
+
+          const notesText = item.notes
+            ? `<div class="text-[9px] text-orange-500 italic mt-0.5">Obs: "${item.notes}"</div>`
+            : "";
+
+          row.innerHTML = `
+          <div>
+            <div class="font-bold text-gray-700 capitalize">${item.quantity}x ${item.name}</div>
+            ${compText}
+            ${notesText}
+          </div>
+          <span class="font-semibold text-gray-700">R$ ${(item.totalItemPrice * item.quantity).toFixed(2).replace(".", ",")}</span>
+        `;
+          container.appendChild(row);
+        });
+
+        // Populate values receipt summaries
+        (document.getElementById("modal-subtotal") || {}).textContent =
+          `R$ ${order.subtotal.toFixed(2).replace(".", ",")}`;
+        (document.getElementById("modal-desconto") || {}).textContent =
+          `- R$ ${(order.desconto || 0).toFixed(2).replace(".", ",")}`;
+        (document.getElementById("modal-taxa") || {}).textContent =
+          `R$ ${order.deliveryFee.toFixed(2).replace(".", ",")}`;
+        (document.getElementById("modal-total") || {}).textContent =
+          `R$ ${order.total.toFixed(2).replace(".", ",")}`;
+
+        // Configured event listeners with actions trigger buttons on details popup
+        const btnPre = document.getElementById("btn-action-preparar");
+        const btnDes = document.getElementById("btn-action-despachar");
+        const btnCan = document.getElementById("btn-action-cancelar");
+
+        btnPre.onclick = () => {
+          changeOrderStatus(order.id, "Preparando");
+          toggleDetailsModal(false);
+        };
+        btnDes.onclick = () => {
+          changeOrderStatus(order.id, "Saiu para entrega");
+          toggleDetailsModal(false);
+        };
+        btnCan.onclick = async () => {
+          const can = await window.customConfirm(
+            "Deseja realmente cancelar este pedido de forma irreversível?",
+          );
+          if (can) {
+            // Verificar se pedido foi pago via Pix Online para reembolso automático
+            if (
+              order.paymentProvider === "abacatepay" &&
+              order.isPaid &&
+              order.paymentId
+            ) {
+              const confirmRefund = await window.customConfirm(
+                "Este pedido foi pago via Pix. Deseja processar o reembolso automático para o cliente?",
+              );
+              if (confirmRefund) {
+                try {
+                  const token = loadedRestaurantProfile?.abacatePayToken || "";
+                  if (!token)
+                    throw new Error("Token AbacatePay não encontrado.");
+
+                  const WORKER_URL =
+                    "https://abacatepay-proxy.iranildo-jobs.workers.dev";
+                  const refundRes = await fetch(
+                    `${WORKER_URL}/v2/transparents/refund`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ id: order.paymentId }),
+                    },
+                  );
+
+                  const refundData = await refundRes.json();
+
+                  if (refundData.success || refundRes.ok) {
+                    // Reembolso aprovado — cancelar pedido e registrar estorno
+                    await updateDoc(doc(db, COLLECTIONS.orders, order.id), {
+                      status: "Cancelado",
+                      cancelReason: "Cancelado pelo restaurante",
+                      refunded: true,
+                      refundedAt: new Date().toISOString(),
+                      refundId: refundData.data?.id || "",
+                    });
+                    if (window.notifyOrderUpdate) await window.notifyOrderUpdate(order.id, "Cancelado", order.fcmToken, order.shortId, order.isPickup || (order.customer && order.customer.type === "pickup") || false);
+                    alert(
+                      "✅ Pedido cancelado e reembolso enviado ao cliente com sucesso!",
+                    );
+                  } else {
+                    const errMsg = refundData.error || "Erro desconhecido";
+                    const forceCancel = await window.customConfirm(
+                      `⚠️ Não foi possível processar o reembolso automático: ${errMsg}.\n\nDeseja cancelar o pedido mesmo assim e fazer o reembolso manualmente pelo painel do AbacatePay?`,
+                    );
+                    if (forceCancel) {
+                      await updateDoc(doc(db, COLLECTIONS.orders, order.id), {
+                        status: "Cancelado",
+                        cancelReason:
+                          "Cancelado pelo restaurante — reembolso manual pendente",
+                        refunded: false,
+                      });
+                      if (window.notifyOrderUpdate) {
+                       const isOrderPickup = order.isPickup || (order.customer && order.customer.type === "pickup") || false;
+                       await window.notifyOrderUpdate(order.id, "Cancelado", order.fcmToken, order.shortId, isOrderPickup);
+                     }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Erro ao processar reembolso:", err);
+                  const forceCancel = await window.customConfirm(
+                    `⚠️ Erro ao processar reembolso: ${err.message}.
+
+Deseja cancelar o pedido e fazer o reembolso manualmente?`,
+                  );
+                  if (forceCancel) {
+                    changeOrderStatus(order.id, "Cancelado");
+                  }
+                }
+              } else {
+                // Cancelar sem reembolso
+                await changeOrderStatus(order.id, "Cancelado");
+                await updateDoc(doc(db, COLLECTIONS.orders, order.id), {
+                  cancelReason: "Cancelado pelo restaurante — sem reembolso",
+                  refunded: false,
+                });
+              }
+            } else {
+              // Pedido sem pagamento online — cancelar normalmente
+              changeOrderStatus(order.id, "Cancelado");
+            }
+            toggleDetailsModal(false);
+          }
+        };
+
+        // Hide/Show action buttons based on status
+        btnPre.classList.add("hidden");
+        btnDes.classList.add("hidden");
+        btnCan.classList.add("hidden");
+
+        if (order.status === "Pendente") {
+          btnPre.classList.remove("hidden");
+          btnCan.classList.remove("hidden");
+        } else if (order.status === "Preparando") {
+          btnDes.classList.remove("hidden");
+          btnCan.classList.remove("hidden");
+        } else if (order.status === "Saiu para entrega") {
+          btnCan.classList.remove("hidden");
+        }
+
+        toggleDetailsModal(true);
+      };
+
+      // Audio Alert Sound Notification Station
+
+      function triggerNewMessageAlert(isPreview = false) {
+        try {
+          // Play the selected message sound
+          synthesizeBellRingerBeep(selectedMessageSound);
+
+          // Trigger Web Desktop Notification if allowed and not a preview
+          const enabled = localStorage.getItem("popfood_notifications_enabled") !== "false";
+          if (
+            !isPreview &&
+            enabled &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            new Notification("Nova Mensagem no Chat", {
+              body: "Um cliente enviou uma mensagem sobre o pedido.",
+              icon: "/pop-food-logo.png",
+            });
+          }
+        } catch (e) {
+          console.error("Audio playback failed for new message: ", e);
+        }
+      }
+
+      function triggerNewOrderAlert(isPreview = false) {
+
+        // Toggle banner display if not a preview
+        if (!isPreview) {
+          const banner = document.getElementById("new-order-banner");
+          if (banner) banner.classList.remove("hidden");
+        }
+
+        // play Audio beep synthesized or standard player in cascade fallback
+        const audio = document.getElementById("bell-beep-player");
+
+        // If we have custom sounds or if it's the default, we can use synthesized versions to ensure diversity
+        if (selectedSound === "default") {
+          if (audio && !isPreview) {
+            audio.play().catch((err) => {
+              synthesizeBellRingerBeep("default");
+            });
+          } else {
+            synthesizeBellRingerBeep("default");
+          }
+        } else {
+          synthesizeBellRingerBeep(selectedSound);
+        }
+
+        // Trigger Web Desktop Notification if allowed and not a preview
+        const enabled = localStorage.getItem("popfood_notifications_enabled") !== "false";
+        if (
+          !isPreview &&
+          enabled &&
+          "Notification" in window &&
+          Notification.permission === "granted"
+        ) {
+          try {
+            new Notification("🚨 Novo Pedido Recebido!", {
+              body: "Um novo pedido pendente acaba de ser recebido pelo sistema PopFood!",
+              tag: "new-order",
+              renotify: true,
+              requireInteraction: true,
+              icon: "favicon.png",
+            });
+          } catch (e) {
+            console.warn("Failed to summon Notification constructor:", e);
+          }
+        }
+      }
+
+      window.requestDesktopNotificationPermission = async function () {
+        if (!("Notification" in window)) {
+          alert(
+            "Este navegador ou dispositivo não suporta notificações de desktop.",
+          );
+          return;
+        }
+
+        const currentPermission = Notification.permission;
+
+        if (currentPermission === "granted") {
+          // Toggle ON/OFF state in local storage
+          const isCurrentlyEnabled = localStorage.getItem("popfood_notifications_enabled") !== "false";
+          if (isCurrentlyEnabled) {
+            localStorage.setItem("popfood_notifications_enabled", "false");
+            alert("Notificações desativadas temporariamente neste painel.");
+          } else {
+            localStorage.setItem("popfood_notifications_enabled", "true");
+            try {
+              new Notification("Notificações Reativadas! 🔔", {
+                body: "Você voltará a receber alertas visuais na sua tela.",
+                icon: "favicon.png",
+              });
+            } catch (e) {
+              console.warn("Could not fire notification:", e);
+            }
+          }
+          updateNotificationIndicator();
+          return;
+        }
+
+        if (currentPermission === "denied") {
+          alert(
+            "As notificações estão bloqueadas no seu navegador. ❌\n\nPara ativá-las:\n1. Clique no ícone de cadeado ou configurações ao lado da URL na barra de endereços.\n2. Altere a permissão de Notificações para 'Permitir'.\n3. Recarregue a página."
+          );
+          return;
+        }
+
+        // It is "default", let's ask for permission directly!
+        try {
+          const permission = await Notification.requestPermission();
+          updateNotificationIndicator(permission);
+
+          if (permission === "granted") {
+            localStorage.setItem("popfood_notifications_enabled", "true");
+            updateNotificationIndicator();
+
+            if (messaging) {
+              try {
+                console.log("Requesting FCM token manually...");
+                const registration = await Promise.resolve();
+                try {
+                  await registration.update();
+                } catch (err) {
+                  console.log("Failed to update SW registration:", err);
+                }
+                let currentToken = null;
+                try {
+                  currentToken = await getToken(messaging, {
+                     vapidKey: VAPID_KEY,
+                     serviceWorkerRegistration: registration
+                  });
+                } catch (e) {
+                  console.warn("FCM manual request token failed:", e);
+                  window.showToast("Falha ao obter token push. Verifique permissões.", true);
+                }
+                if (currentToken) {
+                   console.log("FCM Token manually requested:", currentToken);
+                   if (window.currentStoreId) {
+                      const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+                      await updateDoc(profileRef, {
+                         merchantTokens: arrayUnion(currentToken)
+                      });
+                      console.log("Manual FCM Token successfully registered inside restaurant profile.");
+                   }
+                }
+              } catch(e) {
+                console.error("FCM Token generation failed", e);
+              }
+            }
+
+            try {
+              new Notification("Notificações Ativas! 🔔", {
+                body: "Parabéns! Você receberá alertas na sua tela sempre que novos pedidos chegarem.",
+                icon: "favicon.png",
+              });
+            } catch (err) {
+              console.warn("Could not fire test notification:", err);
+            }
+          }
+        } catch (e) {
+          console.error("Error requesting notification permission:", e);
+          // Fallback callback syntax for older browsers
+          try {
+            Notification.requestPermission((permission) => {
+              updateNotificationIndicator(permission);
+              if (permission === "granted") {
+                localStorage.setItem("popfood_notifications_enabled", "true");
+                updateNotificationIndicator();
+
+                // Register token in callback
+                if (messaging) {
+                  (async () => {
+                    try {
+                      const registration = await Promise.resolve();
+                      try {
+                        await registration.update();
+                      } catch (err) {
+                        console.log("Failed to update SW registration:", err);
+                      }
+                      let currentToken = null;
+                      try {
+                        currentToken = await getToken(messaging, {
+                           vapidKey: VAPID_KEY,
+                           serviceWorkerRegistration: registration
+                        });
+                      } catch (e) {
+                        console.warn("FCM callback request token failed:", e);
+                      }
+                      if (currentToken && window.currentStoreId) {
+                        const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+                        await updateDoc(profileRef, {
+                          merchantTokens: arrayUnion(currentToken)
+                        });
+                        console.log("Merchant token registered inside fallback callback.");
+                      }
+                    } catch (e) {
+                      console.error("FCM Token generation failed in fallback", e);
+                    }
+                  })();
+                }
+
+                try {
+                  new Notification("Notificações Ativas! 🔔", {
+                    body: "Parabéns! Você receberá alertas na sua tela sempre que novos pedidos chegarem.",
+                    icon: "favicon.png",
+                  });
+                } catch (err) {
+                  console.warn("Could not fire test notification:", err);
+                }
+              }
+            });
+          } catch (err) {
+            console.error("Fallback permission request failed too:", err);
+          }
+        }
+      };
+
+      function updateNotificationIndicator(state = null) {
+        const el = document.getElementById("lbl-notification-indicator");
+        if (!el) return;
+
+        if (!("Notification" in window)) {
+          el.textContent = "🔕 Não suportado";
+          return;
+        }
+
+        const currentPermission = state || Notification.permission;
+
+        if (currentPermission === "denied") {
+          el.textContent = "🔕 Notificações: Bloqueadas ❌";
+          return;
+        }
+
+        if (currentPermission === "default") {
+          el.textContent = "🔔 Notificações: Ativar ⚠️";
+          return;
+        }
+
+        // If permission is granted, reflect the custom local storage toggle
+        const enabled = localStorage.getItem("popfood_notifications_enabled") !== "false";
+
+        if (enabled) {
+          el.textContent = "🔔 Notificações: Ativas ✅";
+        } else {
+          el.textContent = "🔕 Notificações: Inativas ❌";
+        }
+      }
+      window.updateNotificationIndicator = updateNotificationIndicator;
+
+      window.dismissNewOrderBanner = function () {
+        document.getElementById("new-order-banner").classList.add("hidden");
+      };
+
+      // Build rich beep bells using AudioContext
+      function synthesizeBellRingerBeep(type = "default") {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (ctx.state === "suspended") {
+            ctx.resume();
+          }
+ 
+          // Multi frequency chime
+          const playTone = (freq, delay, dur, vol = 0.8, waveType = "sine") => {
+            setTimeout(() => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+ 
+              osc.type = waveType;
+              osc.frequency.setValueAtTime(freq, ctx.currentTime);
+ 
+              gain.gain.setValueAtTime(vol, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(
+                0.01,
+                ctx.currentTime + dur,
+              );
+ 
+              osc.start();
+              osc.stop(ctx.currentTime + dur);
+            }, delay);
+          };
+ 
+          if (type === "default") {
+            // Standard sequence chime - amplified and extended for a richer, louder ring
+            playTone(587.33, 0, 0.4, 0.9); // D5
+            playTone(659.25, 180, 0.4, 0.9); // E5
+            playTone(880.0, 360, 0.6, 0.9); // A5
+            playTone(1174.66, 540, 1.0, 0.9); // D6
+          } else if (type === "modern") {
+            // Digital Sip (Loud 4 notes)
+            playTone(1200, 0, 0.15, 0.85);
+            playTone(1600, 60, 0.15, 0.85);
+            playTone(1200, 120, 0.15, 0.85);
+            playTone(1600, 180, 0.15, 0.85);
+          } else if (type === "urgent") {
+            // Alerta Urgente (Loud dual-tone square wave)
+            playTone(500, 0, 0.4, 0.8, "square");
+            playTone(400, 300, 0.4, 0.8, "square");
+            playTone(500, 600, 0.4, 0.8, "square");
+            playTone(400, 900, 0.4, 0.8, "square");
+          } else if (type === "old_phone") {
+            // Trim-Trim-Trim (Classic sharp ringer)
+            const playTrim = (startTime) => {
+              for (let i = 0; i < 8; i++) {
+                const d = startTime + i * 40;
+                playTone(1800, d, 0.05, 0.75, "sine");
+                playTone(2200, d + 20, 0.05, 0.75, "sine");
+              }
+            };
+            playTrim(0); // Trim
+            playTrim(500); // Trim
+            playTrim(1000); // Trim
+          } else if (type === "msg_digital") {
+            // Two quick high pitches for a message
+            playTone(1320, 0, 0.12, 0.8);
+            playTone(1760, 80, 0.18, 0.8);
+          } else if (type === "msg_bell") {
+            // Sweet chime bell
+            playTone(987.77, 0, 0.3, 0.85);
+            playTone(1318.51, 120, 0.6, 0.85);
+          } else if (type === "msg_bubble") {
+            // Bubble popping sounds
+            playTone(700, 0, 0.06, 0.8);
+            playTone(1100, 40, 0.06, 0.8);
+            playTone(1400, 80, 0.08, 0.8);
+          } else if (type === "msg_chime") {
+            // Warm C Major Chord Chime
+            playTone(523.25, 0, 0.4, 0.7); // C5
+            playTone(659.25, 0, 0.4, 0.7); // E5
+            playTone(783.99, 0, 0.4, 0.7); // G5
+            playTone(1046.50, 0, 0.6, 0.85); // C6
+          }
+        } catch (err) {
+          console.warn("Native oscillator compilation fail: ", err);
+        }
+      }
+
+      window.triggerThermalComandaPrintById = function (orderId) {
+        const order = globalOrdersList.find((o) => o.id === orderId);
+        if (order) window.triggerThermalComandaPrint(order);
+      };
+
+      window.triggerThermalComandaPrint = function (order) {
+        const parent = document.getElementById("receipt-print-layout");
+        parent.innerHTML = "";
+
+        const storeName = loadedRestaurantProfile
+          ? loadedRestaurantProfile.name
+          : "PopFood Delivery";
+        const storePhone = loadedRestaurantProfile
+          ? loadedRestaurantProfile.phone
+          : "WhatsApp";
+        const storeAddress = loadedRestaurantProfile
+          ? loadedRestaurantProfile.address
+          : "";
+
+        let orderDate = order.date || "";
+        if (order.createdAt) {
+          if (
+            typeof order.createdAt === "object" &&
+            typeof order.createdAt.seconds === "number"
+          ) {
+            orderDate = new Date(order.createdAt.seconds * 1000).toLocaleString(
+              "pt-BR",
+            );
+          } else if (
+            typeof order.createdAt === "object" &&
+            typeof order.createdAt.toDate === "function"
+          ) {
+            orderDate = order.createdAt.toDate().toLocaleString("pt-BR");
+          } else {
+            const checkD = new Date(order.createdAt);
+            if (!isNaN(checkD.getTime())) {
+              orderDate = checkD.toLocaleString("pt-BR");
+            }
+          }
+        }
+
+        // Configure text print width
+        let printWidth = localStorage.getItem("popfood_default_print_width") || "58";
+        if (typeof localPrinters !== "undefined" && localPrinters.length > 0) {
+          const activePrinter = localPrinters.find((p) => p.active !== false);
+          if (activePrinter) printWidth = activePrinter.width;
+        }
+        const cols = printWidth === "58" ? 32 : 48;
+
+        function formatLine(leftText, rightText) {
+          let spaceCount = Math.max(
+            1,
+            cols - leftText.length - rightText.length,
+          );
+          if (leftText.length + rightText.length > cols) {
+            const maxLeftLen = cols - 1 - rightText.length;
+            leftText = leftText.substring(0, maxLeftLen);
+            spaceCount = 1;
+          }
+          return `${leftText}${" ".repeat(spaceCount)}${rightText}\n`;
+        }
+
+        function makeDivider(char) {
+          return char.repeat(cols) + "\n";
+        }
+
+        function centerText(text) {
+          text = text.trim();
+          if (text.length >= cols) {
+            return text.substring(0, cols) + "\n";
+          }
+          const leftPadding = Math.floor((cols - text.length) / 2);
+          return " ".repeat(leftPadding) + text + "\n";
+        }
+
+        // 1. Calculations & Dynamic Formatting Variables
+        const shortId = order.sequence || order.number || order.id.slice(-4).toUpperCase();
+        
+        let estimatedTimeStr = "";
+        if (order.estimatedDeliveryTime || order.estimatedTime) {
+          estimatedTimeStr = order.estimatedDeliveryTime || order.estimatedTime;
+        } else {
+          let baseDate = new Date();
+          if (order.createdAt) {
+            if (typeof order.createdAt === "object" && typeof order.createdAt.seconds === "number") {
+              baseDate = new Date(order.createdAt.seconds * 1000);
+            } else {
+              const checkD = new Date(order.createdAt);
+              if (!isNaN(checkD.getTime())) baseDate = checkD;
+            }
+          }
+          const addMinutes = order.customer && order.customer.type === "pickup" ? 15 : 45;
+          const estDate = new Date(baseDate.getTime() + addMinutes * 60000);
+          estimatedTimeStr = estDate.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        const isPickup = order.customer && order.customer.type === "pickup";
+        const predictionLabel = isPickup ? "Retirada prevista:" : "Entrega prevista:";
+
+        // Payment status & modes calculation
+        const isOnlinePaid = ["abacatepay", "asaas", "mercadopago", "stripe"].includes(order.paymentProvider) || 
+                             order.isPaid || 
+                             order.paymentMethod === "Pago Online" || 
+                             order.paymentMethod === "PixOnline" || 
+                             order.paymentMethod === "Online" || 
+                             false;
+        const paymentStatusLabel = isOnlinePaid ? "Pagamento realizado" : "Pagamento na entrega";
+        
+        let paymentLabel = order.paymentMethod ? order.paymentMethod.toUpperCase() : "N/A";
+        if (isOnlinePaid) {
+          if (order.paymentMethod === "PixOnline" || order.paymentMethod === "Pix Imediato" || order.paymentMethod === "Pix") {
+            paymentLabel = "ONLINE - PIX - PIX";
+          } else if (order.paymentMethod === "Online" || order.paymentMethod === "Cartão de Crédito" || order.paymentMethod === "CartaoOnline" || order.paymentMethod === "Pago Online") {
+            paymentLabel = "ONLINE - CARTÃO DE CRÉDITO";
+          } else {
+            paymentLabel = `ONLINE - ${paymentLabel}`;
+          }
+        } else {
+          if (order.paymentMethod === "Pix" || order.paymentMethod === "Pix no ato") {
+            paymentLabel = "MAQUININHA - PIX";
+          } else if (order.paymentMethod === "Cartão" || order.paymentMethod === "Cartao") {
+            paymentLabel = "MAQUININHA - CARTÃO";
+          } else if (order.paymentMethod === "Dinheiro") {
+            paymentLabel = "DINHEIRO EM MÃOS";
+          } else {
+            paymentLabel = `COBRAR - ${paymentLabel}`;
+          }
+        }
+
+        const deliveryFee = order.deliveryFee || 0;
+        const subtotal = order.subtotal || 0;
+        const discount = order.desconto || 0;
+        const total = order.total || 0;
+        const toCollect = isOnlinePaid ? 0 : total;
+
+        // 2. Generate RAW Plain Text Version for classic text printers
+        let textReceipt = "";
+        textReceipt += centerText((order.source || order.canal || order.channel || "POPFOOD SITE").toUpperCase());
+        textReceipt += centerText(storeName.toUpperCase());
+        textReceipt += centerText("EXPEDICAO");
+        textReceipt += makeDivider("-");
+        textReceipt += centerText(shortId);
+        textReceipt += makeDivider("-");
+
+        let detailsText = "";
+        detailsText += `CODIGO DE COLETA: INDISPONIVEL\n`;
+        detailsText += makeDivider("-");
+        detailsText += `Data: ${orderDate}\n`;
+        detailsText += `${predictionLabel.toUpperCase()} ${estimatedTimeStr}\n`;
+        detailsText += `Localizador: ${order.id.slice(-8).toUpperCase()}\n`;
+        if (order.isFirstOrder || order.customer?.isFirstOrder) {
+          detailsText += `Primeiro pedido!\n`;
+        }
+        
+        detailsText += `\n${order.customer ? order.customer.name.toUpperCase() : "NOME NÃO DEFINIDO"}\n`;
+        detailsText += `${order.customer ? order.customer.phone : "SEM WHATSAPP"} ${order.customer?.id ? `ID: ${order.customer.id}` : ""}\n`;
+        if (order.customer && order.customer.type !== "pickup" && order.customer.address) {
+          detailsText += `END: ${order.customer.address.toUpperCase()}\n`;
+          if (order.customer.complement) detailsText += `COMP: ${order.customer.complement.toUpperCase()}\n`;
+          if (order.customer.reference) detailsText += `REF: ${order.customer.reference.toUpperCase()}\n`;
+          if (order.customer.cep) detailsText += `CEP: ${order.customer.cep}\n`;
+        } else {
+          detailsText += `*** RETIRADA NO LOCAL ***\n`;
+        }
+        detailsText += makeDivider("-");
+        detailsText += `ITENS DO PEDIDO (${order.items.length})\n`;
+        
+        order.items.forEach((item) => {
+          const qty = item.quantity || 1;
+          const name = item.name.toUpperCase();
+          const itemTotal = (item.totalItemPrice || item.price || 0) * qty;
+          const itemTotalStr = `R$ ${itemTotal.toFixed(2).replace(".", ",")}`;
+          
+          detailsText += formatLine(`${qty}x ${name}`, itemTotalStr);
+          
+          if (item.complements && item.complements.length > 0) {
+            // Group complements by category/group name
+            const groupedComps = {};
+            item.complements.forEach((c) => {
+              const currentGroup = (
+                c.groupName ||
+                c.group ||
+                c.grupo ||
+                c.group_name ||
+                c.category ||
+                c.gname ||
+                c.nomeGrupo ||
+                ""
+              )
+                .toUpperCase()
+                .trim();
+
+              if (!groupedComps[currentGroup]) {
+                groupedComps[currentGroup] = [];
+              }
+              groupedComps[currentGroup].push(c);
+            });
+
+            const groupKeys = Object.keys(groupedComps);
+            groupKeys.forEach((groupKey) => {
+              if (groupKey !== "") {
+                detailsText += `  ${groupKey}:\n`;
+              }
+
+              groupedComps[groupKey].forEach((c) => {
+                const compQty = c.quantity || 1;
+                const compName = (c.optionName || c.option || c.opcao || c.name || "").toUpperCase().trim();
+                const compPrice = c.price || 0;
+                const compTotal = compPrice * qty * compQty;
+                const compPriceStr = compPrice > 0 ? `R$ ${compTotal.toFixed(2).replace(".", ",")}` : "";
+                
+                detailsText += formatLine(`   ${compQty} ${compName}`, compPriceStr);
+              });
+            });
+          }
+          if (item.notes) {
+            detailsText += `   Obs: ${item.notes.toUpperCase()}\n`;
+          }
+        });
+        
+        detailsText += makeDivider("-");
+        if (isOnlinePaid) {
+          const isPix = order.paymentMethod === "PixOnline" || 
+                        order.paymentMethod === "Pix Imediato" || 
+                        order.paymentMethod === "Pix" || 
+                        order.paymentMethodType === "pix" ||
+                        (order.paymentMethod && order.paymentMethod.toUpperCase().includes("PIX"));
+          if (isPix) {
+            detailsText += centerText("PIX PAGO ONLINE");
+          } else {
+            detailsText += centerText("CARTÃO PAGO ONLINE");
+          }
+        } else {
+          detailsText += centerText("* PAGAMENTO NA ENTREGA *");
+          const methodUpper = (order.paymentMethod || "").toUpperCase();
+          if (methodUpper.includes("PIX")) {
+            detailsText += centerText("PIX NA ENTREGA - COBRAR");
+          } else if (methodUpper.includes("CART") || methodUpper.includes("CARD")) {
+            detailsText += centerText("CARTÃO NA ENTREGA - COBRAR");
+          } else if (methodUpper.includes("DINHEIRO")) {
+            detailsText += centerText("DINHEIRO - COBRAR");
+          } else {
+            detailsText += centerText(`${methodUpper} - COBRAR`);
+          }
+        }
+        detailsText += makeDivider("-");
+        
+        detailsText += formatLine("Valor total do pedido:", `R$ ${subtotal.toFixed(2).replace(".", ",")}`);
+        detailsText += formatLine("Taxa de entrega:", `R$ ${deliveryFee.toFixed(2).replace(".", ",")}`);
+        if (discount > 0) {
+          detailsText += formatLine("Desconto / Incentivos:", `-R$ ${discount.toFixed(2).replace(".", ",")}`);
+        }
+        detailsText += formatLine("Valor final do pedido:", `R$ ${total.toFixed(2).replace(".", ",")}`);
+        detailsText += makeDivider("-");
+        detailsText += formatLine("Cobrar do cliente:", `R$ ${toCollect.toFixed(2).replace(".", ",")}`);
+        detailsText += makeDivider("-");
+        detailsText += `CPF na nota: ${order.cpf || order.customer?.cpf || "NÃO INFORMADO"}\n`;
+        detailsText += makeDivider("-");
+        detailsText += centerText("Obrigado pela preferência!");
+        detailsText += centerText("PopFood Gestor Web v1.0");
+
+        textReceipt += detailsText;
+
+        // 3. Generate High-Fidelity Responsive HTML Version
+        const fontStack = "'Courier New', Courier, monospace";
+        const widthPx = printWidth === "58" ? "260px" : "380px";
+        const fontSize = printWidth === "58" ? "12px" : "14px";
+        const headerFontSize = printWidth === "58" ? "12px" : "14px";
+        const titleFontSize = printWidth === "58" ? "16px" : "18px";
+        const orderFontSize = printWidth === "58" ? "36px" : "44px";
+        
+        let itemsHtml = "";
+        order.items.forEach((item) => {
+          const qty = item.quantity || 1;
+          const name = item.name.toUpperCase();
+          const itemTotal = (item.totalItemPrice || item.price || 0) * qty;
+          const itemTotalStr = `R$ ${itemTotal.toFixed(2).replace(".", ",")}`;
+          
+          itemsHtml += `
+            <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 6px; line-height: 1.2;">
+              <span style="text-align: left; flex-grow: 1;">${qty}x ${name}</span>
+              <span style="text-align: right; white-space: nowrap; margin-left: 8px; flex-shrink: 0;">${itemTotalStr}</span>
+            </div>
+          `;
+          
+          if (item.complements && item.complements.length > 0) {
+            // Group complements by category/group name
+            const groupedComps = {};
+            item.complements.forEach((c) => {
+              const currentGroup = (
+                c.groupName ||
+                c.group ||
+                c.grupo ||
+                c.group_name ||
+                c.category ||
+                c.gname ||
+                c.nomeGrupo ||
+                ""
+              )
+                .toUpperCase()
+                .trim();
+
+              if (!groupedComps[currentGroup]) {
+                groupedComps[currentGroup] = [];
+              }
+              groupedComps[currentGroup].push(c);
+            });
+
+            const groupKeys = Object.keys(groupedComps);
+            groupKeys.forEach((groupKey) => {
+              if (groupKey !== "") {
+                itemsHtml += `
+                  <div style="font-weight: bold; margin-top: 4px; padding-left: 10px; color: black; text-align: left;">
+                    ${groupKey}:
+                  </div>
+                `;
+              }
+
+              groupedComps[groupKey].forEach((c) => {
+                const compQty = c.quantity || 1;
+                const compName = (c.optionName || c.option || c.opcao || c.name || "").toUpperCase().trim();
+                const compPrice = c.price || 0;
+                const compTotal = compPrice * qty * compQty;
+                const compPriceStr = compPrice > 0 ? `R$ ${compTotal.toFixed(2).replace(".", ",")}` : "";
+                
+                itemsHtml += `
+                  <div style="display: flex; justify-content: space-between; font-weight: bold; padding-left: 15px; margin-top: 2px; color: black; line-height: 1.2;">
+                    <span style="text-align: left; flex-grow: 1;">${compQty} ${compName}</span>
+                    <span style="text-align: right; white-space: nowrap; margin-left: 8px; flex-shrink: 0;">${compPriceStr}</span>
+                  </div>
+                `;
+              });
+            });
+          }
+          if (item.notes) {
+            itemsHtml += `
+              <div style="font-weight: normal; font-style: italic; color: black; padding-left: 15px; margin-top: 2px; text-align: left;">
+                OBS: ${item.notes.toUpperCase()}
+              </div>
+            `;
+          }
+        });
+
+        let discountHtml = "";
+        if (discount > 0) {
+          discountHtml = `
+            <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+              <span>DESCONTO / INCENTIVOS:</span>
+              <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">-R$ ${discount.toFixed(2).replace(".", ",")}</span>
+            </div>
+          `;
+        }
+        
+        parent.innerHTML = `
+        <div style="width: 100%; max-width: ${widthPx}; background: white; color: black; font-family: ${fontStack}; margin: 0 auto; padding: 10px; box-sizing: border-box; text-align: left; font-weight: bold; overflow: hidden; font-size: ${fontSize}; line-height: 1.35;">
+          <!-- SYSTEM/STORE SOURCE HEADER -->
+          <div style="text-align: center; font-size: ${headerFontSize}; margin-bottom: 2px; font-weight: normal; letter-spacing: 1px;">
+            ${(order.source || order.canal || order.channel || "POPFOOD SITE").toUpperCase()}
+          </div>
+          <div style="text-align: center; font-size: ${titleFontSize}; font-weight: 900; margin-bottom: 2px; line-height: 1.1;">
+            ${storeName.toUpperCase()}
+          </div>
+          <div style="text-align: center; font-size: ${headerFontSize}; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px;">
+            EXPEDICAO
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <!-- GIGANTIC HIGH-CONTRAST ORDER BLOCK -->
+          <div style="background: black; color: white; text-align: center; font-size: ${orderFontSize}; font-weight: 900; padding: 12px 0; margin: 6px 0; font-family: ${fontStack}; line-height: 1; letter-spacing: 1px;">
+            ${shortId}
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <div style="text-align: center; margin: 4px 0;">
+            CODIGO DE COLETA: INDISPONIVEL
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <div>Data: ${orderDate}</div>
+          
+          <div style="background: black; color: white; padding: 4px; text-align: center; font-weight: 900; margin: 6px 0; letter-spacing: 0.5px;">
+            ${predictionLabel.toUpperCase()} ${estimatedTimeStr}
+          </div>
+          
+          <div>Localizador: ${order.id.slice(-8).toUpperCase()}</div>
+          ${order.isFirstOrder || order.customer?.isFirstOrder 
+            ? `<div style="font-weight: 900; background: #eee; padding: 2px 4px; display: inline-block; margin-top: 2px;">PRIMEIRO PEDIDO!</div>` 
+            : ""
+          }
+          
+          <!-- CUSTOMER -->
+          <div style="font-weight: 900; margin-top: 8px; font-size: ${headerFontSize};">
+            ${order.customer ? order.customer.name.toUpperCase() : "NOME NÃO DEFINIDO"}
+          </div>
+          <div style="margin-top: 2px;">
+            ${order.customer ? order.customer.phone : "SEM WHATSAPP"} ${order.customer?.id ? `ID: ${order.customer.id}` : ""}
+          </div>
+          
+          <!-- ADDRESS FOR DELIVERY -->
+          ${order.customer && order.customer.type !== "pickup" && order.customer.address 
+            ? `
+              <div style="margin-top: 4px; border: 1px solid black; padding: 4px; line-height: 1.2;">
+                ENDEREÇO: ${order.customer.address.toUpperCase()}
+                ${order.customer.complement ? `<br>COMP: ${order.customer.complement.toUpperCase()}` : ""}
+                ${order.customer.reference ? `<br>REF: ${order.customer.reference.toUpperCase()}` : ""}
+                ${order.customer.cep ? `<br>CEP: ${order.customer.cep}` : ""}
+              </div>
+            `
+            : `
+              <div style="margin-top: 4px; border: 1px solid black; padding: 4px; text-align: center;">
+                RETIRADA NO LOCAL
+              </div>
+            `
+          }
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 8px 0;"></div>
+          
+          <!-- ITEMS -->
+          <div style="font-size: ${headerFontSize}; font-weight: bold; margin-bottom: 4px;">
+            ITENS DO PEDIDO (${order.items.length})
+          </div>
+          ${itemsHtml}
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 8px 0;"></div>
+          
+          <!-- PAYMENT STATUS BANNER -->
+          <div style="text-align: center; font-weight: 900; line-height: 1.3; margin: 6px 0; font-size: ${headerFontSize};">
+            ${
+              isOnlinePaid
+                ? (order.paymentMethod === "PixOnline" || order.paymentMethod === "Pix Imediato" || order.paymentMethod === "Pix" || order.paymentMethodType === "pix" || (order.paymentMethod && order.paymentMethod.toUpperCase().includes("PIX"))
+                  ? "PIX PAGO ONLINE"
+                  : "CARTÃO PAGO ONLINE")
+                : (function() {
+                    const m = (order.paymentMethod || "").toUpperCase();
+                    if (m.includes("PIX")) return "* PAGAMENTO NA ENTREGA *<br>PIX NA ENTREGA - COBRAR";
+                    if (m.includes("CART") || m.includes("CARD")) return "* PAGAMENTO NA ENTREGA *<br>CARTÃO NA ENTREGA - COBRAR";
+                    if (m.includes("DINHEIRO")) return "* PAGAMENTO NA ENTREGA *<br>DINHEIRO - COBRAR";
+                    return `* PAGAMENTO NA ENTREGA *<br>${m} - COBRAR`;
+                  })()
+            }
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 8px 0;"></div>
+          
+          <!-- TOTALS -->
+          <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+            <span>Valor total do pedido:</span>
+            <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">R$ ${subtotal.toFixed(2).replace(".", ",")}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+            <span>Taxa de entrega:</span>
+            <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">R$ ${deliveryFee.toFixed(2).replace(".", ",")}</span>
+          </div>
+          ${discountHtml}
+          <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 3px;">
+            <span>Valor final do pedido:</span>
+            <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">R$ ${total.toFixed(2).replace(".", ",")}</span>
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <!-- COBRAR DO CLIENTE (CRITICAL HIGHLIGHT) -->
+          <div style="display: flex; justify-content: space-between; font-weight: 900; border: 1.5px solid black; padding: 6px; margin: 8px 0; background: #eee;">
+            <span>COBRAR DO CLIENTE:</span>
+            <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">R$ ${toCollect.toFixed(2).replace(".", ",")}</span>
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <div style="text-align: center; margin: 4px 0;">
+            CPF na nota: ${order.cpf || order.customer?.cpf || "NÃO INFORMADO"}
+          </div>
+          
+          <!-- dashed separator -->
+          <div style="border-top: 1px dashed black; margin: 6px 0;"></div>
+          
+          <div style="text-align: center; margin-top: 6px; font-weight: normal;">
+            Obrigado pela preferência!
+          </div>
+          <div style="text-align: center; font-size: 10px; margin-top: 2px; font-weight: normal; color: #555;">
+            PopFood Gestor Web v1.0
+          </div>
+        </div>
+      `;
+
+        // Trigger native browser printer with logo loading protection with safety flag to avoid duplicate calls
+        let printTriggered = false;
+        const executePrint = () => {
+          if (printTriggered) return;
+          printTriggered = true;
+
+          if (localPrinters && localPrinters.length > 0) {
+            const activePrinters = localPrinters.filter(
+              (p) => p.active !== false,
+            );
+            if (activePrinters.length > 0) {
+              // Print to all active configured printers
+              activePrinters.forEach((printer) => {
+                fetch(`${printer.url.replace(/\/$/, "")}/imprimir`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    impressora: printer.name,
+                    largura: printer.width,
+                    html: parent.innerHTML,
+                    texto: textReceipt,
+                    conteudo: textReceipt,
+                    conteudo_html: parent.innerHTML,
+                    content: textReceipt,
+                    text: textReceipt,
+                    ...order,
+                  }),
+                  headers: { "Content-Type": "application/json" },
+                }).catch((err) => {
+                  console.error(
+                    `Local printer (${printer.name}) call failed: `,
+                    err,
+                  );
+                });
+              });
+            } else {
+              // No active local printers, fallback to browser print if desired, or skip
+              console.warn("No active local printers configured.");
+            }
+          } else {
+            window.print();
+          }
+        };
+
+        const logoImg = parent.querySelector("img");
+        if (logoImg && logoImg.src) {
+          if (logoImg.complete) {
+            executePrint();
+          } else {
+            logoImg.onload = executePrint;
+            logoImg.onerror = executePrint;
+            setTimeout(executePrint, 1500); // Fail-safe fallback timeout
+          }
+        } else {
+          executePrint();
+        }
+      };
+
+      // Sidebar toggle and state handling
+      window.toggleSidebar = function (forceMobileShow) {
+        const sidebar = document.getElementById("main-sidebar");
+        const overlay = document.getElementById("sidebar-overlay");
+        if (!sidebar) return;
+
+        const isMobile = window.innerWidth < 1024;
+        if (isMobile) {
+          if (forceMobileShow === true) {
+            sidebar.classList.add("show-mobile");
+            if (overlay) overlay.classList.remove("hidden");
+          } else if (forceMobileShow === false) {
+            sidebar.classList.remove("show-mobile");
+            if (overlay) overlay.classList.add("hidden");
+          } else {
+            const isVisible = sidebar.classList.contains("show-mobile");
+            if (isVisible) {
+              sidebar.classList.remove("show-mobile");
+              if (overlay) overlay.classList.add("hidden");
+            } else {
+              sidebar.classList.add("show-mobile");
+              if (overlay) overlay.classList.remove("hidden");
+            }
+          }
+        } else {
+          const isCollapsed = sidebar.classList.contains("collapsed");
+          if (isCollapsed) {
+            sidebar.classList.remove("collapsed");
+            localStorage.setItem("popfood_sidebar_collapsed", "false");
+          } else {
+            sidebar.classList.add("collapsed");
+            localStorage.setItem("popfood_sidebar_collapsed", "true");
+          }
+        }
+      };
+
+      // Apply sidebar state on load
+      const applySidebarState = () => {
+        const sidebar = document.getElementById("main-sidebar");
+        if (sidebar && window.innerWidth >= 1024) {
+          if (localStorage.getItem("popfood_sidebar_collapsed") === "true") {
+            sidebar.classList.add("collapsed");
+          } else {
+            sidebar.classList.remove("collapsed");
+          }
+        }
+      };
+
+      // Auto-detect load state
+      setTimeout(applySidebarState, 100);
+
+      // Chat Functions
+      window.switchModalTab = function(tab) {
+        const tabDetailsBtn = document.getElementById('modal-tab-details');
+        const tabChatBtn = document.getElementById('modal-tab-chat');
+        const contentDetails = document.getElementById('modal-content-details');
+        const contentChat = document.getElementById('modal-content-chat');
+
+        if (tab === 'details') {
+          tabDetailsBtn.classList.replace('border-transparent', 'border-orange-500');
+          tabDetailsBtn.classList.replace('text-gray-400', 'text-orange-600');
+          tabDetailsBtn.classList.remove('hover:text-gray-600');
+          
+          tabChatBtn.classList.replace('border-orange-500', 'border-transparent');
+          tabChatBtn.classList.replace('text-orange-600', 'text-gray-400');
+          tabChatBtn.classList.add('hover:text-gray-600');
+          
+          contentDetails.classList.remove('hidden');
+          contentChat.classList.add('hidden');
+        } else {
+          tabChatBtn.classList.replace('border-transparent', 'border-orange-500');
+          tabChatBtn.classList.replace('text-gray-400', 'text-orange-600');
+          tabChatBtn.classList.remove('hover:text-gray-600');
+          
+          tabDetailsBtn.classList.replace('border-orange-500', 'border-transparent');
+          tabDetailsBtn.classList.replace('text-orange-600', 'text-gray-400');
+          tabDetailsBtn.classList.add('hover:text-gray-600');
+          
+          contentDetails.classList.add('hidden');
+          contentChat.classList.remove('hidden');
+          
+          renderStoreChatMessages();
+        }
+      }
+
+      function renderStoreChatMessages() {
+        const container = document.getElementById('store-chat-messages');
+        if (!container || !currentOrderViewedId) return;
+        
+        const order = globalOrdersList.find((o) => o.id === currentOrderViewedId);
+        if (!order) return;
+        
+        // Initialize AI Toggle state
+        const aiToggle = document.getElementById('ai-chat-toggle');
+        if (aiToggle) {
+          aiToggle.checked = order.aiChatEnabled !== false; // defaults to true
+        }
+        
+        const messages = order.chatMessages || [];
+        if (messages.length === 0) {
+          container.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-2 py-8">
+            <span class="text-3xl">💬</span>
+            <p class="text-xs">Inicie um chat com o cliente.</p>
+          </div>`;
+          return;
+        }
+        
+        container.innerHTML = messages.map(msg => {
+          const isStore = msg.sender === 'store';
+          const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          
+          if (isStore) {
+            return `
+              <div class="flex flex-col items-end w-full">
+                <div class="bg-orange-500 text-white rounded-2xl rounded-tr-sm px-4 py-2 max-w-[85%] shadow-sm text-sm">
+                  ${msg.text}
+                </div>
+                <span class="text-[9px] text-gray-400 mt-1">${timeStr}</span>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="flex flex-col items-start w-full">
+                <div class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-2 max-w-[85%] shadow-sm text-sm">
+                  ${msg.text}
+                </div>
+                <span class="text-[9px] text-gray-400 mt-1">${timeStr}</span>
+              </div>
+            `;
+          }
+        }).join('');
+        
+        // Auto scroll to bottom
+        container.scrollTop = container.scrollHeight;
+      }
+
+      window.renderStoreChatMessages = renderStoreChatMessages;
+
+      window.toggleAiChat = async function() {
+        if (!currentOrderViewedId) return;
+        const aiToggle = document.getElementById('ai-chat-toggle');
+        const isEnabled = aiToggle.checked;
+        
+        try {
+          const docRef = doc(db, COLLECTIONS.orders, currentOrderViewedId);
+          await updateDoc(docRef, { aiChatEnabled: isEnabled });
+          
+          if (!isEnabled) {
+            alert("Robô automático desativado. Responda manualmente.");
+          } else {
+            alert("Robô automático ativado para este pedido.");
+          }
+        } catch (err) {
+          console.error("Error toggling AI chat:", err);
+          aiToggle.checked = !isEnabled; // revert
+          alert("Erro ao alterar status da IA.");
+        }
+      };
+
+      window.insertQuickReply = function(text) {
+        const input = document.getElementById('store-chat-input');
+        input.value = text;
+        input.focus();
+      }
+
+      window.solicitarUberDirect = async function(orderId) {
+        const order = globalOrdersList.find((o) => o.id === orderId);
+        if (!order) return;
+
+        if (!confirm(`Confirmar solicitação de entrega via Uber para o pedido #${order.id}?`)) return;
+
+        // Format phone to E.164
+        let dropPhone = order.customer.phone ? order.customer.phone.replace(/\D/g, '') : '';
+        if (dropPhone.length === 10 || dropPhone.length === 11) {
+          dropPhone = '+55' + dropPhone;
+        } else if (dropPhone.length > 11 && !dropPhone.startsWith('55')) {
+          dropPhone = '+55' + dropPhone;
+        } else if (dropPhone.length > 11 && dropPhone.startsWith('55')) {
+          dropPhone = '+' + dropPhone;
+        } else {
+          dropPhone = '+5511999999999'; // Fallback
+        }
+
+        // Mapear dados para a Uber
+        const pickupName = loadedRestaurantProfile?.name || "Restaurante";
+        const pickupAddress = loadedRestaurantProfile?.address || "Endereço do Restaurante";
+        let pickupPhone = loadedRestaurantProfile?.phone ? loadedRestaurantProfile.phone.replace(/\D/g, '') : '';
+        if (pickupPhone.length === 10 || pickupPhone.length === 11) {
+          pickupPhone = '+55' + pickupPhone;
+        } else if (pickupPhone.length > 11 && !pickupPhone.startsWith('55')) {
+          pickupPhone = '+55' + pickupPhone;
+        } else if (pickupPhone.length > 11 && pickupPhone.startsWith('55')) {
+          pickupPhone = '+' + pickupPhone;
+        } else {
+          pickupPhone = '+5511999999999'; // Fallback
+        }
+
+        let customPin = order.deliveryPin;
+        if (!customPin) {
+          customPin = String(Math.floor(1000 + Math.random() * 9000));
+        }
+
+        const orderDetails = {
+          pickup_name: pickupName,
+          pickup_address: pickupAddress,
+          pickup_phone_number: pickupPhone,
+          dropoff_name: order.customer.name,
+          dropoff_address: order.customer.address,
+          dropoff_phone_number: dropPhone,
+          dropoff_notes: `Cliente: ${order.customer.name} - Pedido #${order.shortId || order.id.substring(0,5).toUpperCase()}`,
+          manifest_reference: order.shortId || order.id.substring(0,5).toUpperCase(),
+          manifest_items: order.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            size: "small"
+          })),
+          dropoff_verification: {
+            pincode: {
+              enabled: true,
+              type: "merchant_provided",
+              value: customPin
+            }
+          }
+        };
+
+        // Add precise coordinates if available to prevent Uber geocoding mismatch
+        const pLat = loadedRestaurantProfile?.latitude ? parseFloat(loadedRestaurantProfile.latitude) : null;
+        const pLng = loadedRestaurantProfile?.longitude ? parseFloat(loadedRestaurantProfile.longitude) : null;
+        const dLat = order.customer.latitude ? parseFloat(order.customer.latitude) : null;
+        const dLng = order.customer.longitude ? parseFloat(order.customer.longitude) : null;
+
+        if (pLat && !isNaN(pLat)) orderDetails.pickup_latitude = pLat;
+        if (pLng && !isNaN(pLng)) orderDetails.pickup_longitude = pLng;
+        if (dLat && !isNaN(dLat)) orderDetails.dropoff_latitude = dLat;
+        if (dLng && !isNaN(dLng)) orderDetails.dropoff_longitude = dLng;
+
+        try {
+          const clientId = loadedRestaurantProfile?.uberDirect?.clientId || "";
+          const clientSecret = loadedRestaurantProfile?.uberDirect?.clientSecret || "";
+          const customerId = loadedRestaurantProfile?.uberDirect?.customerId || "";
+
+          const UBER_WORKER_URL = "https://worker-uber.iranildo-jobs.workers.dev";
+          const apiUrl = `${UBER_WORKER_URL}/criar-entrega`;
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              orderDetails,
+              storeId: window.currentStoreId,
+              clientId, clientSecret, customerId
+            })
+          });
+          const data = await response.json();
+          if (data.success) {
+            try {
+              const delivery = data.delivery;
+              let uberPin = "";
+              if (delivery) {
+                const findPin = (obj) => {
+                  if (!obj || typeof obj !== 'object') return null;
+                  if ('pin_code' in obj) return obj.pin_code;
+                  for (const key of Object.keys(obj)) {
+                    const found = findPin(obj[key]);
+                    if (found) return found;
+                  }
+                  return null;
+                };
+                uberPin = findPin(delivery) || "";
+              }
+
+              const updateData = {
+                uberDeliveryId: delivery.id,
+                uberTrackingUrl: delivery.tracking_url,
+                status: "Saiu para entrega"
+              };
+
+              if (uberPin) {
+                updateData.deliveryPin = String(uberPin);
+              } else {
+                updateData.deliveryPin = customPin;
+              }
+
+              await updateDoc(doc(db, COLLECTIONS.orders, orderId), updateData);
+              alert('Entrega solicitada com sucesso! O status do pedido foi atualizado.');
+            } catch (err) {
+              console.error("Erro ao atualizar o pedido com os dados da Uber:", err);
+              alert("Entrega solicitada na Uber, mas falhou ao salvar o rastreio no pedido.");
+            }
+          } else {
+            alert('Erro ao solicitar entrega: ' + data.error);
+          }
+        } catch (error) {
+          console.error("Erro:", error);
+          alert('Erro ao comunicar com o servidor.');
+        }
+      }
+
+      window.sendStoreChatMessage = async function(e) {
+        e.preventDefault();
+        if (!currentOrderViewedId) return;
+        
+        const input = document.getElementById('store-chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        const btn = document.getElementById('store-chat-send-btn');
+        btn.disabled = true;
+        
+        try {
+          const newMessage = {
+            sender: 'store',
+            text: text,
+            timestamp: new Date().toISOString()
+          };
+          
+          const order = globalOrdersList.find((o) => o.id === currentOrderViewedId);
+          const docRef = doc(db, COLLECTIONS.orders, currentOrderViewedId);
+          const currentMessages = order.chatMessages || [];
+          
+          await updateDoc(docRef, {
+            chatMessages: [...currentMessages, newMessage],
+            hasUnreadStoreMessage: true
+          });
+          
+          input.value = '';
+        } catch (err) {
+          console.error("Error sending store message:", err);
+          alert("Erro ao enviar mensagem.");
+        } finally {
+          btn.disabled = false;
+          input.focus();
+        }
+      }
+      
+      // PWA Installation Logic
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('beforeinstallprompt event fired');
+        e.preventDefault();
+        deferredPrompt = e;
+        const installContainer = document.getElementById('pwa-install-container');
+        if (installContainer) {
+          installContainer.classList.remove('hidden');
+          installContainer.classList.add('flex');
+        }
+      });
+
+      window.installPWA = async function() {
+        if (!deferredPrompt) return;
+        const installContainer = document.getElementById('pwa-install-container');
+        if (installContainer) installContainer.classList.add('hidden');
+        
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        deferredPrompt = null;
+      };
+      
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        const installContainer = document.getElementById('pwa-install-container');
+        if (installContainer) installContainer.classList.add('hidden');
+      });
+    </script>
+  </body>
+</html>

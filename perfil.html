@@ -1,0 +1,3385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil e Cupons - PopFood Delivery</title>
+  <script type="importmap">
+{
+      "imports": {
+        }
+    }
+</script>
+<script>
+window.copyStoreLink = function() {
+      if (!window.currentStoreId) return;
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const link = `${window.location.origin}${basePath}/cliente.html?store=${window.currentStoreId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        window.customAlert ? window.customAlert("Link do seu cardápio copiado!") : alert("Link copiado!");
+      }).catch(err => {
+        console.error('Falha ao copiar', err);
+        window.customAlert ? window.customAlert("Não foi possível copiar automaticamente. Use este link: " + link) : alert("Use este link: " + link);
+      });
+    };
+</script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.9.0/jsrsasign-all-min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#f97316',
+              secondary: '#22c55e',
+              danger: '#ef4444',
+              light: '#f3f4f6',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Collapsable Sidebar Styles */
+    #main-sidebar {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #main-sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    @media (max-width: 1023px) {
+      #main-sidebar {
+        transform: translateX(-100%) !important;
+      }
+      #main-sidebar.show-mobile {
+        transform: translateX(0) !important;
+      }
+    }
+    /* Side navigation active state indicators */
+    .menu-active {
+      background-color: #1e293b !important; /* bg-slate-800 */
+      color: #f97316 !important; /* text-brand-primary */
+      border-left: 4px solid #f97316 !important;
+    }
+  </style>
+</head>
+<body class="bg-brand-light font-sans text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Authenticated Layout container -->
+  <div class="flex-grow flex flex-col lg:flex-row min-h-screen relative bg-slate-50">
+    
+    <!-- Mobile Sidebar overlay backdrop -->
+    <div id="sidebar-overlay" onclick="window.toggleSidebar(false)" class="hidden fixed inset-0 bg-slate-900/40 z-40"></div>
+
+    <!-- MAIN SIDEBAR MENU -->
+    <aside id="main-sidebar" class="bg-slate-900 text-white w-64 flex-shrink-0 fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col justify-between transition-all duration-300">
+      
+      <!-- Top Branding Section -->
+      <div class="p-5 border-b border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-3xl">🍔</span>
+            <div>
+              <h2 class="font-display font-black text-sm tracking-wide text-orange-500 uppercase">PopFood</h2>
+              <p class="text-[9px] text-slate-400">Painel Administrativo</p>
+            </div>
+          </div>
+          <!-- Close button for mobile -->
+          <button onclick="window.toggleSidebar(false)" class="lg:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Menu Items -->
+      <div class="flex-grow overflow-y-auto px-3.5 py-5 space-y-1.5 font-sans">
+        
+        <!-- Link: Cardápio / Painel -->
+        <a href="index.html" id="menu-link-cardapio" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">🍔</span>
+          <span>Cardápio / Painel</span>
+        </a>
+
+        <!-- Link: Meus Pedidos -->
+        <a href="pedidos.html" id="menu-link-pedidos" class="flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <div class="flex items-center gap-3">
+            <span class="text-base group-hover:scale-110 transition-transform">🛵</span>
+            <span>Meus Pedidos</span>
+          </div>
+        </a>
+
+        <!-- Link: Editar Perfil -->
+        <a href="perfil.html" id="menu-link-perfil" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group menu-active">
+          <span class="text-base group-hover:scale-110 transition-transform">⚙️</span>
+          <span>Editar Perfil</span>
+        </a>
+
+        <!-- Link: Clientes -->
+        <a href="clientes.html" id="menu-link-clientes" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">👥</span>
+          <span>Clientes</span>
+        </a>
+
+        <!-- Link: Relatórios -->
+        <a href="relatorios.html" id="menu-link-relatorios" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">📊</span>
+          <span>Relatórios</span>
+        </a>
+
+        <!-- Divider -->
+        <div class="border-t border-slate-800 my-4"></div>
+
+        <!-- Copiar Link Cliente Button -->
+        <button onclick="window.copyStoreLink()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white text-left cursor-pointer">
+          <span class="text-base">🔗</span>
+          <span>Copiar Link Cliente</span>
+        </button>
+
+        <!-- Ver Cardápio Live Link -->
+        <a id="btn-view-cardapio-sidebar" href="cliente.html" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white">
+          <span class="text-base">👁️</span>
+          <span>Ver Cardápio Live</span>
+        </a>
+
+      </div>
+
+      <!-- Sair e logout bar at bottom -->
+      <div class="p-4 border-t border-slate-800">
+        <button onclick="window.logoutAdmin()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-red-950/30 text-red-400 hover:bg-red-900/40 hover:text-white cursor-pointer" id="btn-logout-sidebar">
+          <span class="text-base">🚪</span>
+          <span>Sair e Deslogar</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- CONTENT WRAPPER FOR SIDEBAR LAYOUT -->
+    <div class="flex-grow flex flex-col min-w-0">
+
+      <!-- Admin Top Header Bar -->
+      <header class="bg-white border-b border-gray-200 sticky top-0 z-30 px-4 py-3 flex items-center justify-between">
+        
+        <!-- Left details and menu toggle -->
+        <div class="flex items-center gap-2.5">
+          <!-- Toggle Menu Button -->
+          <button onclick="window.toggleSidebar()" class="p-2 -ml-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all cursor-pointer" title="Mostrar/Ocultar Menu Lateral">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          <div class="flex items-center gap-3">
+            <span class="text-2xl hidden sm:inline">⚙️</span>
+            <div>
+              <h1 class="font-display font-bold text-base text-gray-800 leading-none">Configurações Gerais</h1>
+              <p class="text-xs text-gray-400 mt-1 leading-none font-medium">Perfil da loja, taxas de entrega e cupons de desconto</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2">
+          <button onclick="window.copyStoreLink()" class="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            <span class="hidden md:inline font-bold">Copiar Link</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+    
+    <!-- SIDEBAR MENU SELECTOR -->
+    <aside class="w-full md:w-80 flex-shrink-0">
+      <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-4 sticky top-6 space-y-2">
+        <div class="px-3 py-2 mb-4">
+          <h2 class="font-display font-black text-xs text-brand-primary uppercase tracking-wider">Painel Administrativo</h2>
+          <p class="text-[9px] text-gray-400 mt-0.5">Gerencie seu estabelecimento</p>
+        </div>
+        
+        <button type="button" onclick="switchTab('cadastro')" id="menu-btn-cadastro" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🏪</span>
+            <div>
+              <p class="font-bold text-gray-850">Dados Cadastrais</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Perfil, logo e contato</p>
+            </div>
+          </div>
+          <span class="font-bold">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('banners')" id="menu-btn-banners" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">📢</span>
+            <div>
+              <p class="font-bold text-gray-850">Aparência do Cardápio</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Banners e Exibição</p>
+            </div>
+          </div>
+          <span class="font-bold">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('taxa-entrega')" id="menu-btn-taxa-entrega" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🛵</span>
+            <div>
+              <p class="font-bold text-gray-850">Taxas e Coordenadas</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Distância e valores por KM</p>
+            </div>
+          </div>
+          <span class="font-bold">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('cupons')" id="menu-btn-cupons" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🏷️</span>
+            <div>
+              <p class="font-bold text-gray-850">Cupons e Fidelidade</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Fidelização e descontos</p>
+            </div>
+          </div>
+          <span class="font-bold">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('pagamentos')" id="menu-btn-pagamentos" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">💳</span>
+            <div>
+              <p class="font-bold text-gray-850">Formas de Pagamento</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Online e Na Entrega</p>
+            </div>
+          </div>
+          <span class="font-bold">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('assinatura')" id="menu-btn-assinatura" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-green-50/40">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">💰</span>
+            <div>
+              <p class="font-bold text-gray-850">Fatura / Mensalidade</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Data de pagamento e PIX</p>
+            </div>
+          </div>
+          <span class="font-bold text-green-500">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('motoboy')" id="menu-btn-motoboy" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-amber-50/40">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🛵</span>
+            <div>
+              <p class="font-bold text-slate-800">Portal do Motoboy</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Link e instruções de entregas</p>
+            </div>
+          </div>
+          <span class="font-bold text-amber-500">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('notificacoes')" id="menu-btn-notificacoes" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-orange-50/40">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🔔</span>
+            <div>
+              <p class="font-bold text-slate-800">Notificações Push</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Campanhas, cupons e promoções</p>
+            </div>
+          </div>
+          <span class="font-bold text-orange-500">➔</span>
+        </button>
+
+        <button type="button" onclick="switchTab('whatsapp')" id="menu-btn-whatsapp" class="w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-emerald-50/40">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🤖</span>
+            <div>
+              <p class="font-bold text-slate-800">WhatsApp Bot</p>
+              <p class="text-[9px] text-gray-400 mt-0.5 font-medium">Atendimento Automático</p>
+            </div>
+          </div>
+          <span class="font-bold text-emerald-500">➔</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ACTIVE TAB CONTENT PANEL -->
+    <div class="flex-grow min-h-[500px]">
+      
+      <!-- TAB: DADOS CADASTRAIS (Cadastro + Logo) -->
+      <div id="tab-cadastro" class="space-y-6 hidden">
+        <!-- LOGO UPLOADER BOX -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">🖼️ Logomarca da Loja</h3>
+            <p class="text-[10px] text-gray-400">Exibido no cabeçalho do cardápio e comandos</p>
+          </div>
+
+          <div class="flex flex-col items-center gap-4.5 bg-gray-50 py-5 rounded-xl border border-dotted border-gray-300">
+            <div class="w-24 h-24 rounded-full bg-orange-100 border border-orange-200 overflow-hidden flex items-center justify-center relative shadow-sm group">
+              <img id="logo-preview-img" src="" alt="Logo" class="w-full h-full object-cover hidden">
+              <span id="logo-placeholder" class="text-3xl text-orange-400">🍔</span>
+            </div>
+
+            <div class="text-center space-y-1.5 w-full px-4">
+              <input type="file" id="logo-file-input" accept="image/*" onchange="convertLogoToBase64()" class="hidden">
+              <button onclick="document.getElementById('logo-file-input').click()" class="bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold py-1.5 px-3 rounded-lg border border-gray-250 cursor-pointer">Escolher logo</button>
+              <button onclick="removeRestaurantLogo()" class="text-[10px] text-brand-danger font-medium block mx-auto hover:underline cursor-pointer">Deletar logomarca</button>
+              <p class="text-[9px] text-gray-400">Limite de tamanho: 950KB</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STORE IDENTIFIERS CARD -->
+        <form id="profile-meta-form" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">📝 Dados Cadastrais</h3>
+            <p class="text-[10px] text-gray-400 font-medium">Configure as informações gerais do estabelecimento</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">Nome Fantasia *</label>
+              <input type="text" id="store-name" required placeholder="Como sua loja é conhecida" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+            </div>
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">Descrição da Loja</label>
+              <input type="text" id="store-desc" placeholder="Ex: Hambúrgueres artesanais na brasa" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase">WhatsApp de Contato *</label>
+                <input type="tel" id="store-phone" required placeholder="DDD + Número" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+              </div>
+              <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase">CEP da Loja</label>
+                <input type="text" id="store-cep" placeholder="00000000" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">Endereço Completo *</label>
+              <input type="text" id="store-address" required placeholder="Rua, Número, Bairro, Cidade" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">Valor Mínimo do Pedido (R$)</label>
+              <input type="number" step="0.01" min="0" id="store-min-order-value" placeholder="0.00 (Opcional)" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+            </div>
+            
+            <!-- Legacy Payment Integration Config (Hidden and Cleared) -->
+            <input type="hidden" id="mp-access-token" value="">
+            <input type="hidden" id="mp-public-key" value="">
+            <input type="hidden" id="stripe-public-key" value="">
+            <input type="hidden" id="stripe-secret-key" value="">
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase">Horário Abertura</label>
+                <input type="time" id="store-open" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+              </div>
+              <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase">Horário Fechamento</label>
+                <input type="time" id="store-close" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+              </div>
+            </div>
+
+            <div class="space-y-2 mt-4">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">Dias de Funcionamento</label>
+              <div class="flex flex-wrap gap-2">
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="1" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Segunda
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="2" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Terça
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="3" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Quarta
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="4" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Quinta
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="5" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Sexta
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="6" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Sábado
+                </label>
+                <label class="flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-stone-100 transition-colors">
+                  <input type="checkbox" name="op-day" value="0" class="w-3.5 h-3.5 text-brand-primary rounded border-gray-300"> Domingo
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="save-profile-btn" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 text-xs rounded-xl shadow-md transition-transform hover:scale-101 cursor-pointer">Salvar Perfil</button>
+        </form>
+      </div>
+
+      <!-- TAB: APARÊNCIA E BANNERS -->
+      <div id="tab-banners" class="space-y-6 hidden">
+        <!-- EXIBIÇÃO DO CARDÁPIO BOX -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">📱 Exibição do Cardápio</h3>
+            <p class="text-[10px] text-gray-400">Configure como os produtos aparecem para o cliente</p>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-gray-800">Mostrar Produtos em Destaque</p>
+                <p class="text-[10px] text-gray-500">Exibe uma seção especial no topo do cardápio</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="profile-destaques-ativo" class="sr-only peer" onchange="toggleDestaquesOptions()">
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+
+            <div id="destaques-options-row" class="pl-4 border-l-2 border-gray-100 hidden space-y-2">
+              <label class="block text-[10px] font-bold text-gray-700 uppercase tracking-wide">O que exibir nos destaques?</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="profile-destaques-tipo" value="mais_pedidos" class="text-brand-primary focus:ring-brand-primary" checked>
+                  <span class="text-xs text-gray-700 font-medium">Os Mais Pedidos (Top 5)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="profile-destaques-tipo" value="promocionais" class="text-brand-primary focus:ring-brand-primary">
+                  <span class="text-xs text-gray-700 font-medium">Maior Desconto (Top 5)</span>
+                </label>
+              </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-gray-800">Mostrar Produtos Indisponíveis</p>
+                <p class="text-[10px] text-gray-500">Se desativado, eles somem completamente do cardápio</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="profile-mostrar-indisponiveis" class="sr-only peer" checked>
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+            
+            <button type="button" onclick="saveCardapioConfig()" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 text-xs rounded-xl shadow-md transition-transform hover:scale-101 cursor-pointer mt-2">Salvar Exibição</button>
+          </div>
+        </div>
+
+        <!-- BANNERS BOX -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">📢 Banners Promocionais (Máx 3)</h3>
+            <p class="text-[10px] text-gray-400">Banners com proporção 16:9 rotacionados no storefront</p>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Banners list -->
+            <div id="banners-scannable-list" class="space-y-3">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- Add trigger input -->
+            <div id="banner-uploader-row">
+              <input type="file" id="banner-file-input" accept="image/*" onchange="convertBannerToBase64AndAdd()" class="hidden">
+              <button onclick="document.getElementById('banner-file-input').click()" class="w-full bg-orange-100 hover:bg-orange-200 text-brand-primary font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5">+ Adicionar Banner</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: TAXAS E COORDENADAS -->
+      <div id="tab-taxa-entrega" class="space-y-6 hidden">
+        <!-- GEOLOCATION LOOKUP BOX -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">📍 Coordenadas de entrega (Geolocalização)</h3>
+            <p class="text-[10px] text-gray-400">Calcule as taxas e tempos com alta precisão via geocodificação</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-4 border border-gray-150 space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <span class="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Localização Física</span>
+              <button type="button" onclick="lookupGeoCoordinates()" class="text-[10px] font-bold text-brand-primary bg-white px-3 py-1.5 border border-gray-200 hover:border-orange-200 rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+                <span>🔍 Buscar pelas Coordenadas</span>
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 font-mono text-[10px] text-gray-500">
+              <div class="bg-white p-2 border border-gray-100 rounded-md">LATITUDE: <span id="lbl-lat" class="font-bold text-gray-750">--</span></div>
+              <div class="bg-white p-2 border border-gray-100 rounded-md">LONGITUDE: <span id="lbl-lon" class="font-bold text-gray-750">--</span></div>
+            </div>
+            <p class="text-[8px] text-gray-400 font-medium leading-relaxed">Usa as coordenadas e algoritmo Haversine para encontrar a quilometragem real percorrida e aplicar a taxa correspondente.</p>
+          </div>
+        </div>
+
+        <!-- TAX RATE MATRIX PER KM LIMITS -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">🛵 Taxas e Tempos por KM</h3>
+            <p class="text-[10px] text-gray-400 font-medium">Configure taxas de entrega e tempos estimados por quilometragem de raio de entrega</p>
+          </div>
+
+          <div id="km-pricing-grid" class="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto pr-1">
+            <!-- Filled dynamically from 1km to 10km -->
+          </div>
+
+          <button id="save-rates-btn" onclick="saveDeliveryRatesGrid()" class="w-full bg-gray-800 hover:bg-gray-950 text-white font-bold py-3 px-4 text-xs rounded-xl shadow-xs transition-all cursor-pointer">Atualizar Coordenadas, Taxas e Tempos</button>
+        </div>
+      </div>
+
+      <!-- TAB: CUPONS E FIDELIDADE -->
+      <div id="tab-cupons" class="space-y-6 hidden">
+        <!-- CUPOM FIDELIDADE CARD -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-2 pb-2">
+            <span class="text-xl">🎁</span>
+            <div>
+              <h3 class="font-display font-bold text-sm text-gray-800">Fidelização de Clientes</h3>
+              <p class="text-[10px] text-gray-400 font-medium">Ofereça recompensas automáticas para clientes recorrentes</p>
+            </div>
+          </div>
+
+          <div class="p-4 bg-orange-50/50 rounded-2xl border border-orange-100 space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-center gap-1.5">
+                <input type="checkbox" id="loyalty-active" class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 cursor-pointer">
+                <label for="loyalty-active" class="text-[11px] font-bold text-gray-750 cursor-pointer select-none">Ativar Benefício Fidelidade</label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[8px] font-bold text-gray-500 uppercase mb-1">Tipo de Desconto</label>
+                  <select id="loyalty-type" class="w-full text-xs p-2.5 border border-gray-255 rounded-lg focus:outline-none bg-white font-semibold">
+                    <option value="percentual">Percentual (%)</option>
+                    <option value="fixo">Fixo (R$)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[8px] font-bold text-gray-500 uppercase mb-1">Valor do Desconto</label>
+                  <input type="number" id="loyalty-value" step="0.01" placeholder="Ex: 10" class="w-full text-xs p-2.5 border border-gray-255 rounded-lg focus:outline-none font-bold bg-white">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[8px] font-bold text-gray-500 uppercase mb-1">Mínimo de Pedidos Concluídos</label>
+                <input type="number" id="loyalty-min-orders" min="1" step="1" placeholder="Ex: 3" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none font-bold bg-white">
+                <p class="text-[8px] text-gray-400 mt-1">Número de pedidos do WhatsApp necessários para ativar o desconto.</p>
+              </div>
+
+              <div class="text-[9px] text-gray-500 bg-white p-2.5 rounded-xl border border-orange-100/30 leading-normal">
+                ⚙️ <b>Como funciona:</b> Ao ativar, quando um cliente atingir o número configurado de pedidos concluídos na loja usando o mesmo número de celular (via histórico do Firebase), ele receberá um desconto de fidelidade automático na etapa final do carrinho!
+              </div>
+
+              <button onclick="saveLoyaltyCouponConfig()" id="btn-save-loyalty" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 px-3 text-[10px] rounded-xl shadow-xs transition-colors cursor-pointer">Salvar Fidelidade</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUPONS ATIVOS LIST -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-150 pb-4">
+            <div>
+              <h3 class="font-display font-bold text-md text-gray-800">🏷️ Cupons Ativos</h3>
+              <p class="text-[10px] text-gray-400 font-medium">Gestão de códigos de descontos promocionais</p>
+            </div>
+            <button onclick="toggleCouponModal(true)" class="bg-brand-primary hover:bg-orange-600 text-white font-bold py-2 px-3 text-[10px] rounded-lg shadow-sm transition-transform hover:scale-105 cursor-pointer">+ Criar Cupom</button>
+          </div>
+
+          <!-- Coupons list grid -->
+          <div id="coupons-card-parent" class="space-y-3 max-h-[50vh] overflow-y-auto">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: PAGAMENTOS -->
+      <div id="tab-pagamentos" class="space-y-6 hidden">
+        <form id="profile-payments-form" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-6">
+          <div>
+            <h3 class="font-display font-bold text-sm text-gray-800">💳 Formas de Pagamento</h3>
+            <p class="text-[10px] text-gray-400 font-medium">Configure as formas de pagamento disponíveis para os clientes (online e na entrega).</p>
+          </div>
+
+          <div class="space-y-4">
+            <div class="border border-gray-200 rounded-xl p-4 space-y-3 relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+              <h4 class="font-bold text-xs text-gray-700 flex items-center gap-2"><span class="text-sm">🛵</span> Pagamento na Entrega (Offline)</h4>
+              <p class="text-[10px] text-gray-500">O motoboy receberá o valor no momento da entrega do pedido.</p>
+              <div class="flex flex-col gap-2 mt-2">
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                  <input type="checkbox" id="pay-offline-pix" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                  <span class="text-xs font-semibold text-gray-700">Pix</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                  <input type="checkbox" id="pay-offline-card" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                  <span class="text-xs font-semibold text-gray-700">Cartão de Crédito / Débito (Maquininha)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                  <input type="checkbox" id="pay-offline-money" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                  <span class="text-xs font-semibold text-gray-700">Dinheiro (com opção de troco)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="border border-gray-200 rounded-xl p-4 space-y-3 relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+              <h4 class="font-bold text-xs text-gray-700 flex items-center gap-2"><span class="text-sm">🌐</span> Pagamento Online no Aplicativo</h4>
+              <p class="text-[10px] text-gray-500">Configure o gateway de pagamento online para receber via Pix e Cartão de Crédito.</p>
+
+              <div>
+                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Gateway Online Ativo</label>
+                <select id="online-gateway" onchange="toggleGatewayFields()" class="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 font-bold bg-white">
+                  <option value="abacatepay">AbacatePay</option>
+                  <option value="asaas">Asaas (Pix & Cartão)</option>
+                </select>
+              </div>
+
+              <!-- AbacatePay Fields -->
+              <div id="abacatepay-fields" class="space-y-1 mt-2 p-3 bg-green-50/50 border border-green-100 rounded-lg">
+                <label class="block text-[10px] font-bold text-green-700 uppercase">Chave de API (AbacatePay)</label>
+                <input type="password" id="abacatepay-token" placeholder="ak_live_..." class="w-full text-xs p-2.5 border border-green-200 rounded-lg focus:outline-none focus:border-green-400 bg-white shadow-xs">
+                <p class="text-[9px] text-green-600 mt-1">Preencha com sua chave de API para habilitar AbacatePay.</p>
+              </div>
+
+              <!-- Asaas Fields -->
+              <div id="asaas-fields" class="space-y-2 mt-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg hidden">
+                <label class="block text-[10px] font-bold text-blue-800 uppercase">Chave de API / Access Token (Asaas)</label>
+                <input type="password" id="asaas-api-key" placeholder="$aact_..." class="w-full text-xs p-2.5 border border-blue-200 rounded-lg focus:outline-none focus:border-blue-400 bg-white shadow-xs">
+                <p class="text-[9px] text-blue-600">Encontre no painel do Asaas em <b>Minha Conta > Configurações da Conta > Integrações > Chave de API</b>.</p>
+
+                <div class="pt-1">
+                  <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1">Ambiente Asaas</label>
+                  <select id="asaas-env" class="w-full text-xs p-2 border border-blue-200 rounded-lg bg-white font-semibold">
+                    <option value="production">Produção (www.asaas.com)</option>
+                    <option value="sandbox">Sandbox / Testes (sandbox.asaas.com)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-2 mt-3">
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                  <input type="checkbox" id="pay-online-pix" checked class="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500">
+                  <span class="text-xs font-semibold text-gray-700">Pix Online</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                  <input type="checkbox" id="pay-online-card" checked class="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500">
+                  <span class="text-xs font-semibold text-gray-700">Cartão de Crédito Online (Checkout)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="save-payments-btn" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 text-xs rounded-xl shadow-md transition-transform hover:scale-101 cursor-pointer">Salvar Configurações</button>
+        </form>
+      </div>
+
+      <!-- TAB: ASSINATURA / MENSALIDADE -->
+      <div id="tab-assinatura" class="space-y-6 hidden">
+        <div class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-5 text-white relative overflow-hidden">
+          <!-- Background decoration -->
+          <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-500 rounded-full blur-[80px] opacity-40"></div>
+          
+          <div class="flex items-center gap-3 relative z-10">
+            <div class="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-xl shadow-inner border border-indigo-500/30">💎</div>
+            <div>
+              <h3 class="font-display font-extrabold text-sm text-white">Sua Assinatura</h3>
+              <p class="text-[10px] text-indigo-200 font-medium">Controle de acesso, renovação e ciclo de faturamento</p>
+            </div>
+          </div>
+
+          <div class="bg-black/20 border border-white/5 rounded-xl p-4 space-y-4 relative z-10 backdrop-blur-sm">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Plano Atual</span>
+                <span id="assinatura-plan-name" class="font-display font-black text-lg text-white">Mensal</span>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Valor</span>
+                <span id="assinatura-fee" class="font-display font-black text-lg text-emerald-400">R$ 0,00</span>
+              </div>
+            </div>
+            
+            <div class="pt-3 border-t border-white/10">
+               <div class="flex justify-between items-center text-xs font-bold mb-2">
+                 <span class="text-indigo-200 uppercase text-[10px] tracking-wider">Meses Pagos</span>
+                 <span id="assinatura-progress-text" class="text-white font-mono text-[11px]">0/1</span>
+               </div>
+               <div class="w-full bg-slate-800/80 rounded-full h-2.5 outline outline-1 outline-white/5 relative overflow-hidden">
+                 <div id="assinatura-progress-bar" class="bg-gradient-to-r from-indigo-500 to-indigo-400 h-2.5 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-700" style="width: 0%"></div>
+               </div>
+            </div>
+
+            <div class="flex justify-between items-center text-xs font-bold pt-3 border-t border-white/10">
+              <span class="text-slate-400 text-[10px] uppercase tracking-wider">Vencimento</span>
+              <span class="font-bold text-white bg-white/10 px-2 py-0.5 rounded text-[11px]"><span id="assinatura-due-date">Livre</span></span>
+            </div>
+            
+            <div class="flex justify-between items-center text-xs font-bold pt-2">
+              <span class="text-slate-400 text-[10px] uppercase tracking-wider">Status do Acesso</span>
+              <span id="assinatura-status" class="px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Regular</span>
+            </div>
+          </div>
+
+          <div class="space-y-4 relative z-10 pt-2" id="assinatura-payment-area">
+            <p class="text-[11px] text-slate-300 font-medium leading-relaxed">
+              Pague sua mensalidade via Pix e tenha a liberação automática do acesso.
+            </p>
+
+            <div id="assinatura-already-paid-msg" class="hidden bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
+              <span class="text-emerald-400 text-xs font-bold">✅ Mensalidade em dia! Você pode adiantar o próximo ciclo se quiser.</span>
+            </div>
+
+            <div id="assinatura-pix-pending-box" class="hidden bg-white/5 border border-white/10 rounded-xl p-4 text-center space-y-3">
+              <p class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">⏱️ <span id="assinatura-pix-timer">10:00</span> restantes</p>
+              <div id="assinatura-pix-qr-container" class="w-40 h-40 mx-auto bg-white rounded-xl p-2 flex items-center justify-center">
+                <div class="animate-pulse bg-gray-200 w-full h-full rounded-lg"></div>
+              </div>
+              <button onclick="window.copyAssinaturaPixCode()" class="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl text-[11px] transition-all">
+                📋 Copiar Código Pix
+              </button>
+              <p class="text-[9px] text-slate-400">O acesso é liberado automaticamente após a confirmação.</p>
+            </div>
+
+            <div class="pt-2 flex flex-col sm:flex-row gap-3">
+              <button id="btn-gerar-pix-assinatura" onclick="window.gerarPixAssinatura()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl text-[11px] shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 group border border-emerald-400/50">
+                ⚡ Pagar Mensalidade com Pix
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: PORTAL DO MOTOBOY -->
+      <div id="tab-motoboy" class="space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4 text-left">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl animate-pulse">🛵</span>
+            <div>
+              <h3 class="font-display font-bold text-sm text-gray-800">Portal do Motoboy (Entregador)</h3>
+              <p class="text-[10px] text-gray-400 font-medium">Compartilhe o link de acesso exclusivo com seus entregadores</p>
+            </div>
+          </div>
+
+          <div class="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/60 space-y-4 shadow-inner">
+            <p class="text-xs text-gray-650 leading-relaxed font-semibold">
+              Dê este link para que os seus entregadores gerenciem rotas em tempo real:
+            </p>
+            
+            <div class="flex items-center gap-2.5 bg-white p-3 border border-gray-150 rounded-xl shadow-xs">
+              <span class="text-xs font-mono font-bold text-amber-600 shrink-0 select-none">Link:</span>
+              <input type="text" id="motoboy-link-input" readonly class="flex-grow text-xs font-mono bg-transparent outline-none text-gray-750 font-extrabold overflow-hidden text-ellipsis select-all" value="">
+              <button onclick="copyMotoboyLink()" class="bg-slate-800 hover:bg-slate-950 text-white font-bold py-2 px-3 text-[10px] rounded-lg transition-all shrink-0 cursor-pointer active:scale-95 shadow-sm">Copiar Link</button>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap pt-1">
+              <button onclick="shareMotoboyLinkWhatsApp()" class="text-xs font-bold text-white bg-green-600 hover:bg-green-700 px-4 py-3 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95">
+                <span>💬 Enviar via WhatsApp</span>
+              </button>
+              <a id="btn-open-motoboy" href="motoboy.html" target="_blank" class="text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-200/50 px-4 py-3 rounded-xl transition-all cursor-pointer">
+                Abrir Portal do Motoboy ↗
+              </a>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 text-slate-300 rounded-2xl p-4.5 space-y-3 text-xs leading-relaxed">
+            <h4 class="font-bold text-white flex items-center gap-1.5 font-display">
+              <span>💡 Como funciona o fluxo de entrega (Passo a Passo):</span>
+            </h4>
+            <ol class="space-y-2.5 list-decimal list-inside text-slate-300 font-medium pl-1">
+              <li>Clique em <strong class="text-green-400">"Enviar via WhatsApp"</strong> ou copie o link e repasse para os seus entregadores do dia.</li>
+              <li>O entregador acessa o portal pelo celular, digita apenas os <strong class="text-amber-400">últimos 4 dígitos</strong> do pedido que ele pegou e clica em Despachar.</li>
+              <li>Ao sair, ele clica nos status do trajeto (<em class="not-italic text-amber-300">"No caminho", "Quase Chegando"</em>) e o cliente acompanha em tempo real na tela dele com a motinha (🛵) deslizando!</li>
+              <li>No local, o cliente informa o <strong class="text-red-400 font-semibold">PIN de segurança de 4 dígitos</strong> exclusivo e invisível para o motoboy (aparece apenas no painel do cliente).</li>
+              <li>O motoboy digita o PIN correto e o sistema finaliza e arquiva o pedido de forma segura!</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: NOTIFICAÇÕES PUSH -->
+      <div id="tab-notificacoes" class="space-y-6 hidden">
+        <!-- HEADER CARD -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4 text-left">
+          <div class="flex items-center justify-between flex-wrap gap-4 border-b border-gray-100 pb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="text-2xl animate-bounce">🔔</span>
+              <div>
+                <h3 class="font-display font-bold text-sm text-gray-800">Notificações Push / Campanhas</h3>
+                <p class="text-[10px] text-gray-400 font-medium">Dispare anúncios e promoções em tempo real direto na tela dos seus clientes</p>
+              </div>
+            </div>
+            <button onclick="toggleNotificationModal(true)" class="bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95 flex items-center gap-1.5">
+              <span>➕ Criar Campanha</span>
+            </button>
+          </div>
+
+          <!-- SUMMARY CARD -->
+          <div class="grid grid-cols-1 gap-4">
+            <div class="p-4 bg-slate-900 text-slate-300 rounded-2xl border border-slate-800 flex items-center gap-3">
+              <span class="text-3xl">💡</span>
+              <div class="text-[10px] leading-relaxed">
+                <p class="font-bold text-white font-display">Dica de Sucesso:</p>
+                <p class="font-medium">Use mensagens curtas, instigantes e com emojis (como 🍕, 🍔, 🤑) para aumentar as vendas em feriados ou horários de pico!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCHEDULED CAMPAIGNS -->
+          <div id="scheduled-notifications-section" class="pt-2 hidden border-b border-gray-100 pb-4 mb-4">
+            <h4 class="font-display font-bold text-xs text-gray-700">Campanhas Agendadas 📅</h4>
+            <p class="text-[9px] text-gray-400 mb-2">Mensagens programadas para disparo automático no futuro</p>
+            <div id="scheduled-notifications-parent" class="grid grid-cols-1 gap-3 pt-1">
+              <!-- Scheduled cards will be appended here -->
+            </div>
+          </div>
+
+          <!-- HISTORY TITLE -->
+          <div class="pt-2">
+            <h4 class="font-display font-bold text-xs text-gray-700">Histórico de Campanhas Enviadas</h4>
+            <p class="text-[9px] text-gray-400">Suas últimas mensagens enviadas para os clientes</p>
+          </div>
+
+          <!-- CARDS PARENT -->
+          <div id="notifications-card-parent" class="grid grid-cols-1 gap-3 pt-1">
+            <div class="text-center py-6 text-xs text-gray-400">Carregando histórico...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+    </div> <!-- Closing content wrapper -->
+  </div> <!-- Closing layout container -->
+
+  <!-- MODAL: ADD/EDIT PROMOTIONAL COUPONS -->
+  <div id="coupon-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative transform scale-95 duration-200 transition-transform">
+      <button onclick="toggleCouponModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer">✕</button>
+
+      <div class="p-6 border-b border-gray-100">
+        <h2 id="coupon-modal-title" class="font-display font-bold text-md text-gray-800 leading-tight">Criar Cupom de Desconto</h2>
+        <p class="text-[10px] text-gray-400 mt-0.5">Defina as validações e percentuais de desconto</p>
+      </div>
+
+      <form id="coupon-modal-form" class="p-6 space-y-4 flex-grow">
+        <input type="hidden" id="coupon-form-id">
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Código do Cupom *</label>
+          <input type="text" id="coupon-form-code" required placeholder="Ex: POP10" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none uppercase">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase">Tipo</label>
+            <select id="coupon-form-type" required class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+              <option value="percentual">Percentual (%)</option>
+              <option value="fixo">Crédito Fixo (R$)</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase">Valor de Abatimento *</label>
+            <input type="number" step="0.01" id="coupon-form-value" required placeholder="Ex: 10" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase">Min. de Compra (R$)</label>
+            <input type="number" step="0.01" id="coupon-form-min-value" placeholder="Opcional. Ex: 50" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase">Validade/Expiração *</label>
+            <input type="date" id="coupon-form-expiry" required class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 py-1">
+          <input type="checkbox" id="coupon-form-active" checked class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+          <label for="coupon-form-active" class="text-xs font-semibold text-gray-700 select-none cursor-pointer">Cupom ativo para uso?</label>
+        </div>
+
+        <div class="flex items-center gap-1.5 py-1">
+          <input type="checkbox" id="coupon-form-first-order" class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+          <label for="coupon-form-first-order" class="text-xs font-semibold text-gray-700 select-none cursor-pointer">Válido apenas no primeiro pedido</label>
+        </div>
+
+        <div class="flex items-center gap-1.5 py-1">
+          <input type="checkbox" id="coupon-form-automatic" class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+          <label for="coupon-form-automatic" class="text-xs font-semibold text-gray-700 select-none cursor-pointer">Aplicar desconto automaticamente no carrinho?</label>
+        </div>
+
+        <div class="pt-2 flex gap-3">
+          <button type="button" onclick="toggleCouponModal(false)" class="flex-1 border border-gray-200 py-3 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ENVIAR CAMPANHA DE NOTIFICAÇÃO PUSH -->
+  <div id="notification-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col relative transform scale-95 duration-200 transition-transform">
+      <button onclick="toggleNotificationModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer">✕</button>
+
+      <div class="p-6 border-b border-gray-100">
+        <h2 class="font-display font-bold text-md text-gray-800 leading-tight">Disparar Nova Campanha</h2>
+        <p class="text-[10px] text-gray-400 mt-0.5">Sua mensagem aparecerá em tempo real na tela do celular ou computador dos seus clientes.</p>
+      </div>
+
+      <form id="notification-modal-form" class="p-6 space-y-4 flex-grow">
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Título da Notificação *</label>
+          <input type="text" id="notification-form-title" required placeholder="Ex: Pizza em Dobro hoje! 🍕" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Mensagem / Texto *</label>
+          <textarea id="notification-form-body" required rows="3" placeholder="Ex: Compre qualquer Pizza Grande hoje e ganhe uma mini pizza doce totalmente grátis! Aproveite..." class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none resize-none"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Link de Destino (Opcional)</label>
+          <input type="url" id="notification-form-link" placeholder="Ex: https://seusite.com.br/promo" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+          <p class="text-[9px] text-gray-400">Por padrão, clicar na notificação abrirá o seu cardápio.</p>
+        </div>
+
+        <div class="space-y-1.5 pt-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Quando enviar? *</label>
+          <div class="flex items-center gap-4 bg-gray-50 p-2.5 rounded-xl border border-gray-150">
+            <label class="inline-flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer font-semibold select-none">
+              <input type="radio" name="send_time_type" value="now" checked class="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 accent-orange-600">
+              <span>Enviar Agora 🚀</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer font-semibold select-none">
+              <input type="radio" name="send_time_type" value="scheduled" class="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 accent-orange-600">
+              <span>Agendar Envio 📅</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="schedule-datetime-container" class="space-y-1 hidden">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Data e Hora do Envio *</label>
+          <input type="datetime-local" id="notification-form-datetime" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+          <p class="text-[9px] text-gray-400">Selecione uma data e horário futuro para o disparo.</p>
+        </div>
+
+        <div class="pt-2 flex gap-3">
+          <button type="button" onclick="toggleNotificationModal(false)" class="flex-1 border border-gray-200 py-3 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" id="notification-submit-btn" class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer">Disparar Agora 🚀</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TAB: WHATSAPP BOT -->
+  <div id="tab-whatsapp" class="space-y-6 hidden absolute top-0 left-0 w-full z-10 bg-gray-50/50" style="position: static;">
+    <!-- HEADER CARD -->
+    <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4 text-left">
+      <div class="flex items-center justify-between flex-wrap gap-4 border-b border-gray-100 pb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🤖</span>
+          <div>
+            <h2 class="font-display font-bold text-xl text-slate-800">WhatsApp Bot</h2>
+            <p class="text-xs text-gray-500 font-medium">Automatize o atendimento e permita pedidos pelo WhatsApp.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="space-y-4">
+        <div id="whatsapp-status-container" class="p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
+          <p class="text-sm text-gray-600 font-semibold mb-2">Verificando status do WhatsApp...</p>
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <button type="button" onclick="forceResetWhatsapp()" class="mt-2 bg-white text-red-600 font-bold py-1.5 px-3 rounded text-xs hover:bg-red-50 transition-colors border border-red-200 shadow-sm">
+            Forçar Reset (Se estiver travado)
+          </button>
+        </div>
+
+        <!-- Toggle Pause/Active (Always Visible) -->
+        <div class="w-full max-w-sm bg-white p-4 rounded-xl border border-emerald-100 flex items-center justify-between mx-auto shadow-sm">
+          <div class="text-left">
+            <h4 class="font-bold text-slate-800 text-sm">Robô Automático</h4>
+            <p class="text-[10px] text-gray-500 leading-tight mt-0.5">Pause o robô para atendimento humano.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="whatsapp-bot-active" class="sr-only peer" onchange="toggleWhatsappBot(this.checked)">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+
+        <div id="whatsapp-disconnected-container" class="hidden p-6 rounded-xl bg-white border border-gray-200 flex flex-col items-center text-center">
+          <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center text-2xl mb-3 shadow-sm border border-gray-200">📱</div>
+          <h3 class="font-bold text-slate-800 mb-1">WhatsApp Desconectado</h3>
+          <p class="text-xs text-gray-500 text-center mb-4 max-w-sm leading-relaxed">O robô de atendimento automático está desligado. Clique no botão abaixo para gerar um QR Code e conectar seu WhatsApp.</p>
+          <button type="button" onclick="loadWhatsappQr()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs transition-colors shadow-sm cursor-pointer">
+            Gerar QR Code de Conexão 🚀
+          </button>
+        </div>
+
+        <div id="whatsapp-qr-container" class="hidden p-4 rounded-xl bg-white border border-gray-200 flex flex-col items-center">
+          <h3 class="font-bold text-slate-800 mb-2">Conectar WhatsApp</h3>
+          <p class="text-xs text-gray-500 text-center mb-4 max-w-sm">Escaneie o QR Code abaixo com seu WhatsApp para ativar o robô automático. O robô responderá com seu cardápio, horário e link do app.</p>
+          <img id="whatsapp-qr-image" src="" alt="WhatsApp QR Code" class="w-64 h-64 bg-gray-100 rounded-xl mb-4 p-2 border border-gray-200 object-contain shadow-sm">
+          <button type="button" onclick="loadWhatsappQr()" class="bg-emerald-50 text-emerald-600 font-bold py-2 px-4 rounded-lg text-xs hover:bg-emerald-100 transition-colors border border-emerald-200">
+            Gerar Novo QR Code
+          </button>
+        </div>
+
+        <div id="whatsapp-connected-container" class="hidden p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col items-center">
+          <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 shadow-sm border border-emerald-200">✅</div>
+          <h3 class="font-bold text-emerald-800 mb-1">WhatsApp Conectado!</h3>
+          <p class="text-xs text-emerald-600/80 text-center mb-4 max-w-sm">A sessão do WhatsApp está conectada.</p>
+          
+          <button type="button" onclick="logoutWhatsapp()" class="bg-white text-red-600 font-bold py-2 px-4 rounded-lg text-xs hover:bg-red-50 transition-colors border border-red-200 shadow-sm">
+            Desconectar WhatsApp
+          </button>
+        </div>
+        
+        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <h4 class="font-bold text-blue-800 text-sm mb-2 flex items-center gap-1.5"><i data-lucide="info" class="w-4 h-4"></i> Como funciona?</h4>
+          <ul class="text-xs text-blue-700 space-y-1.5 list-disc pl-4">
+            <li>O robô enviará uma mensagem de boas-vindas automática com o menu.</li>
+            <li>Enviará os horários de funcionamento configurados.</li>
+            <li>Enviará o cardápio atualizado do seu app.</li>
+            <li>Enviará o link do site para o cliente finalizar o pedido sozinho.</li>
+            <li>Permite consultar o status do pedido em tempo real.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURAÇÃO DE MENSAGENS PERSONALIZADAS -->
+    <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-6 text-left">
+      <div class="border-b border-gray-100 pb-4">
+        <h3 class="font-display font-bold text-sm text-gray-800 flex items-center gap-2">
+          <span>💬</span> Configuração das Mensagens do Robô
+        </h3>
+        <p class="text-[10px] text-gray-400 font-medium">Personalize os textos automáticos enviados pelo robô aos seus clientes.</p>
+      </div>
+
+      <!-- PLACEHOLDERS LEGEND -->
+      <div class="p-4 bg-slate-900 text-slate-300 rounded-2xl border border-slate-800 text-[10px] space-y-2">
+        <p class="font-bold text-white font-display flex items-center gap-1.5">
+          <span>💡</span> Variáveis disponíveis para uso nas mensagens:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 font-medium">
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{name}</code> : Nome da sua loja</div>
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{description}</code> : Descrição da sua loja</div>
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{openTime}</code> : Horário de abertura</div>
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{closeTime}</code> : Horário de fechamento</div>
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{operatingDays}</code> : Dias de funcionamento</div>
+          <div><code class="text-amber-400 bg-slate-800 px-1 py-0.5 rounded">{link}</code> : Link do cardápio online</div>
+        </div>
+        <p class="text-[9px] text-gray-400 mt-1">Dica: Use asteriscos para deixar textos em negrito no WhatsApp (ex: *texto*).</p>
+      </div>
+
+      <div class="space-y-4">
+        <!-- BASE LINK CONFIGURATION -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">Link de Destino do Cardápio (GitHub ou Próprio) 🌐</label>
+          <input type="url" id="whatsapp-link-url" placeholder="Ex: https://tecinfo-app.github.io/PopFood" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none">
+          <p class="text-[9px] text-gray-400">Por padrão, apontamos para <strong class="text-gray-600">https://tecinfo-app.github.io/PopFood</strong>. O robô irá gerar o link completo de pedidos para cada cliente usando este endereço.</p>
+        </div>
+
+        <!-- WELCOME MESSAGE -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">1. Mensagem de Boas-Vindas / Menu Principal 🍟</label>
+          <textarea id="whatsapp-welcome-msg" rows="4" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none resize-y font-mono text-slate-700 leading-relaxed" placeholder="Escreva a mensagem de boas-vindas..."></textarea>
+        </div>
+
+        <!-- HOURS MESSAGE -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">2. Mensagem de Horários de Funcionamento 🕒</label>
+          <textarea id="whatsapp-hours-msg" rows="3" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none resize-y font-mono text-slate-700 leading-relaxed" placeholder="Escreva sobre seus horários..."></textarea>
+        </div>
+
+        <!-- MAKE ORDER MESSAGE -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">3. Mensagem para Fazer Pedidos (Link do Cardápio) 🛒</label>
+          <textarea id="whatsapp-order-msg" rows="3" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none resize-y font-mono text-slate-700 leading-relaxed" placeholder="Escreva sobre o link do pedido..."></textarea>
+        </div>
+
+        <!-- CHECK STATUS MESSAGE -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase">4. Mensagem para Consulta de Status de Pedido 🔎</label>
+          <textarea id="whatsapp-status-msg" rows="4" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none resize-y font-mono text-slate-700 leading-relaxed" placeholder="Escreva sobre como consultar o status do pedido..."></textarea>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button id="btn-save-whatsapp-config" onclick="saveWhatsappBotConfig()" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 px-4 text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5">
+          <span>Salvar Mensagens do Robô 💾</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth, Timestamp, COLLECTIONS, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onAuthStateChanged, where, query, onSnapshot, signOut, app } from './supabase-adapter.js';
+    import { getMessaging, getToken, onMessage } from './supabase-adapter.js';
+
+    const getApiUrl = (endpoint) => {
+      const isLocalOrPlatform = window.location.hostname === 'localhost' || 
+                                 window.location.hostname === '127.0.0.1' || 
+                                 window.location.hostname.includes('run.app') ||
+                                 window.location.hostname.includes('webcontainer.io');
+      const base = isLocalOrPlatform ? '' : 'https://ais-pre-huiqzqgxqhno7p52tquz6q-756386363755.us-east1.run.app';
+      return `${base}${endpoint}`;
+    };
+
+    window.logoutAdmin = async function() {
+      localStorage.removeItem('popfood_custom_store_id');
+      localStorage.removeItem('popfood_custom_store_email');
+      localStorage.removeItem('popfood_admin_store_override');
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Signout error: ", err);
+      }
+      window.location.href = "index.html";
+    };
+
+    let whatsappUnsubscribe = null;
+    let whatsappHttpInterval = null;
+
+    function clearWhatsappStatusChecks() {
+      if (whatsappUnsubscribe) {
+        try {
+          whatsappUnsubscribe();
+        } catch (e) {}
+        whatsappUnsubscribe = null;
+      }
+      if (whatsappHttpInterval) {
+        clearInterval(whatsappHttpInterval);
+        whatsappHttpInterval = null;
+      }
+    }
+
+    function updateWhatsappUI(data) {
+      const statusCont = document.getElementById('whatsapp-status-container');
+      const qrCont = document.getElementById('whatsapp-qr-container');
+      const connCont = document.getElementById('whatsapp-connected-container');
+      const disconnCont = document.getElementById('whatsapp-disconnected-container');
+      const qrImg = document.getElementById('whatsapp-qr-image');
+
+      if (!statusCont || !qrCont || !connCont || !disconnCont) return;
+
+      if (data.connected) {
+        statusCont.classList.add('hidden');
+        connCont.classList.remove('hidden');
+        qrCont.classList.add('hidden');
+        disconnCont.classList.add('hidden');
+      } else if (data.qr) {
+        statusCont.classList.add('hidden');
+        qrCont.classList.remove('hidden');
+        if (qrImg) qrImg.src = data.qr;
+        connCont.classList.add('hidden');
+        disconnCont.classList.add('hidden');
+      } else if (data.status === 'connecting') {
+        statusCont.classList.remove('hidden');
+        qrCont.classList.add('hidden');
+        connCont.classList.add('hidden');
+        disconnCont.classList.add('hidden');
+      } else {
+        statusCont.classList.add('hidden');
+        qrCont.classList.add('hidden');
+        connCont.classList.add('hidden');
+        disconnCont.classList.remove('hidden');
+      }
+    }
+
+    async function fetchWhatsappStatusHttp() {
+      if (!window.currentStoreId) return;
+      try {
+        const res = await fetch(getApiUrl(`/api/whatsapp/status?storeId=${window.currentStoreId}`));
+        if (res.ok) {
+          const data = await res.json();
+          updateWhatsappUI(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch WhatsApp status via HTTP", e);
+      }
+    }
+
+    function startWhatsappHttpPolling() {
+      if (whatsappHttpInterval) return;
+      // Fetch immediately
+      fetchWhatsappStatusHttp();
+      // Start polling
+      whatsappHttpInterval = setInterval(fetchWhatsappStatusHttp, 5000);
+    }
+
+    window.checkWhatsappStatus = function() {
+      if (!window.currentStoreId) return;
+      
+      clearWhatsappStatusChecks();
+
+      try {
+        const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
+        whatsappUnsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            updateWhatsappUI(data);
+          } else {
+            // Document doesn't exist yet, show disconnected state
+            updateWhatsappUI({ status: 'disconnected', connected: false });
+          }
+        }, (e) => {
+          console.warn("Firestore listener denied or failed. Falling back to HTTP Polling...", e);
+          startWhatsappHttpPolling();
+        });
+      } catch (err) {
+        console.warn("Firestore initialization error. Falling back to HTTP Polling...", err);
+        startWhatsappHttpPolling();
+      }
+    };
+
+    window.loadWhatsappQr = async function() {
+      if (!window.currentStoreId) return;
+      document.getElementById('whatsapp-status-container').classList.remove('hidden');
+      document.getElementById('whatsapp-qr-container').classList.add('hidden');
+      document.getElementById('whatsapp-connected-container').classList.add('hidden');
+      document.getElementById('whatsapp-disconnected-container').classList.add('hidden');
+      
+      let firestoreWorked = false;
+      try {
+        const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
+        await setDoc(docRef, {
+          action: "generate",
+          status: 'connecting',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        firestoreWorked = true;
+        window.checkWhatsappStatus();
+      } catch (e) {
+        console.warn("Firestore generate trigger blocked. Using secure HTTP API fallback...", e);
+      }
+
+      // If Firestore failed, trigger via HTTP endpoint
+      if (!firestoreWorked) {
+        try {
+          const res = await fetch(getApiUrl(`/api/whatsapp/qr?storeId=${window.currentStoreId}`));
+          if (!res.ok) {
+            throw new Error("HTTP error " + res.status);
+          }
+          const data = await res.json();
+          
+          window.checkWhatsappStatus();
+          
+          if (data && (data.qr || data.connected)) {
+            updateWhatsappUI(data);
+          }
+        } catch (httpErr) {
+          console.error("Failed to load WhatsApp QR via HTTP fallback", httpErr);
+          // Hide spinner and restore disconnected container
+          const statusCont = document.getElementById('whatsapp-status-container');
+          if (statusCont) statusCont.classList.add('hidden');
+          const disconnCont = document.getElementById('whatsapp-disconnected-container');
+          if (disconnCont) disconnCont.classList.remove('hidden');
+          
+          if (window.customAlert) {
+            window.customAlert("Falha ao gerar o código QR. Por favor, tente novamente.");
+          } else {
+            alert("Falha ao gerar o código QR. Por favor, tente novamente.");
+          }
+        }
+      }
+    };
+
+    window.forceResetWhatsapp = async function() {
+      if (!window.currentStoreId) return;
+      if (!confirm("Isso forçará a limpeza da sessão atual para gerar um novo QR Code. Continuar?")) return;
+      try {
+        const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
+        await setDoc(docRef, {
+          action: "force_reset",
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        window.checkWhatsappStatus();
+      } catch (e) {
+        console.warn("Firestore reset trigger failed", e);
+      }
+    };
+
+    window.logoutWhatsapp = async function() {
+      if (!window.currentStoreId) return;
+      if (!confirm("Tem certeza que deseja desconectar o WhatsApp?")) return;
+      
+      let firestoreWorked = false;
+      try {
+        const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
+        await setDoc(docRef, {
+          action: "logout",
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        firestoreWorked = true;
+      } catch (e) {
+        console.warn("Firestore logout trigger blocked. Using secure HTTP API fallback...", e);
+      }
+
+      if (!firestoreWorked) {
+        try {
+          const res = await fetch(getApiUrl(`/api/whatsapp/logout`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ storeId: window.currentStoreId })
+          });
+          if (res.ok) {
+            updateWhatsappUI({ status: 'disconnected', connected: false });
+          }
+        } catch (httpErr) {
+          console.error("Failed to logout WhatsApp via HTTP fallback", httpErr);
+        }
+      }
+    };
+
+    window.toggleWhatsappBot = async function(isActive) {
+      if (!window.currentStoreId) return;
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          whatsappBotPaused: !isActive
+        });
+        window.customAlert ? window.customAlert(isActive ? "Robô automático ativado." : "Robô pausado para atendimento manual.") : alert(isActive ? "Robô automático ativado." : "Robô pausado para atendimento manual.");
+      } catch (e) {
+        console.error("Erro ao alterar status do robô", e);
+        window.customAlert ? window.customAlert("Erro ao alterar status do robô.") : alert("Erro ao alterar status do robô.");
+        document.getElementById('whatsapp-bot-active').checked = !isActive; // revert
+      }
+    };
+
+    window.saveWhatsappBotConfig = async function() {
+      if (!window.currentStoreId) return;
+      const linkUrl = document.getElementById('whatsapp-link-url').value.trim();
+      const welcome = document.getElementById('whatsapp-welcome-msg').value;
+      const hours = document.getElementById('whatsapp-hours-msg').value;
+      const order = document.getElementById('whatsapp-order-msg').value;
+      const status = document.getElementById('whatsapp-status-msg').value;
+      
+      const btn = document.getElementById('btn-save-whatsapp-config');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Salvando...';
+      }
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          whatsappLinkUrl: linkUrl,
+          whatsappWelcome: welcome,
+          whatsappHours: hours,
+          whatsappOrder: order,
+          whatsappStatus: status,
+          storeId: window.currentStoreId
+        }, { merge: true });
+
+        if (btn) {
+          btn.textContent = "✅ Configurações Salvas!";
+          btn.classList.remove('bg-brand-primary', 'hover:bg-orange-600');
+          btn.classList.add('bg-green-500', 'hover:bg-green-600');
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = 'Salvar Mensagens do Robô 💾';
+            btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            btn.classList.add('bg-brand-primary', 'hover:bg-orange-600');
+          }, 3000);
+        }
+        
+        // Reload local data
+        loadRestaurantProfileData();
+      } catch (err) {
+        console.error("Saving whatsapp config error: ", err);
+        window.customAlert ? window.customAlert("Erro ao salvar configurações do WhatsApp: " + err.message) : alert("Erro ao salvar configurações do WhatsApp: " + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Salvar Mensagens do Robô 💾';
+        }
+      }
+    };
+
+    // App state
+    let profileData = null;
+    let bannersList = [];
+    let couponsList = [];
+
+    // Fallback coords
+    let currentStoreLatitude = -23.55052;
+    let currentStoreLongitude = -46.633308;
+
+    // Switch tab handler
+    window.switchTab = function(tabId) {
+      const tabs = ['cadastro', 'banners', 'taxa-entrega', 'cupons', 'pagamentos', 'assinatura', 'motoboy', 'notificacoes', 'whatsapp'];
+      tabs.forEach(id => {
+        const tabEl = document.getElementById(`tab-${id}`);
+        if (tabEl) tabEl.classList.add('hidden');
+        
+        const btn = document.getElementById(`menu-btn-${id}`);
+        if (btn) {
+          btn.className = "w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 text-gray-700 hover:bg-gray-50 border-l-4 border-transparent";
+          const arrow = btn.querySelector('span:last-child');
+          if (arrow) arrow.className = "text-gray-400 font-bold transition-transform";
+        }
+      });
+      
+      const activeTab = document.getElementById(`tab-${tabId}`);
+      if (activeTab) activeTab.classList.remove('hidden');
+      
+      const activeBtn = document.getElementById(`menu-btn-${tabId}`);
+      if (activeBtn) {
+        if (tabId === 'motoboy') {
+          activeBtn.className = "w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-amber-50 text-amber-700 border-l-4 border-amber-500 pl-2.5";
+          const arrow = activeBtn.querySelector('span:last-child');
+          if (arrow) arrow.className = "text-amber-600 font-bold translate-x-1 transition-transform";
+        } else if (tabId === 'assinatura') {
+          activeBtn.className = "w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-green-50 text-green-700 border-l-4 border-green-500 pl-2.5";
+          const arrow = activeBtn.querySelector('span:last-child');
+          if (arrow) arrow.className = "text-green-600 font-bold translate-x-1 transition-transform";
+        } else if (tabId === 'whatsapp') {
+          activeBtn.className = "w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-emerald-50 text-emerald-700 border-l-4 border-emerald-500 pl-2.5";
+          const arrow = activeBtn.querySelector('span:last-child');
+          if (arrow) arrow.className = "text-emerald-600 font-bold translate-x-1 transition-transform";
+        } else {
+          activeBtn.className = "w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-left text-xs font-semibold cursor-pointer transition-all duration-205 bg-orange-50 text-brand-primary border-l-4 border-brand-primary pl-2.5";
+          const arrow = activeBtn.querySelector('span:last-child');
+          if (arrow) arrow.className = "text-brand-primary font-bold translate-x-1 transition-transform";
+        }
+      }
+      
+      localStorage.setItem('popfood_admin_last_tab', tabId);
+    };
+
+    window.onload = async () => {
+      window.currentStoreId = null;
+      
+      try {
+        const messaging = getMessaging(app);
+        if (messaging) {
+          onMessage(messaging, (payload) => {
+            console.log("Foreground notification received in perfil.html:", payload);
+            const title = payload.notification?.title || "Nova Notificação! 🔔";
+            const body = payload.notification?.body || "";
+            alert(`🔔 Nova Notificação!\n${title}\n${body}`);
+          });
+        }
+      } catch (e) {
+        console.error("Could not init FCM foreground listener in perfil.html", e);
+      }
+
+      onAuthStateChanged(auth, async (user) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStoreId = urlParams.get('store');
+        const customStoreId = localStorage.getItem('popfood_custom_store_id');
+        const overrideStoreId = localStorage.getItem('popfood_admin_store_override');
+        
+        if (urlStoreId) {
+          window.currentStoreId = urlStoreId;
+        } else if (overrideStoreId) {
+          window.currentStoreId = overrideStoreId;
+        } else if (customStoreId) {
+          window.currentStoreId = customStoreId;
+        } else if (user) {
+          window.currentStoreId = user.uid;
+        }
+
+        if (!user && !customStoreId && !urlStoreId) {
+          alert("Acesso restrito! Por favor faça login primeiro.");
+          window.location.href = "index.html";
+          return;
+        }
+
+        if (!window.currentStoreId) {
+          window.location.href = "index.html";
+          return;
+        }
+
+        // Apply override visual styling if override exists
+        if (overrideStoreId && window.currentStoreId === overrideStoreId) {
+          injectOverrideBannerUI();
+        }
+
+        // Dynamically update address bar URL if store parameter is missing or different
+        if (window.currentStoreId) {
+          const currentUrl = new URL(window.location.href);
+          if (currentUrl.searchParams.get('store') !== window.currentStoreId) {
+            currentUrl.searchParams.set('store', window.currentStoreId);
+            window.history.replaceState(null, '', currentUrl.toString());
+          }
+        }
+
+        // Dynamically append currentStoreId universally to ALL internal admin links
+        document.querySelectorAll('a').forEach(el => {
+          const href = el.getAttribute('href');
+          if (href) {
+            const adminPages = ['index.html', 'perfil.html', 'pedidos.html', 'clientes.html', 'relatorios.html', 'cliente.html', 'motoboy.html'];
+            const basePath = href.split('?')[0];
+            if (adminPages.includes(basePath)) {
+              el.href = `${basePath}?store=${window.currentStoreId}`;
+            }
+          }
+        });
+  
+
+        // Populate Motoboy link in UI
+        const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+        const motoboyUrl = window.location.origin + basePath + "/motoboy.html?store=" + window.currentStoreId;
+        const linkInput = document.getElementById('motoboy-link-input');
+        if (linkInput) {
+          linkInput.value = motoboyUrl;
+        }
+        const btnOpenMotoboy = document.getElementById('btn-open-motoboy');
+        if (btnOpenMotoboy) {
+          btnOpenMotoboy.href = motoboyUrl;
+        }
+
+        // Initialize Whatsapp
+        window.checkWhatsappStatus();
+
+        // Fetch Profile
+        loadRestaurantProfileData();
+        // Fetch Coupons
+        loadPromotionalCouponsList();
+        // Fetch Campaign History
+        loadNotificationCampaigns();
+      });
+
+      document.getElementById('profile-meta-form').onsubmit = saveRestaurantProfileDetails;
+      document.getElementById('profile-payments-form').onsubmit = saveRestaurantProfileDetails;
+      document.getElementById('coupon-modal-form').onsubmit = saveOrUpdateCouponDetails;
+      document.getElementById('notification-modal-form').onsubmit = sendNotificationCampaign;
+
+      // Event listeners for push campaigns scheduling
+      document.querySelectorAll('input[name="send_time_type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const container = document.getElementById('schedule-datetime-container');
+          const submitBtn = document.getElementById('notification-submit-btn');
+          if (e.target.value === 'scheduled') {
+            if (container) container.classList.remove('hidden');
+            if (submitBtn) submitBtn.textContent = 'Agendar Envio 📅';
+            
+            // Set min attribute of datetime-local to current local time
+            const datetimeInput = document.getElementById('notification-form-datetime');
+            if (datetimeInput) {
+              const now = new Date();
+              now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+              datetimeInput.min = now.toISOString().slice(0, 16);
+            }
+          } else {
+            if (container) container.classList.add('hidden');
+            if (submitBtn) submitBtn.textContent = 'Disparar Agora 🚀';
+          }
+        });
+      });
+
+      const lastTab = localStorage.getItem('popfood_admin_last_tab') || 'cadastro';
+      window.switchTab(lastTab);
+    };
+
+    async function saveBillingDay(e) {
+      e.preventDefault();
+      const day = parseInt(document.getElementById('store-billing-day').value, 10);
+      if (isNaN(day) || day < 1 || day > 31) {
+        alert("Favor inserir um dia válido entre 1 e 31.");
+        return;
+      }
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          billingDay: day
+        }, { merge: true });
+        
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = "✅ Dia de Vencimento Salvo!";
+          btn.classList.add('bg-green-500', 'hover:bg-green-600', 'border-green-500');
+          btn.classList.remove('bg-slate-900', 'hover:bg-slate-800', 'border-slate-900');
+          
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('bg-green-500', 'hover:bg-green-600', 'border-green-500');
+            btn.classList.add('bg-slate-900', 'hover:bg-slate-800', 'border-slate-900');
+          }, 3000);
+        }
+      } catch (err) {
+        console.error("Saving billing day error: ", err);
+        alert("Erro ao salvar dia: " + err.message);
+      }
+    }
+
+    window.copyMotoboyLink = function() {
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const linkVal = window.location.origin + basePath + "/motoboy.html" + (window.currentStoreId ? "?store=" + window.currentStoreId : "");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkVal).then(() => {
+          alert("📋 Link copiado com sucesso! Compartilhe com seus entregadores.");
+        }).catch(err => {
+          fallbackCopyToClipboard(linkVal);
+        });
+      } else {
+        fallbackCopyToClipboard(linkVal);
+      }
+    };
+
+    function fallbackCopyToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert("📋 Link copiado com sucesso!");
+      } catch (err) {
+        alert("Copie o link manualmente: " + text);
+      }
+      document.body.removeChild(textArea);
+    }
+
+    window.shareMotoboyLinkWhatsApp = function() {
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const linkVal = window.location.origin + basePath + "/motoboy.html" + (window.currentStoreId ? "?store=" + window.currentStoreId : "");
+      const text = `Olá! Segue o link de acesso ao Portal do Entregador (Motoboy) da PopFood hoje para gerenciar suas entregas e atualizar o rastreamento em tempo real:\n\n${linkVal}`;
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    };
+
+    window.toggleGatewayFields = function() {
+      const gw = (document.getElementById('online-gateway') || {}).value || 'abacatepay';
+      const abacateDiv = document.getElementById('abacatepay-fields');
+      const asaasDiv = document.getElementById('asaas-fields');
+      if (gw === 'asaas') {
+        if (abacateDiv) abacateDiv.classList.add('hidden');
+        if (asaasDiv) asaasDiv.classList.remove('hidden');
+      } else {
+        if (abacateDiv) abacateDiv.classList.remove('hidden');
+        if (asaasDiv) asaasDiv.classList.add('hidden');
+      }
+    };
+    function toggleGatewayFields() {
+      window.toggleGatewayFields();
+    }
+
+    // Load Profile
+    async function loadRestaurantProfileData() {
+      try {
+        const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        
+        // Listen closely for suspensions
+        onSnapshot(ref, (snap) => {
+          const isSuperUserOverride = localStorage.getItem('popfood_admin_store_override') === window.currentStoreId;
+          
+          if (!snap.exists() && !isSuperUserOverride) {
+                document.body.innerHTML = `
+                  <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]" style="overflow:hidden;">
+                     <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                        <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                        <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                     </div>
+                     <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Loja Excluída</h1>
+                     <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                       A sua loja foi completamente <strong>removida</strong> do sistema e este painel foi desativado.
+                     </p>
+                     <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Retornar ao Início</button>
+                  </div>
+                `;
+                return;
+          }
+
+          if (snap.exists()) {
+             const data = snap.data();
+             if (data.suspended === true && !isSuperUserOverride) {
+                document.body.innerHTML = `
+                  <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]" style="overflow:hidden;">
+                     <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                        <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                        <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                     </div>
+                     <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Acesso Suspenso</h1>
+                     <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                       O sistema da sua loja está temporariamente <strong>indisponível</strong>. Provavelmente ocorreu alguma pendência na renovação de sua assinatura.
+                       <br><br>Entre em contato com o administrador da plataforma para regularizar.
+                     </p>
+                     <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Retornar ao Dashboard</button>
+                  </div>
+                `;
+             }
+          }
+        }, (error) => {
+          console.error("Firestore onSnapshot error on profile listener: ", error);
+        });
+
+        const snap = await getDoc(ref);
+        
+        if (snap.exists()) {
+          profileData = snap.data();
+          
+          (document.getElementById('store-name') || {}).value = profileData.name || '';
+          (document.getElementById('store-desc') || {}).value = profileData.description || '';
+          (document.getElementById('store-phone') || {}).value = profileData.phone || '';
+          (document.getElementById('store-cep') || {}).value = profileData.cep || '';
+          (document.getElementById('store-address') || {}).value = profileData.address || '';
+          (document.getElementById('store-min-order-value') || {}).value = profileData.minOrderValue || '';
+          (document.getElementById('store-open') || {}).value = profileData.openTime || '';
+          (document.getElementById('store-close') || {}).value = profileData.closeTime || '';
+          (document.getElementById('online-gateway') || {}).value = profileData.onlineGateway || (profileData.asaasApiKey ? 'asaas' : 'abacatepay');
+          (document.getElementById('abacatepay-token') || {}).value = profileData.abacatePayToken || '';
+          (document.getElementById('asaas-api-key') || {}).value = profileData.asaasApiKey || '';
+          (document.getElementById('asaas-env') || {}).value = profileData.asaasEnv || 'production';
+          if (typeof window.toggleGatewayFields === 'function') window.toggleGatewayFields();
+          
+          // Populate operating days
+          if (profileData.operatingDays && Array.isArray(profileData.operatingDays)) {
+            const checkboxes = document.querySelectorAll('input[name="op-day"]');
+            checkboxes.forEach(cb => {
+              cb.checked = profileData.operatingDays.includes(parseInt(cb.value));
+            });
+          } else {
+            // Default to all days checked if not previously set
+            document.querySelectorAll('input[name="op-day"]').forEach(cb => cb.checked = true);
+          }
+
+          // Cardapio display settings
+          (document.getElementById('profile-destaques-ativo') || {}).checked = profileData.destaquesAtivo === true;
+          (document.getElementById('profile-mostrar-indisponiveis') || {}).checked = profileData.mostrarIndisponiveis !== false; // Default to true
+          (document.getElementById('whatsapp-bot-active') || {}).checked = profileData.whatsappBotPaused !== true;
+          
+          // Populate custom whatsapp bot settings
+          (document.getElementById('whatsapp-link-url') || {}).value = profileData.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+          (document.getElementById('whatsapp-welcome-msg') || {}).value = profileData.whatsappWelcome || 'Olá! Bem-vindo(a) ao *{name}*! 🍔🍕\n_{description}_\n\nDigite o número da opção desejada:\n1️⃣ *Cardápio*\n2️⃣ *Horário de Funcionamento*\n3️⃣ *Fazer Pedido*\n4️⃣ *Status do Pedido*';
+          (document.getElementById('whatsapp-hours-msg') || {}).value = profileData.whatsappHours || '🕒 *Nosso horário de funcionamento:*\nDas {openTime} às {closeTime}\nDias: {operatingDays}';
+          (document.getElementById('whatsapp-order-msg') || {}).value = profileData.whatsappOrder || '🛒 *Pronto para pedir?*\nAcesse nosso site para montar seu pedido com facilidade e segurança:\n👉 {link}';
+          (document.getElementById('whatsapp-status-msg') || {}).value = profileData.whatsappStatus || '🔎 *Status do Pedido:*\nPor favor, acesse o link de acompanhamento que foi enviado no seu e-mail ou visualize direto pelo nosso site através do botão "Acompanhar Pedido".\n\nSe você sabe o ID do pedido, digite *status #SEU_ID* (ex: status #abc123)';
+          
+          // Whatsapp Bot admin visibility control
+          const isWhatsappBotEnabled = profileData.whatsappBotEnabled === true || profileData.whatsappBotEnabled === 'true';
+          const btnWhatsapp = document.getElementById('menu-btn-whatsapp');
+          if (btnWhatsapp) {
+            if (isWhatsappBotEnabled) {
+              btnWhatsapp.classList.remove('hidden');
+            } else {
+              btnWhatsapp.classList.add('hidden');
+              // If current active tab is whatsapp, switch to cadastro
+              const lastTab = localStorage.getItem('popfood_admin_last_tab') || 'cadastro';
+              if (lastTab === 'whatsapp') {
+                window.switchTab('cadastro');
+              }
+            }
+          }
+          
+          const destaquesTipo = profileData.destaquesTipo || 'mais_pedidos';
+          const radioToSelect = document.querySelector(`input[name="profile-destaques-tipo"][value="${destaquesTipo}"]`);
+          if(radioToSelect) radioToSelect.checked = true;
+          
+          if (typeof toggleDestaquesOptions === 'function') toggleDestaquesOptions();
+
+          // Global Admin Config
+          let adminWhatsAppNumber = null;
+          try {
+             const globalSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'));
+             if (globalSnap.exists()) {
+                adminWhatsAppNumber = globalSnap.data().adminWhatsApp;
+             }
+          } catch(e) { }
+
+          // Assinatura
+          const planVal = profileData.planValue || profileData.monthlyFee || 0;
+          (document.getElementById('assinatura-fee') || {}).textContent = planVal ? `R$ ${parseFloat(planVal).toFixed(2).replace('.', ',')}` : 'R$ 0,00';
+          
+          (document.getElementById('assinatura-plan-name') || {}).textContent = profileData.planMonths > 1 ? `Plano ${profileData.planMonths} Meses` : 'Mensal';
+          
+          const planMonths = profileData.planMonths || 1;
+          const paidMonths = profileData.paidMonths || 0;
+          const pct = Math.min(100, (paidMonths / planMonths) * 100);
+          (document.getElementById('assinatura-progress-text') || {}).textContent = `${paidMonths}/${planMonths}`;
+          document.getElementById('assinatura-progress-bar').style.width = `${pct}%`;
+
+          const storeBilling = document.getElementById('store-billing-day');
+          if (storeBilling) storeBilling.value = profileData.billingDay || '';
+          (document.getElementById('assinatura-due-date') || {}).textContent = profileData.billingDay ? `Dia ${profileData.billingDay}` : 'Não Definido';
+
+          const today = new Date();
+          const currentMonth = today.getMonth();
+          const currentYear = today.getFullYear();
+          let monthsDiff = 999;
+
+          if (profileData.lastPaidMonthYear) {
+              const parts = profileData.lastPaidMonthYear.split('-');
+              if (parts.length === 2) {
+                  const lastM = parseInt(parts[0], 10);
+                  const lastY = parseInt(parts[1], 10);
+                  monthsDiff = (currentYear - lastY) * 12 + (currentMonth - lastM);
+              }
+          }
+
+          let alertStatusText = 'REGULAR / PAGO';
+          let alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+
+          if (profileData.billingDay) {
+              const billingDay = parseInt(profileData.billingDay, 10);
+              const currentDay = today.getDate();
+              const daysUntilDue = billingDay - currentDay;
+
+              if (monthsDiff > 1 && profileData.lastPaidMonthYear) {
+                  alertStatusText = 'FATURA VENCIDA';
+                  alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-red-500/20 text-red-500 border border-red-500/30';
+              } else if (monthsDiff === 1 && profileData.lastPaidMonthYear) {
+                  if (daysUntilDue < 0) {
+                      alertStatusText = 'FATURA VENCIDA';
+                      alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-red-500/20 text-red-500 border border-red-500/30';
+                  } else if (daysUntilDue <= 5) {
+                      alertStatusText = 'VENCIMENTO PRÓXIMO';
+                      alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-amber-500/20 text-amber-400 border border-amber-500/30';
+                  } else {
+                      alertStatusText = 'REGULAR / AGUARDANDO CICLO';
+                  }
+              }
+              
+              if (!profileData.lastPaidMonthYear) {
+                 alertStatusText = 'PAGAMENTO PENDENTE';
+                 alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-amber-500/20 text-amber-400 border border-amber-500/30';
+              }
+          } else {
+              // no billing day defined
+              if (!profileData.lastPaidMonthYear || monthsDiff >= 1) {
+                  alertStatusText = 'PAGAMENTO PENDENTE';
+                  alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-amber-500/20 text-amber-400 border border-amber-500/30';
+              }
+          }
+
+          if (paidMonths >= planMonths && planMonths > 0) {
+             // Fully paid plan
+             alertStatusText = 'PLANO CONCLUÍDO';
+             alertStatusClass = 'px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-black bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+          }
+
+          const statusEl = document.getElementById('assinatura-status');
+          if (statusEl) {
+             statusEl.textContent = alertStatusText;
+             statusEl.className = alertStatusClass;
+          }
+
+          // Mostra o selo "em dia" como informação, mas mantém o botão de pagar sempre ativo
+          // (cliente pode adiantar parcelas ou pagar meses extras quando quiser)
+          if (alertStatusText === 'REGULAR / PAGO' || alertStatusText === 'REGULAR / AGUARDANDO CICLO' || alertStatusText === 'PLANO CONCLUÍDO') {
+            const paidMsg = document.getElementById('assinatura-already-paid-msg');
+            if (paidMsg) paidMsg.classList.remove('hidden');
+          }
+
+          // Buscar token master do AbacatePay (conta da plataforma, não da loja)
+          let masterAbacateToken = null;
+          try {
+             const globalSnap2 = await getDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'));
+             if (globalSnap2.exists()) {
+                masterAbacateToken = globalSnap2.data().abacatePayMasterToken || null;
+             }
+          } catch(e) { }
+
+          let assinaturaPixInterval = null;
+          let assinaturaPixTimeout = null;
+
+          window.gerarPixAssinatura = async function() {
+            if (!masterAbacateToken) {
+              window.customAlert("O pagamento automático ainda não está configurado pela plataforma. Entre em contato com o suporte.");
+              return;
+            }
+            if (!planVal || planVal <= 0) {
+              window.customAlert("Valor do plano não definido. Entre em contato com o suporte.");
+              return;
+            }
+
+            const btn = document.getElementById('btn-gerar-pix-assinatura');
+            btn.disabled = true;
+            btn.textContent = '⏳ Gerando Pix...';
+
+            try {
+              const WORKER_URL = 'https://abacatepay-proxy.iranildo-jobs.workers.dev';
+              const amountCents = Math.round(parseFloat(planVal) * 100);
+
+              const pixPayload = {
+                method: 'PIX',
+                data: {
+                  amount: amountCents,
+                  description: `Mensalidade PopFood - Loja ${profileData.name || currentStoreId} - Ciclo ${paidMonths + 1}/${planMonths}`,
+                  expiresIn: 600
+                }
+              };
+
+              const pixRes = await fetch(`${WORKER_URL}/v2/transparents/create`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${masterAbacateToken}`,
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify(pixPayload)
+              });
+
+              const pixData = await pixRes.json();
+              const actualPix = pixData.data || pixData;
+
+              if (!pixRes.ok || pixData.error || !actualPix.id) {
+                throw new Error(pixData.error || 'Erro ao gerar cobrança Pix.');
+              }
+
+              // Mostrar QR Code
+              const qrContainer = document.getElementById('assinatura-pix-qr-container');
+              if (actualPix.brCodeBase64) {
+                let src = actualPix.brCodeBase64;
+                if (!src.startsWith('data:')) src = 'data:image/png;base64,' + src;
+                qrContainer.innerHTML = `<img src="${src}" class="w-full h-full object-contain" />`;
+              } else if (actualPix.brCode) {
+                qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(actualPix.brCode)}" class="w-full h-full object-contain" />`;
+              }
+
+              window._assinaturaPixCode = actualPix.brCode || '';
+
+              document.getElementById('assinatura-pix-pending-box').classList.remove('hidden');
+              btn.parentElement.classList.add('hidden');
+
+              // Temporizador 10 minutos
+              let secondsLeft = 600;
+              const timerEl = document.getElementById('assinatura-pix-timer');
+              const updateTimer = () => {
+                const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+                const s = String(secondsLeft % 60).padStart(2, '0');
+                if (timerEl) timerEl.textContent = `${m}:${s}`;
+                if (secondsLeft > 0) secondsLeft--;
+              };
+              updateTimer();
+              assinaturaPixInterval = setInterval(updateTimer, 1000);
+
+              // Polling de confirmação a cada 4 segundos
+              const checkPayment = async () => {
+                try {
+                  const checkRes = await fetch(`${WORKER_URL}/v2/transparents/check?id=${actualPix.id}`, {
+                    headers: {
+                      'Authorization': `Bearer ${masterAbacateToken}`,
+                      'Accept': 'application/json'
+                    }
+                  });
+                  const checkData = await checkRes.json();
+                  const status = (checkData.data || checkData).status;
+
+                  if (status === 'PAID') {
+                    clearInterval(assinaturaPixInterval);
+                    clearTimeout(assinaturaPixTimeout);
+
+                    // Atualizar perfil da loja: incrementar mês pago e registrar mês/ano atual
+                    const now = new Date();
+                    const newPaidMonths = paidMonths + 1; // sem limitar ao planMonths, permite adiantar parcelas
+                    const lastPaidStr = `${now.getMonth() + 1}-${now.getFullYear()}`;
+
+                    await updateDoc(doc(db, COLLECTIONS.restaurantProfile, currentStoreId), {
+                      paidMonths: newPaidMonths,
+                      lastPaidMonthYear: lastPaidStr,
+                      lastPaymentId: actualPix.id,
+                      lastPaymentDate: now.toISOString()
+                    });
+
+                    window.customAlert("✅ Pagamento confirmado! Sua assinatura foi renovada automaticamente.");
+                    setTimeout(() => window.location.reload(), 1800);
+                  }
+                } catch(e) {
+                  console.warn('Erro ao checar pagamento da assinatura:', e);
+                }
+              };
+
+              const pollInterval = setInterval(checkPayment, 4000);
+              checkPayment();
+
+              // Cancelar após 10 minutos
+              assinaturaPixTimeout = setTimeout(() => {
+                clearInterval(pollInterval);
+                clearInterval(assinaturaPixInterval);
+                document.getElementById('assinatura-pix-pending-box').classList.add('hidden');
+                btn.parentElement.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = '⚡ Pagar Mensalidade com Pix';
+                window.customAlert("⏱️ Tempo para pagamento esgotado. Gere um novo Pix para continuar.");
+              }, 600000);
+
+            } catch(err) {
+              window.customAlert("Erro ao gerar pagamento Pix: " + err.message);
+              btn.disabled = false;
+              btn.textContent = '⚡ Pagar Mensalidade com Pix';
+            }
+          };
+
+          window.copyAssinaturaPixCode = function() {
+            if (window._assinaturaPixCode) {
+              navigator.clipboard.writeText(window._assinaturaPixCode);
+              window.customAlert("Código Pix copiado!");
+            }
+          };
+
+          
+          if (profileData.paymentMethods) {
+            (document.getElementById('pay-offline-pix') || {}).checked = profileData.paymentMethods.offlinePix ?? true;
+            (document.getElementById('pay-offline-card') || {}).checked = profileData.paymentMethods.offlineCard ?? true;
+            (document.getElementById('pay-offline-money') || {}).checked = profileData.paymentMethods.offlineMoney ?? true;
+            (document.getElementById('pay-online-pix') || {}).checked = profileData.paymentMethods.onlinePix ?? true;
+            (document.getElementById('pay-online-card') || {}).checked = profileData.paymentMethods.onlineCard ?? true;
+          } else {
+             (document.getElementById('pay-offline-pix') || {}).checked = true;
+             (document.getElementById('pay-offline-card') || {}).checked = true;
+             (document.getElementById('pay-offline-money') || {}).checked = true;
+             (document.getElementById('pay-online-pix') || {}).checked = true;
+             (document.getElementById('pay-online-card') || {}).checked = true;
+          }
+
+          (document.getElementById('mp-access-token') || {}).value = '';
+          (document.getElementById('mp-public-key') || {}).value = '';
+          (document.getElementById('stripe-public-key') || {}).value = '';
+          (document.getElementById('stripe-secret-key') || {}).value = '';
+
+          if (profileData.latitude && profileData.longitude) {
+            currentStoreLatitude = profileData.latitude;
+            currentStoreLongitude = profileData.longitude;
+            (document.getElementById('lbl-lat') || {}).textContent = parseFloat(profileData.latitude).toFixed(6);
+            (document.getElementById('lbl-lon') || {}).textContent = parseFloat(profileData.longitude).toFixed(6);
+          }
+          
+          // Populate Loyalty Coupon Config
+          (document.getElementById('loyalty-active') || {}).checked = !!profileData.loyaltyActive;
+          (document.getElementById('loyalty-type') || {}).value = profileData.loyaltyType || 'percentual';
+          (document.getElementById('loyalty-value') || {}).value = profileData.loyaltyValue !== undefined ? profileData.loyaltyValue : '';
+          (document.getElementById('loyalty-min-orders') || {}).value = profileData.loyaltyMinOrders !== undefined ? profileData.loyaltyMinOrders : 3;
+
+          // Build dynamic deliveryRates indices
+          buildKmRatesInputsGrid(profileData.deliveryRates || {}, profileData.deliveryTimes || {});
+        } else {
+          // Initialize empty defaults
+          buildKmRatesInputsGrid({}, {});
+        }
+
+        // Fetch logo separately
+        try {
+          const logoSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_logo"));
+          if (logoSnap.exists()) {
+            const logoVal = logoSnap.data().logo;
+            if (logoVal) {
+              (document.getElementById('logo-preview-img') || {}).src = logoVal;
+              document.getElementById('logo-preview-img').classList.remove('hidden');
+              document.getElementById('logo-placeholder').classList.add('hidden');
+            }
+          }
+        } catch (logoErr) {
+          console.error("Error loading logo:", logoErr);
+        }
+
+        // Fetch banners separately in parallel
+        try {
+          const bannerSnaps = await Promise.all([
+            getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_banner0")),
+            getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_banner1")),
+            getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_banner2"))
+          ]);
+          bannersList = [];
+          bannerSnaps.forEach((bSnap) => {
+            if (bSnap.exists()) {
+              const bData = bSnap.data();
+              if (bData && bData.banner) {
+                bannersList.push({ banner: bData.banner, linkUrl: bData.linkUrl || "" });
+              }
+            }
+          });
+          renderStoreBannersList();
+        } catch (bannersErr) {
+          console.error("Error loading banners:", bannersErr);
+        }
+
+      } catch (err) {
+        console.error("Retreiving profile document fail: ", err);
+      }
+    }
+
+    // Logo upload converter with strict 1MB limit check
+    window.convertLogoToBase64 = async function() {
+      const fileInput = document.getElementById('logo-file-input');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      try {
+        let base64;
+        if (window.optimizeAndConvertToBase64) {
+          base64 = await window.optimizeAndConvertToBase64(file, 950);
+        } else {
+          if (file.size > 1 * 1024 * 1024) {
+            alert("🔒 Atenção: O arquivo da imagem excede o tamanho limite absoluto de 1MB permitido!");
+            fileInput.value = '';
+            return;
+          }
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+        
+        const oldSrc = document.getElementById('logo-preview-img').src;
+        const oldHidden = document.getElementById('logo-preview-img').classList.contains('hidden');
+
+        try {
+          (document.getElementById('logo-preview-img') || {}).src = base64;
+          document.getElementById('logo-preview-img').classList.remove('hidden');
+          document.getElementById('logo-placeholder').classList.add('hidden');
+
+          await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_logo"), {
+            logo: base64
+          }, { merge: true });
+          alert("Logomarca updated!");
+        } catch (err) {
+          (document.getElementById('logo-preview-img') || {}).src = oldSrc;
+          if (oldHidden) {
+            document.getElementById('logo-preview-img').classList.add('hidden');
+            document.getElementById('logo-placeholder').classList.remove('hidden');
+          }
+          console.error("Logo update fails:", err);
+          alert("Ocorreu um erro ao salvar o logo.");
+        }
+      } catch (err) {
+        console.error("Error optimizing logo:", err);
+        alert("Erro ao processar a imagem do logo.");
+        fileInput.value = '';
+      }
+    }
+
+    window.removeRestaurantLogo = async function() {
+      const state = await window.customConfirm("Remover a logomarca?");
+      if (!state) return;
+
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_logo"));
+        document.getElementById('logo-preview-img').classList.add('hidden');
+        document.getElementById('logo-placeholder').classList.remove('hidden');
+        (document.getElementById('logo-preview-img') || {}).src = '';
+        alert("Logo removida!");
+      } catch (err) {
+        console.error("Removing logo failure: ", err);
+        alert("Erro ao remover a logomarca.");
+      }
+    }
+
+    // Banners lists modifiers
+    function renderStoreBannersList() {
+      const parent = document.getElementById('banners-scannable-list');
+      if (!parent) return;
+      parent.innerHTML = '';
+
+      if (bannersList.length === 0) {
+        parent.innerHTML = `<div class="text-center py-4 text-xs text-gray-400 bg-gray-50 border border-dashed rounded-xl border-gray-250">Nenhum banner ativo</div>`;
+        return;
+      }
+
+      bannersList.forEach((item, idx) => {
+        let b64 = typeof item === 'string' ? item : item.banner;
+        let linkUrl = typeof item === 'string' ? '' : (item.linkUrl || '');
+
+        const row = document.createElement('div');
+        row.className = "flex flex-col gap-2 p-3 bg-gray-50 rounded-xl border border-gray-150";
+        row.innerHTML = `
+          <div class="relative rounded-xl overflow-hidden border shadow-sm aspect-video group">
+            <img src="${b64}" class="w-full h-full object-cover">
+            <button onclick="removeBannerByIndex(${idx})" class="absolute bottom-2 right-2 bg-black/60 hover:bg-brand-danger text-white p-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors">Remover banner</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] font-bold text-gray-500 uppercase whitespace-nowrap">Link:</label>
+            <input type="url" id="banner-link-${idx}" value="${linkUrl}" placeholder="Ex: https://instagram.com/..." class="w-full text-xs p-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-brand-primary" onchange="updateBannerLink(${idx}, this.value)">
+          </div>
+        `;
+        parent.appendChild(row);
+      });
+
+      // Exceeded limiter toggle Add button
+      const uplRow = document.getElementById('banner-uploader-row');
+      if (bannersList.length >= 3) {
+        uplRow.classList.add('hidden');
+      } else {
+        uplRow.classList.remove('hidden');
+      }
+    }
+
+    // Helper to rewrite and save all banners consecutively (banner0, banner1, banner2)
+    async function saveAllBannersToDb() {
+      for (let i = 0; i < 3; i++) {
+        const docRef = doc(db, COLLECTIONS.restaurantProfile, `${window.currentStoreId}_banner${i}`);
+        if (i < bannersList.length) {
+          let item = bannersList[i];
+          if (typeof item === 'string') {
+            await setDoc(docRef, { banner: item, linkUrl: "" });
+          } else {
+            await setDoc(docRef, { banner: item.banner, linkUrl: item.linkUrl || "" });
+          }
+        } else {
+          await deleteDoc(docRef);
+        }
+      }
+    }
+
+    window.toggleDestaquesOptions = function() {
+      const isChecked = document.getElementById('profile-destaques-ativo').checked;
+      const optsRow = document.getElementById('destaques-options-row');
+      if (isChecked) {
+        optsRow.classList.remove('hidden');
+      } else {
+        optsRow.classList.add('hidden');
+      }
+    };
+
+    window.saveCardapioConfig = async function() {
+      const isDestaquesAtivo = document.getElementById('profile-destaques-ativo').checked;
+      const destaquesTipoElem = document.querySelector('input[name="profile-destaques-tipo"]:checked');
+      const destaquesTipo = destaquesTipoElem ? destaquesTipoElem.value : 'mais_pedidos';
+      const isMostrarIndisponiveis = document.getElementById('profile-mostrar-indisponiveis').checked;
+
+      const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+      
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = 'Salvando...';
+      btn.disabled = true;
+
+      try {
+        await updateDoc(profileRef, {
+          destaquesAtivo: isDestaquesAtivo,
+          destaquesTipo: destaquesTipo,
+          mostrarIndisponiveis: isMostrarIndisponiveis
+        });
+        btn.textContent = 'Salvo!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 2000);
+      } catch (err) {
+        console.error("Error saving cardapio config:", err);
+        alert("Erro ao salvar configuração de exibição.");
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    };
+
+    window.updateBannerLink = async function(index, value) {
+      if (typeof bannersList[index] === 'string') {
+        bannersList[index] = { banner: bannersList[index], linkUrl: value };
+      } else {
+        bannersList[index].linkUrl = value;
+      }
+      try {
+        await saveAllBannersToDb();
+      } catch (err) {
+        console.error("Error saving banner link: ", err);
+      }
+    };
+
+    window.convertBannerToBase64AndAdd = async function() {
+      const fileInput = document.getElementById('banner-file-input');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      try {
+        let base64;
+        if (window.optimizeAndConvertToBase64) {
+          base64 = await window.optimizeAndConvertToBase64(file, 950);
+        } else {
+          if (file.size > 1 * 1024 * 1024) {
+            alert("🔒 Atenção: O arquivo do banner individualmente excede o tamanho limite de 1MB permitido!");
+            fileInput.value = '';
+            return;
+          }
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+        
+        try {
+          bannersList.push({ banner: base64, linkUrl: "" });
+          await saveAllBannersToDb();
+          renderStoreBannersList();
+        } catch (err) {
+          console.error("Error saving banner:", err);
+          alert("Ocorreu um erro ao salvar o banner.");
+        }
+      } catch (err) {
+        console.error("Error optimizing banner:", err);
+        alert("Erro ao processar o arquivo do banner.");
+        fileInput.value = '';
+      }
+    }
+
+    window.removeBannerByIndex = async function(index) {
+      const state = await window.customConfirm("Remover este banner?");
+      if (!state) return;
+
+      const removedItem = bannersList[index];
+      bannersList.splice(index, 1);
+      
+      try {
+        await saveAllBannersToDb();
+        renderStoreBannersList();
+        alert("Banner removido com sucesso!");
+      } catch (err) {
+        // Rollback on failure
+        bannersList.splice(index, 0, removedItem);
+        console.error("Error deleting banner: ", err);
+        alert("Erro ao excluir o banner do banco de dados.");
+      }
+    }
+
+    // Search coordinates using open Nominatim API from OpenStreetMap with robust Brazilian fallbacks
+    window.lookupGeoCoordinates = async function() {
+      const originalAddress = document.getElementById('store-address').value.trim();
+      if (!originalAddress) {
+        alert("🔒 Digite o endereço completo da loja primeiro!");
+        return;
+      }
+
+      // Generate a list of search query candidates to maximize success on OpenStreetMap/Nominatim
+      const searchQueries = [];
+
+      // 1. Original input
+      searchQueries.push(originalAddress);
+
+      // 2. Replace hyphens with commas (Nominatim parses comma-separated lists much better than dashes)
+      const noDashes = originalAddress.replace(/\s*-\s*/g, ", ");
+      if (noDashes !== originalAddress) {
+        searchQueries.push(noDashes);
+      }
+
+      // 3. Remove Brazilian CEP/ZIP code (ZIP codes can cause street-level searches to fail in OSM)
+      const noCep = noDashes.replace(/\b\d{5}-?\d{3}\b/g, "").replace(/\s*,\s*,/g, ",").trim();
+      if (noCep && noCep !== noDashes) {
+        searchQueries.push(noCep);
+      }
+
+      // 4. Expand common Portuguese abbreviations (Av. -> Avenida, Dr. -> Doutor, R. -> Rua)
+      const expandAbbreviations = (str) => {
+        return str
+          .replace(/\bAv\.?\b/gi, "Avenida")
+          .replace(/\bDr\.?\b/gi, "Doutor")
+          .replace(/\bR\.?\b/gi, "Rua")
+          .replace(/\bBelminio\b/gi, "Belmínio") // Include proper accentuation for Belmínio
+          .replace(/\bPE\b/g, "Pernambuco");
+      };
+
+      const expandedOriginal = expandAbbreviations(originalAddress);
+      if (expandedOriginal !== originalAddress) {
+        searchQueries.push(expandedOriginal);
+      }
+
+      const expandedNoCep = expandAbbreviations(noCep);
+      if (expandedNoCep !== noCep && expandedNoCep !== expandedOriginal) {
+        searchQueries.push(expandedNoCep);
+      }
+
+      // 5. Try ultra-simplified Street Name + Number + City + State (strip neighborhoods, as they are often unindexed or misnamed)
+      const parts = noCep.split(",").map(p => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const street = parts[0];
+        let number = "";
+        let city = "Camaragibe"; // Default context based on user profile
+        let state = "PE";
+
+        // Extract number if any part looks like a house number (digits followed by optional letter)
+        const numberPart = parts.find(p => /^\d+\s*[a-zA-Z]?$/.test(p));
+        if (numberPart) {
+          number = numberPart;
+        } else {
+          // Check if number is appended to the street like "Av. Dr. Belminio Correia 3226"
+          const streetMatch = street.match(/(.*?)\s+(\d+)$/);
+          if (streetMatch) {
+            number = streetMatch[2];
+          }
+        }
+
+        // Try to identify other elements
+        const statePart = parts.find(p => p.toUpperCase() === "PE" || p.toUpperCase() === "PERNAMBUCO");
+        if (statePart) state = statePart;
+
+        const cityPart = parts.find(p => p.toLowerCase() === "camaragibe" || p.toLowerCase() === "recife");
+        if (cityPart) city = cityPart;
+
+        let simplifiedQuery = street;
+        if (number && !street.includes(number)) {
+          simplifiedQuery += `, ${number}`;
+        }
+        simplifiedQuery += `, ${city}, ${state}`;
+
+        searchQueries.push(simplifiedQuery);
+
+        const simplifiedExpanded = expandAbbreviations(simplifiedQuery);
+        if (simplifiedExpanded !== simplifiedQuery) {
+          searchQueries.push(simplifiedExpanded);
+        }
+      }
+
+      // 6. Last resort fallback: City, State, CEP/ZIP Code
+      const cepInput = document.getElementById('store-cep').value.trim().replace(/\D/g, '');
+      if (cepInput) {
+        searchQueries.push(`${cepInput}, Brasil`);
+      }
+
+      // Remove any duplicate queries and clean up spaces
+      const uniqueQueries = [...new Set(searchQueries)].map(q => q.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      console.log("Resilient geocoding query sequence:", uniqueQueries);
+
+      let success = false;
+      let lastError = null;
+
+      for (const query of uniqueQueries) {
+        try {
+          const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+          const response = await fetch(nominatimUrl, {
+            headers: {
+              'Accept-Language': 'pt-BR,pt;q=0.9'
+            }
+          });
+          const data = await response.json();
+
+          if (data && data.length > 0) {
+            currentStoreLatitude = parseFloat(data[0].lat);
+            currentStoreLongitude = parseFloat(data[0].lon);
+
+            (document.getElementById('lbl-lat') || {}).textContent = currentStoreLatitude.toFixed(6);
+            (document.getElementById('lbl-lon') || {}).textContent = currentStoreLongitude.toFixed(6);
+            
+            console.log(`Successfully geocoded with query: "${query}"`);
+            success = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`Query failed for "${query}":`, err);
+          lastError = err;
+        }
+      }
+
+      if (success) {
+        alert("📍 Coordenadas obtidas com sucesso!");
+      } else {
+        if (lastError) {
+          alert("Falha ao geolocalizar endereço: " + lastError.message);
+        } else {
+          alert("❌ Coordenadas não localizadas! Sugestão: remova o nome do bairro (Alberto Maia) e certifique-se que o número da casa está separado por vírgula.");
+        }
+      }
+    };
+
+    // Save profile meta properties
+    async function saveRestaurantProfileDetails(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('store-name').value.trim();
+      const desc = document.getElementById('store-desc').value.trim();
+      const phone = document.getElementById('store-phone').value.trim();
+      const cep = document.getElementById('store-cep').value.trim().replace(/\D/g, '');
+      const address = document.getElementById('store-address').value.trim();
+      const minOrderValue = parseFloat(document.getElementById('store-min-order-value').value) || 0;
+      const open = document.getElementById('store-open').value;
+      const close = document.getElementById('store-close').value;
+
+      const onlineGateway = (document.getElementById('online-gateway') || {}).value || 'abacatepay';
+      const abacatePayToken = (document.getElementById('abacatepay-token') || {}).value ? document.getElementById('abacatepay-token').value.trim() : '';
+      const asaasApiKey = (document.getElementById('asaas-api-key') || {}).value ? document.getElementById('asaas-api-key').value.trim() : '';
+      const asaasEnv = (document.getElementById('asaas-env') || {}).value || 'production';
+
+      const opDaysCheckboxes = document.querySelectorAll('input[name="op-day"]');
+      const opDays = [];
+      opDaysCheckboxes.forEach(cb => {
+        if (cb.checked) opDays.push(parseInt(cb.value));
+      });
+
+      const paymentMethods = {
+        offlinePix: document.getElementById('pay-offline-pix').checked,
+        offlineCard: document.getElementById('pay-offline-card').checked,
+        offlineMoney: document.getElementById('pay-offline-money').checked,
+        onlinePix: document.getElementById('pay-online-pix').checked,
+        onlineCard: document.getElementById('pay-online-card').checked
+      };
+
+      const profileObj = {
+        id: window.currentStoreId,
+        name: name,
+        description: desc,
+        phone: phone,
+        cep: cep,
+        address: address,
+        minOrderValue: minOrderValue,
+        openTime: open,
+        closeTime: close,
+        operatingDays: opDays,
+        onlineGateway: onlineGateway,
+        abacatePayToken: abacatePayToken,
+        asaasApiKey: asaasApiKey,
+        asaasEnv: asaasEnv,
+        paymentMethods: paymentMethods,
+        latitude: currentStoreLatitude,
+        longitude: currentStoreLongitude,
+        show: true,
+        // Include loyalty fields to ensure they are synchronized
+        loyaltyActive: document.getElementById('loyalty-active').checked,
+        loyaltyType: document.getElementById('loyalty-type').value,
+        loyaltyValue: parseFloat(document.getElementById('loyalty-value').value || 0),
+        loyaltyMinOrders: parseInt(document.getElementById('loyalty-min-orders').value || 3),
+        storeId: window.currentStoreId
+      };
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), profileObj, { merge: true });
+        
+        // Update button text to show success state
+        const saveBtn = document.getElementById('save-profile-btn');
+        if (saveBtn) {
+          const originalText = saveBtn.textContent;
+          saveBtn.textContent = "✅ Informações salvas com sucesso!";
+          saveBtn.classList.remove('bg-brand-primary', 'hover:bg-orange-600');
+          saveBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+          
+          setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            saveBtn.classList.add('bg-brand-primary', 'hover:bg-orange-600');
+          }, 3000);
+        }
+        
+        loadRestaurantProfileData();
+      } catch (err) {
+        console.error("Saving store profile error: ", err);
+        alert("Erro ao salvar perfil: " + err.message);
+      }
+    }
+
+    // Populate rates input grids
+    function buildKmRatesInputsGrid(existingRates, existingTimes) {
+      const container = document.getElementById('km-pricing-grid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // Standard ranges 1km to 10km
+      for (let km = 1; km <= 10; km++) {
+        const val = existingRates[km] !== undefined ? existingRates[km] : 5.00; // default to 5.00 BRL
+        const timeVal = existingTimes && existingTimes[km] !== undefined ? existingTimes[km] : (15 + km * 5); // default estimate: 15 + km * 5 mins
+        const inputDiv = document.createElement('div');
+        inputDiv.className = "p-3 bg-gray-50 border border-gray-150 rounded-xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+
+        inputDiv.innerHTML = `
+          <div class="min-w-[80px]">
+            <span class="text-xs font-bold text-gray-700">Raio até ${km} km</span>
+          </div>
+          <div class="flex items-center gap-3 flex-grow">
+            <!-- Rate row -->
+            <div class="flex-1 space-y-0.5">
+              <label class="block text-[8px] font-bold text-gray-400 uppercase">Taxa de Entrega</label>
+              <div class="flex items-center gap-1 font-semibold text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
+                <span class="text-[10px] text-gray-400">R$</span>
+                <input type="number" step="0.10" id="rate-km-${km}" value="${val.toFixed(2)}" class="w-full bg-transparent focus:outline-none font-bold text-gray-700 text-right">
+              </div>
+            </div>
+            <!-- Time row -->
+            <div class="flex-1 space-y-0.5">
+              <label class="block text-[8px] font-bold text-gray-400 uppercase">Tempo Estimado</label>
+              <div class="flex items-center gap-1 font-semibold text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
+                <input type="number" step="1" id="time-km-${km}" value="${timeVal}" class="w-full bg-transparent focus:outline-none font-bold text-gray-700 text-right">
+                <span class="text-[9px] text-gray-400">min</span>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(inputDiv);
+      }
+    }
+
+    function injectOverrideBannerUI() {
+      const overrideStoreName = localStorage.getItem('popfood_admin_store_name_override') || 'Parceiro';
+      let ribbon = document.getElementById('superuser-override-ribbon');
+      if (!ribbon) {
+        ribbon = document.createElement('div');
+        ribbon.id = 'superuser-override-ribbon';
+        ribbon.className = "bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold py-2.5 px-4 text-center flex items-center justify-between gap-3 shadow-md sticky top-0 z-[9999]";
+        ribbon.innerHTML = `
+          <div class="mx-auto flex items-center gap-1.5 flex-wrap justify-center">
+            <span>🛡️</span>
+            <span><strong>MODO SIMULAÇÃO SUPER-USUÁRIO ATIVO:</strong> Gerenciando a loja <strong class="underline">${overrideStoreName}</strong></span>
+          </div>
+          <button onclick="localStorage.removeItem('popfood_admin_store_override'); localStorage.removeItem('popfood_admin_store_name_override'); window.location.reload();" class="bg-white/20 hover:bg-white/35 text-white active:scale-95 transition-all px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer shrink-0">
+            Sair e Voltar ao Admin Geral
+          </button>
+        `;
+        document.body.insertBefore(ribbon, document.body.firstChild);
+      }
+    }
+
+    window.saveDeliveryRatesGrid = async function() {
+      const rates = {};
+      const times = {};
+      for (let km = 1; km <= 10; km++) {
+        rates[km] = parseFloat(document.getElementById(`rate-km-${km}`).value || 0);
+        times[km] = parseInt(document.getElementById(`time-km-${km}`).value || 0);
+      }
+      try {
+        // Pushes index updates to document restaurant meta
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          deliveryRates: rates,
+          deliveryTimes: times,
+          latitude: currentStoreLatitude,
+          longitude: currentStoreLongitude,
+          storeId: window.currentStoreId
+        }, { merge: true });
+        
+        const btn = document.getElementById('save-rates-btn');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = "✅ Salvo com Sucesso!";
+          btn.classList.remove('bg-gray-800', 'hover:bg-gray-950');
+          btn.classList.add('bg-green-500', 'hover:bg-green-600');
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            btn.classList.add('bg-gray-800', 'hover:bg-gray-950');
+          }, 3000);
+        }
+      } catch (err) {
+        console.error("Saving rate grids properties error: ", err);
+      }
+    }
+
+    window.saveLoyaltyCouponConfig = async function() {
+      const active = document.getElementById('loyalty-active').checked;
+      const type = document.getElementById('loyalty-type').value;
+      const value = parseFloat(document.getElementById('loyalty-value').value || 0);
+      let minOrders = parseInt(document.getElementById('loyalty-min-orders').value || 3);
+      if (isNaN(minOrders) || minOrders < 1) minOrders = 3;
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          loyaltyActive: active,
+          loyaltyType: type,
+          loyaltyValue: value,
+          loyaltyMinOrders: minOrders,
+          storeId: window.currentStoreId
+        }, { merge: true });
+
+        const btn = document.getElementById('btn-save-loyalty');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = "✅ Configuração Salva!";
+          btn.classList.remove('bg-brand-primary', 'hover:bg-orange-600');
+          btn.classList.add('bg-green-500', 'hover:bg-green-600');
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            btn.classList.add('bg-brand-primary', 'hover:bg-orange-600');
+          }, 3000);
+        }
+      } catch (err) {
+        console.error("Erro ao salvar configuração fidelidade: ", err);
+        alert("Erro ao salvar configuração: " + err.message);
+      }
+    }
+
+    // Load active Coupons array
+    async function loadPromotionalCouponsList() {
+      const parent = document.getElementById('coupons-card-parent');
+      if (!parent) return;
+      parent.innerHTML = '';
+
+      try {
+        const qSnap = await getDocs(query(collection(db, COLLECTIONS.coupons), where("storeId", "==", window.currentStoreId)));
+        couponsList = [];
+        qSnap.forEach(snap => {
+          couponsList.push({ id: snap.id, ...snap.data() });
+        });
+
+        if (couponsList.length === 0) {
+          parent.innerHTML =`<div class="text-center py-6 text-xs text-gray-400">Nenhum cupom promocional cadastrado.</div>`;
+          return;
+        }
+
+        couponsList.forEach(coupon => {
+          const card = document.createElement('div');
+          card.className = "bg-gray-50 p-3.5 border border-gray-150 rounded-2xl flex flex-col justify-between items-start gap-3 shadow-xs";
+          
+          const discountStr = coupon.type === "percentual" ? `${coupon.value}% de desconto` : `R$ ${coupon.value.toFixed(2)} de desconto`;
+          const validityDate = new Date(coupon.expiry).toLocaleDateString('pt-BR');
+          const isAtvPill = coupon.active ? 'bg-green-150 text-brand-secondary font-bold' : 'bg-red-150 text-brand-danger font-bold';
+          const isFirstOrderPill = coupon.firstOrderOnly ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-150 text-purple-700 font-bold ml-1">1º Pedido</span>' : '';
+          const isAutomaticPill = coupon.automatic ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-blue-150 text-blue-700 font-bold ml-1">⚡ Automático</span>' : '';
+          const minValStr = coupon.minValue ? `<span class="text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-bold ml-1">Min: R$ ${parseFloat(coupon.minValue).toFixed(2)}</span>` : '';
+
+          card.innerHTML = `
+            <div class="space-y-1.5 w-full">
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="font-mono text-xs font-bold text-gray-800 tracking-wider">🏷️ ${coupon.code}</span>
+                  ${isFirstOrderPill}
+                  ${isAutomaticPill}
+                  ${minValStr}
+                </div>
+                <span class="text-[9px] px-2 py-0.5 rounded-full ${isAtvPill}">${coupon.active ? 'Ativo' : 'Inativo'}</span>
+              </div>
+              <p class="text-xs font-semibold text-brand-primary">${discountStr}</p>
+              <p class="text-[10px] text-gray-400">Expira em: ${validityDate}</p>
+            </div>
+            
+            <div class="flex items-center gap-1.5 self-end">
+              <button onclick="triggerCouponEditionTrigger('${coupon.id}')" class="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 py-1 px-2.5 rounded transition-transform hover:scale-105">Editar</button>
+              <button onclick="deletePromotionalCouponAction('${coupon.id}')" class="text-[10px] font-bold text-brand-danger bg-red-50 hover:bg-red-100 py-1 px-2.5 rounded transition-transform hover:scale-105">✕ Excluir</button>
+            </div>
+          `;
+          parent.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error("Listing coupons collections error: ", err);
+      }
+    }
+
+    // Toggle promotional coupon dialog modals
+    window.toggleCouponModal = function(show, itemObj = null) {
+      const modal = document.getElementById('coupon-modal');
+      const box = modal.querySelector('div');
+
+      if (show) {
+        if (itemObj) {
+          (document.getElementById('coupon-modal-title') || {}).textContent = "Editar Cupom";
+          (document.getElementById('coupon-form-id') || {}).value = itemObj.id;
+          (document.getElementById('coupon-form-code') || {}).value = itemObj.code;
+          (document.getElementById('coupon-form-type') || {}).value = itemObj.type;
+          (document.getElementById('coupon-form-value') || {}).value = itemObj.value;
+          (document.getElementById('coupon-form-min-value') || {}).value = itemObj.minValue !== undefined ? itemObj.minValue : '';
+          (document.getElementById('coupon-form-expiry') || {}).value = itemObj.expiry;
+          (document.getElementById('coupon-form-active') || {}).checked = !!itemObj.active;
+          (document.getElementById('coupon-form-first-order') || {}).checked = !!itemObj.firstOrderOnly;
+          (document.getElementById('coupon-form-automatic') || {}).checked = !!itemObj.automatic;
+        } else {
+          (document.getElementById('coupon-modal-title') || {}).textContent = "Criar Cupom";
+          document.getElementById('coupon-modal-form').reset();
+          (document.getElementById('coupon-form-id') || {}).value = '';
+          (document.getElementById('coupon-form-active') || {}).checked = true;
+          (document.getElementById('coupon-form-first-order') || {}).checked = false;
+          (document.getElementById('coupon-form-automatic') || {}).checked = false;
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          box.classList.remove('scale-95');
+        }, 50);
+      } else {
+        box.classList.add('scale-95');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+    }
+
+    window.triggerCouponEditionTrigger = function(id) {
+      const coupon = couponsList.find(c => c.id === id);
+      if (coupon) toggleCouponModal(true, coupon);
+    }
+
+    async function saveOrUpdateCouponDetails(e) {
+      e.preventDefault();
+
+      const cId = document.getElementById('coupon-form-id').value || "CUP-" + Date.now().toString(36);
+      const code = document.getElementById('coupon-form-code').value.toUpperCase().trim();
+      const type = document.getElementById('coupon-form-type').value;
+      const value = parseFloat(document.getElementById('coupon-form-value').value || 0);
+      const minValue = parseFloat(document.getElementById('coupon-form-min-value').value || 0);
+      const expiry = document.getElementById('coupon-form-expiry').value;
+      const active = document.getElementById('coupon-form-active').checked;
+      const firstOrderOnly = document.getElementById('coupon-form-first-order').checked;
+      const automatic = document.getElementById('coupon-form-automatic').checked;
+
+      const couponDocument = {
+        id: cId,
+        code: code,
+        type: type,
+        value: value,
+        minValue: minValue,
+        expiry: expiry,
+        active: active,
+        firstOrderOnly: firstOrderOnly,
+        automatic: automatic,
+        storeId: window.currentStoreId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.coupons, cId), couponDocument, { merge: true });
+        toggleCouponModal(false);
+        loadPromotionalCouponsList();
+      } catch (err) {
+        console.error("Failing setting promotional coupon document in database: ", err);
+      }
+    }
+
+    window.deletePromotionalCouponAction = async function(id) {
+      const state = await window.customConfirm("Deletar Cupom permanentemente?");
+      if (!state) return;
+
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.coupons, id));
+        loadPromotionalCouponsList();
+      } catch (err) {
+        console.error("Deleting coupon exception error: ", err);
+      }
+    }
+
+    // Notificações Push logic
+    window.loadNotificationCampaigns = async function() {
+      const parent = document.getElementById('notifications-card-parent');
+      if (!parent) return;
+      parent.innerHTML = '';
+
+      const activeCountEl = document.getElementById('notification-subscriber-count');
+      if (activeCountEl) {
+        activeCountEl.textContent = "Carregando...";
+      }
+
+      try {
+        // 1. Calculate active subscribers from unique fcmTokens in clients, orders, and restaurant profile
+        const uniqueTokens = new Set();
+
+        // A. Load from clients
+        try {
+          const clientsSnap = await getDocs(query(collection(db, COLLECTIONS.clients), where("storeId", "==", window.currentStoreId)));
+          clientsSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.fcmToken && data.fcmToken.trim() !== "") {
+              uniqueTokens.add(data.fcmToken.trim());
+            }
+          });
+        } catch (e) {
+          console.error("Failed to load subscriber clients:", e);
+        }
+
+        // B. Load from orders for maximum compatibility
+        try {
+          const ordersSnap = await getDocs(query(collection(db, COLLECTIONS.orders), where("storeId", "==", window.currentStoreId)));
+          ordersSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.fcmToken && data.fcmToken.trim() !== "") {
+              uniqueTokens.add(data.fcmToken.trim());
+            }
+          });
+        } catch (e) {
+          console.error("Failed to load subscriber orders:", e);
+        }
+
+        // C. Load from the restaurant profile direct clientTokens list for complete reliability
+        const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const profileSnap = await getDoc(ref);
+        let campaignsList = [];
+        let scheduledList = [];
+        if (profileSnap.exists()) {
+          const pData = profileSnap.data();
+          if (pData.clientTokens && Array.isArray(pData.clientTokens)) {
+            pData.clientTokens.forEach(tok => {
+              if (tok && tok.trim() !== "") {
+                uniqueTokens.add(tok.trim());
+              }
+            });
+          }
+          if (pData.merchantTokens && Array.isArray(pData.merchantTokens)) {
+            pData.merchantTokens.forEach(tok => {
+              if (tok && tok.trim() !== "") {
+                uniqueTokens.add(tok.trim());
+              }
+            });
+          }
+          if (pData.campaigns && Array.isArray(pData.campaigns)) {
+            campaignsList = [...pData.campaigns];
+          }
+          if (pData.scheduledNotifications && Array.isArray(pData.scheduledNotifications)) {
+            scheduledList = [...pData.scheduledNotifications];
+          }
+        }
+        
+        const count = uniqueTokens.size;
+        if (activeCountEl) {
+          activeCountEl.textContent = `${count} cliente(s) com notificações habilitadas`;
+        }
+        
+        window.currentStoreFcmTokens = Array.from(uniqueTokens);
+
+        // Fetch Scheduled Campaigns for this store
+        const scheduledParent = document.getElementById('scheduled-notifications-parent');
+        const scheduledSection = document.getElementById('scheduled-notifications-section');
+        if (scheduledParent && scheduledSection) {
+          scheduledParent.innerHTML = '';
+          try {
+            if (scheduledList.length > 0) {
+              scheduledSection.classList.remove('hidden');
+              scheduledList.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor));
+              
+              scheduledList.forEach(sched => {
+                const card = document.createElement('div');
+                card.className = "bg-orange-50/40 p-4 border border-orange-100 rounded-2xl flex flex-col justify-between items-start gap-2 shadow-xs";
+                
+                const runDate = new Date(sched.scheduledFor).toLocaleString('pt-BR');
+                
+                card.innerHTML = `
+                  <div class="w-full space-y-1.5 text-left">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold text-gray-800">📅 ${sched.title}</span>
+                      <span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 font-bold">Agendado</span>
+                    </div>
+                    <p class="text-xs text-gray-650 leading-relaxed font-medium">${sched.body}</p>
+                    <div class="flex items-center justify-between text-[10px] text-gray-400 pt-1">
+                      <span class="text-orange-600 font-semibold">Enviar em: ${runDate}</span>
+                      <button onclick="cancelScheduledNotification('${sched.id}')" class="text-red-500 hover:text-red-700 transition-colors font-bold cursor-pointer ml-2" title="Cancelar Agendamento">
+                        Cancelar ❌
+                      </button>
+                    </div>
+                  </div>
+                `;
+                scheduledParent.appendChild(card);
+              });
+            } else {
+              scheduledSection.classList.add('hidden');
+            }
+          } catch (schedErr) {
+            console.error("Failed to load scheduled notifications:", schedErr);
+          }
+        }
+
+        // 2. Fetch campaign history (already sorted out from profileSnap above)
+
+        // Sort campaigns by date (descending)
+        campaignsList.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+
+        if (campaignsList.length === 0) {
+          parent.innerHTML = `<div class="text-center py-6 text-xs text-gray-400">Nenhuma campanha de notificação push disparada ainda.</div>`;
+          return;
+        }
+
+        campaignsList.forEach(camp => {
+          const card = document.createElement('div');
+          card.className = "bg-gray-50 p-4 border border-gray-150 rounded-2xl flex flex-col justify-between items-start gap-2 shadow-xs";
+          
+          const sentDate = new Date(camp.sentAt).toLocaleString('pt-BR');
+          
+          card.innerHTML = `
+            <div class="w-full space-y-1.5 text-left">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-800">📣 ${camp.title}</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold">${camp.targetCount || 0} envios</span>
+              </div>
+              <p class="text-xs text-gray-650 leading-relaxed font-medium">${camp.body}</p>
+              <div class="flex items-center justify-between text-[10px] text-gray-400 pt-1">
+                <span>Disparado em: ${sentDate}</span>
+                <div class="flex items-center gap-2">
+                  ${camp.link ? `<a href="${camp.link}" target="_blank" class="text-orange-500 hover:underline font-bold">Ver Link ↗</a>` : ''}
+                  <button onclick="deleteCampaign('${camp.sentAt}')" class="text-red-500 hover:text-red-700 transition-colors ml-2 font-bold cursor-pointer" title="Excluir Histórico">
+                    Excluir 🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          parent.appendChild(card);
+        });
+      } catch(e) {
+        console.error("Error loading notification campaigns:", e);
+        parent.innerHTML = `<div class="text-center py-6 text-xs text-red-500">Erro ao carregar campanhas: ${e.message}</div>`;
+      }
+    };
+
+    window.cancelScheduledNotification = async function(id) {
+      const confirmCancel = await window.customConfirm("Deseja realmente cancelar e excluir este agendamento?");
+      if (!confirmCancel) return;
+      
+      try {
+        const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const profileSnap = await getDoc(ref);
+        if (profileSnap.exists()) {
+          const pData = profileSnap.data();
+          let scheduledList = Array.isArray(pData.scheduledNotifications) ? pData.scheduledNotifications : [];
+          scheduledList = scheduledList.filter(item => item.id !== id);
+          await updateDoc(ref, {
+            scheduledNotifications: scheduledList
+          });
+        }
+        window.loadNotificationCampaigns();
+      } catch (err) {
+        console.error("Error deleting scheduled notification:", err);
+        alert("Erro ao excluir agendamento.");
+      }
+    };
+
+    window.deleteCampaign = async function(sentAt) {
+        const confirmDel = await window.customConfirm("Tem certeza que deseja excluir este registro de disparo do histórico?");
+        if (!confirmDel) return;
+
+        try {
+            const { doc, getDoc, updateDoc, COLLECTIONS } = await import('./supabase-adapter.js');
+            const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+            const profileSnap = await getDoc(ref);
+            if (profileSnap.exists()) {
+                const pData = profileSnap.data();
+                if (pData.campaigns && Array.isArray(pData.campaigns)) {
+                    const newCampaigns = pData.campaigns.filter(c => c.sentAt !== sentAt);
+                    await updateDoc(ref, { campaigns: newCampaigns });
+                    window.loadNotificationCampaigns();
+                }
+            }
+        } catch (e) {
+            console.error("Failed to delete campaign", e);
+            alert("Erro ao excluir histórico de campanha.");
+        }
+    };
+
+    window.toggleNotificationModal = function(show) {
+      const modal = document.getElementById('notification-modal');
+      if (modal) {
+        if (show) {
+          modal.classList.remove('hidden');
+          setTimeout(() => {
+            modal.querySelector('div').classList.remove('scale-95');
+          }, 10);
+          
+          // Reset default scheduling state to 'now'
+          const nowRadio = document.querySelector('input[name="send_time_type"][value="now"]');
+          if (nowRadio) nowRadio.checked = true;
+          
+          const container = document.getElementById('schedule-datetime-container');
+          if (container) container.classList.add('hidden');
+          
+          const submitBtn = document.getElementById('notification-submit-btn');
+          if (submitBtn) submitBtn.textContent = 'Disparar Agora 🚀';
+          
+          const datetimeInput = document.getElementById('notification-form-datetime');
+          if (datetimeInput) datetimeInput.value = '';
+
+          // Autofill the default link
+          const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+          const storeUrl = window.location.origin + basePath + "/cliente.html?store=" + window.currentStoreId;
+          const linkInput = document.getElementById('notification-form-link');
+          if (linkInput && !linkInput.value) {
+            linkInput.value = storeUrl;
+          }
+        } else {
+          modal.querySelector('div').classList.add('scale-95');
+          setTimeout(() => {
+            modal.classList.add('hidden');
+          }, 150);
+        }
+      }
+    };
+
+    async function sendNotificationCampaign(e) {
+      e.preventDefault();
+      
+      const title = document.getElementById('notification-form-title').value.trim();
+      const body = document.getElementById('notification-form-body').value.trim();
+      const customLink = document.getElementById('notification-form-link').value.trim();
+      
+      // Get selected send time option
+      const sendTimeType = document.querySelector('input[name="send_time_type"]:checked').value;
+
+      if (!title || !body) {
+        alert("Por favor preencha o título e a mensagem.");
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // SCHEDULED FLOW
+      // -------------------------------------------------------------
+      if (sendTimeType === 'scheduled') {
+        const datetimeStr = document.getElementById('notification-form-datetime').value;
+        if (!datetimeStr) {
+          alert("Por favor selecione a data e hora do agendamento.");
+          return;
+        }
+
+        const scheduledTime = new Date(datetimeStr);
+        if (scheduledTime <= new Date()) {
+          alert("A data e hora do agendamento devem ser no futuro.");
+          return;
+        }
+
+        const confirmSchedule = await window.customConfirm(`Deseja agendar essa notificação promocional para: ${scheduledTime.toLocaleString('pt-BR')}?`);
+        if (!confirmSchedule) return;
+
+        const submitBtn = document.getElementById('notification-submit-btn');
+        let origText = "Agendar Envio 📅";
+        if (submitBtn) {
+          origText = submitBtn.textContent;
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Agendando...";
+        }
+
+        try {
+          const profileRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+          const profileSnap = await getDoc(profileRef);
+          let scheduledList = [];
+          if (profileSnap.exists()) {
+            const pData = profileSnap.data();
+            if (pData.scheduledNotifications && Array.isArray(pData.scheduledNotifications)) {
+              scheduledList = [...pData.scheduledNotifications];
+            }
+          }
+
+          const newSchedId = "sched_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+          scheduledList.push({
+            id: newSchedId,
+            storeId: window.currentStoreId,
+            title: title,
+            body: body,
+            link: customLink || "",
+            scheduledFor: scheduledTime.toISOString(),
+            status: "pending",
+            createdAt: new Date().toISOString()
+          });
+
+          await updateDoc(profileRef, {
+            scheduledNotifications: scheduledList
+          });
+
+          alert(`Notificação agendada com sucesso! 📅\nEla será enviada de forma automatizada em: ${scheduledTime.toLocaleString('pt-BR')}`);
+          
+          // Close modal and reset form
+          window.toggleNotificationModal(false);
+          document.getElementById('notification-modal-form').reset();
+          
+          // Hide schedule datetime container
+          document.getElementById('schedule-datetime-container').classList.add('hidden');
+          
+          // Reload campaigns list (which will show the scheduled card)
+          window.loadNotificationCampaigns();
+        } catch (err) {
+          console.error("Failed to schedule notification:", err);
+          alert(`Erro ao agendar notificação: ${err.message}`);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Disparar Agora 🚀";
+          }
+        }
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // IMMEDIATE FLOW
+      // -------------------------------------------------------------
+      const confirmSend = await window.customConfirm(`Deseja disparar essa notificação promocional para seus clientes IMEDIATAMENTE?`);
+      if (!confirmSend) return;
+
+      // Disable button
+      const submitBtn = document.querySelector('#notification-modal-form button[type="submit"]');
+      let origText = "Disparar Agora 🚀";
+      if (submitBtn) {
+        origText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Coletando clientes...";
+      }
+
+      // Fetch tokens on demand to ensure we get the latest
+      const uniqueTokens = new Set();
+      
+      try {
+        // Fetch only client tokens belonging to this store
+        const clientsSnap = await getDocs(query(collection(db, COLLECTIONS.clients), where("storeId", "==", window.currentStoreId)));
+        clientsSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.fcmToken && data.fcmToken.trim() !== "") {
+            uniqueTokens.add(data.fcmToken.trim());
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load store clients", err);
+      }
+
+      try {
+        // Also fetch from orders for this specific store to be 100% sure
+        const ordersSnap = await getDocs(query(collection(db, COLLECTIONS.orders), where("storeId", "==", window.currentStoreId)));
+        ordersSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.fcmToken && data.fcmToken.trim() !== "") {
+            uniqueTokens.add(data.fcmToken.trim());
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load orders tokens", err);
+      }
+
+      try {
+        const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const profileSnap = await getDoc(ref);
+        if (profileSnap.exists()) {
+          const pData = profileSnap.data();
+          if (pData.clientTokens && Array.isArray(pData.clientTokens)) {
+            pData.clientTokens.forEach(tok => {
+              if (tok && tok.trim() !== "") {
+                uniqueTokens.add(tok.trim());
+              }
+            });
+          }
+          if (pData.merchantTokens && Array.isArray(pData.merchantTokens)) {
+            pData.merchantTokens.forEach(tok => {
+              if (tok && tok.trim() !== "") {
+                uniqueTokens.add(tok.trim());
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load profile tokens", err);
+      }
+
+      const tokens = Array.from(uniqueTokens);
+
+      if (submitBtn) {
+        submitBtn.textContent = `Disparando para ${tokens.length} cliente(s)...`;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Dynamic import of fcm-sender.js
+      let sendPushNotificationHelper;
+      try {
+        const module = { sendPushNotification: async () => {} };
+        sendPushNotificationHelper = module.sendPushNotification;
+      } catch(err) {
+        console.error("Error importing fcm-sender module:", err);
+      }
+
+      if (!sendPushNotificationHelper) {
+        alert("Erro técnico: não foi possível carregar o módulo de envio de push.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = origText;
+        }
+        return;
+      }
+
+      for (const token of tokens) {
+        try {
+          const res = await sendPushNotificationHelper(token, title, body, { 
+            type: "campaign",
+            link: customLink || ""
+          });
+          if (res && !res.error) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch(err) {
+          console.error("Error sending notification in campaign loop:", err);
+          failCount++;
+        }
+      }
+
+      // Save campaign history to firestore (nested under restaurant profile to bypass permission restrictions)
+      try {
+        const campaignData = {
+          storeId: window.currentStoreId,
+          title: title,
+          body: body,
+          link: customLink || "",
+          sentAt: new Date().toISOString(),
+          targetCount: tokens.length,
+          successCount: successCount,
+          failCount: failCount
+        };
+        
+        const ref = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const profileSnap = await getDoc(ref);
+        let campaignsList = [];
+        if (profileSnap.exists()) {
+          const pData = profileSnap.data();
+          if (pData.campaigns && Array.isArray(pData.campaigns)) {
+            campaignsList = [...pData.campaigns];
+          }
+        }
+        campaignsList.push(campaignData);
+        await updateDoc(ref, {
+          campaigns: campaignsList
+        });
+      } catch(e) {
+        console.error("Failed to log campaign:", e);
+      }
+
+      alert(`Campanha concluída!\nDisparos bem sucedidos: ${successCount}\nFalhas: ${failCount}`);
+      
+      // Close modal and reset form
+      window.toggleNotificationModal(false);
+      document.getElementById('notification-modal-form').reset();
+      
+      // Reload campaigns list
+      window.loadNotificationCampaigns();
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
+      }
+    }
+
+    // Sidebar toggle and state handling
+    window.toggleSidebar = function(forceMobileShow) {
+      const sidebar = document.getElementById('main-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (!sidebar) return;
+
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        if (forceMobileShow === true) {
+          sidebar.classList.add('show-mobile');
+          if (overlay) overlay.classList.remove('hidden');
+        } else if (forceMobileShow === false) {
+          sidebar.classList.remove('show-mobile');
+          if (overlay) overlay.classList.add('hidden');
+        } else {
+          const isVisible = sidebar.classList.contains('show-mobile');
+          if (isVisible) {
+            sidebar.classList.remove('show-mobile');
+            if (overlay) overlay.classList.add('hidden');
+          } else {
+            sidebar.classList.add('show-mobile');
+            if (overlay) overlay.classList.remove('hidden');
+          }
+        }
+      } else {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (isCollapsed) {
+          sidebar.classList.remove('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'false');
+        } else {
+          sidebar.classList.add('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'true');
+        }
+      }
+    }
+
+    // Apply sidebar state on load
+    const applySidebarState = () => {
+      const sidebar = document.getElementById('main-sidebar');
+      if (sidebar && window.innerWidth >= 1024) {
+        if (localStorage.getItem('popfood_sidebar_collapsed') === 'true') {
+          sidebar.classList.add('collapsed');
+        } else {
+          sidebar.classList.remove('collapsed');
+        }
+      }
+    }
+    
+    // Auto-detect load state
+    setTimeout(applySidebarState, 100);
+  </script>
+  <script src="image-optimizer.js"></script>
+</body>
+</html>

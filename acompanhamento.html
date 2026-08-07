@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acompanhar Pedido - PopFood Delivery</title>
+  <script type="importmap">
+{
+      "imports": {
+        }
+    }
+</script>
+  <script>
+    // Generate dynamic manifest based on URL parameters
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const storeId = urlParams.get("store");
+      if (storeId) {
+        const manifest = {
+          name: "PopFood",
+          short_name: "PopFood",
+          description: "Aplicativo de Pedidos PopFood",
+          start_url: window.location.href, // This includes ?store=loja
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: "#FF4500",
+          icons: [
+            {
+              src: window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "") + "/favicon.png",
+              sizes: "192x192",
+              type: "image/png"
+            },
+            {
+              src: window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "") + "/favicon.png",
+              sizes: "512x512",
+              type: "image/png"
+            }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(blob);
+        document.write(`<link rel="manifest" href="${manifestURL}" />`);
+      } else {
+        document.write('<link rel="manifest" href="manifest.json" />');
+      }
+    })();
+  </script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.9.0/jsrsasign-all-min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#f97316',
+              secondary: '#22c55e',
+              danger: '#ef4444',
+              light: '#f3f4f6',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Previne zoom automático indesejado no iOS/iPhone ao focar em inputs/selects e ao dar dois toques rápidos */
+    html, body {
+      touch-action: manipulation;
+    }
+    @media screen and (max-width: 768px) {
+      input, select, textarea, [contenteditable="true"] {
+        font-size: 16px !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-brand-light font-sans text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Simple Header -->
+  <header class="bg-white border-b border-gray-100 shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 py-4.5 flex items-center justify-between">
+      <button onclick="window.location.href = 'cliente.html?store=' + (window.currentStoreId || new URLSearchParams(window.location.search).get('store') || '')" class="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-brand-primary transition-colors cursor-pointer bg-transparent border-none">
+        <span>← Voltar para o Cardápio</span>
+      </button>
+      <h1 class="font-display font-bold text-md text-brand-primary tracking-tight">PopFood Tracker</h1>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-2xl w-full mx-auto px-4 py-8">
+    
+    <!-- STAGE 1: TELEPHONE LOGIN FORM (if no tracking session exists) -->
+    <div id="tracker-login-panel" class="bg-white rounded-2xl p-6 border border-gray-100 shadow-md space-y-5 text-center">
+      <div class="w-14 h-14 bg-orange-100 text-brand-primary flex items-center justify-center rounded-full mx-auto text-2xl">
+        📱
+      </div>
+      <div>
+        <h2 class="font-display font-bold text-lg text-gray-800">Consulte Seus Pedidos</h2>
+        <p class="text-xs text-gray-400 mt-1">Insira seu WhatsApp para resgatar seu histórico e detalhes do pedido em andamento.</p>
+      </div>
+
+      <div class="max-w-xs mx-auto space-y-3">
+        <input type="tel" id="login-phone-field" placeholder="Ex: 11999999999" class="w-full text-center p-3 text-sm font-semibold border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        <button onclick="startTrackingByPhone()" class="w-full bg-brand-primary hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-bold shadow-md shadow-orange-500/10 cursor-pointer active:scale-95 transition-all">
+          Ver Meu Pedido
+        </button>
+      </div>
+    </div>
+
+    <!-- STAGE 2: ACTIVE TRACKING (Displays detailed progression) -->
+    <div id="tracker-active-panel" class="hidden space-y-6">
+      
+      <!-- Top Overview of active order status -->
+      <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-6">
+        <div class="flex items-center justify-between border-b border-gray-50 pb-4">
+          <div>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Acompanhando o pedido</span>
+            <h2 id="track-lbl-orderid" class="text-lg font-mono font-bold text-gray-800">#------</h2>
+          </div>
+          <div id="track-lbl-statusbadge" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-center">
+            Aguardando...
+          </div>
+        </div>
+
+        <!-- ESTIMATED TIME CONTAINER -->
+        <div id="track-time-remaining-container" class="hidden bg-orange-50 rounded-xl p-3 border border-orange-100 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl animate-bounce">⏱️</span>
+            <div>
+              <p id="track-lbl-time-title" class="text-[9px] font-bold text-orange-700 uppercase tracking-wider leading-none">Previsão Estimada de Entrega</p>
+              <p id="track-lbl-time-remaining" class="text-xs font-extrabold text-gray-800 mt-1">Calculando...</p>
+            </div>
+          </div>
+          <span class="text-[10px] text-orange-700 bg-white px-2 py-0.5 rounded border border-orange-150 font-bold" id="track-lbl-time-percent">--%</span>
+        </div>
+
+        <!-- TIMELINE VISUAL PROGRESS BAR & LABELS -->
+        <div class="space-y-4">
+          <!-- Step Indicators Map -->
+          <div class="relative flex items-center justify-between">
+            <!-- Background connector bar (4px) -->
+            <div class="absolute left-0 right-0 top-5 h-1 bg-gray-100 -z-10"></div>
+            <!-- Dynamic Filled green progress bar -->
+            <div id="timeline-progress-bar" class="absolute left-0 top-5 h-1 bg-brand-secondary transition-all -z-10" style="width: 0%;"></div>
+
+            <!-- Bullet 1: Pedido -->
+            <div class="flex flex-col items-center">
+              <div id="step-bullet-0" class="w-10 h-10 rounded-full border-4 border-gray-100 bg-white flex items-center justify-center text-sm transition-all shadow-sm">📝</div>
+              <span id="step-text-0" class="text-[11px] font-semibold text-gray-400 mt-2">Pedido</span>
+            </div>
+            <!-- Bullet 2: Preparando -->
+            <div class="flex flex-col items-center">
+              <div id="step-bullet-1" class="w-10 h-10 rounded-full border-4 border-gray-100 bg-white flex items-center justify-center text-sm transition-all shadow-sm">👨🍳</div>
+              <span id="step-text-1" class="text-[11px] font-semibold text-gray-400 mt-2">Cozinha</span>
+            </div>
+            <!-- Bullet 3: Saiu para entrega -->
+            <div class="flex flex-col items-center">
+              <div id="step-bullet-2" class="w-10 h-10 rounded-full border-4 border-gray-100 bg-white flex items-center justify-center text-sm transition-all shadow-sm">🛵</div>
+              <span id="step-text-2" class="text-[11px] font-semibold text-gray-400 mt-2">Em Rota</span>
+            </div>
+            <!-- Bullet 4: Entregue -->
+            <div class="flex flex-col items-center">
+              <div id="step-bullet-3" class="w-10 h-10 rounded-full border-4 border-gray-100 bg-white flex items-center justify-center text-sm transition-all shadow-sm">✅</div>
+              <span id="step-text-3" class="text-[11px] font-semibold text-gray-400 mt-2">Entregue</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="btn-received-area" class="hidden border-t border-gray-50 pt-5">
+          <button onclick="confirmOrderReceipt()" id="btn-confirm-receipt" class="w-full bg-brand-secondary hover:bg-green-600 text-white font-semibold py-3.5 rounded-xl text-center flex items-center justify-center gap-2 shadow-lg shadow-green-500/10 cursor-pointer transition-all active:scale-95">
+            <span id="btn-confirm-text">✅ Confirmar Recebimento do Pedido</span>
+          </button>
+          <p id="btn-confirm-subtext" class="text-[10px] text-center text-gray-400 mt-1.5">Clique para informar que seu pedido foi entregue com sucesso!</p>
+        </div>
+      </div>
+
+      <!-- PAINEL DE RASTREAMENTO COM MOTO EM MOVIMENTO -->
+      <div id="live-proximity-panel" class="hidden bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4 mt-6">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span> RASTREADOR DE ROTA ATIVO
+          </span>
+          <span id="tracker-milestone-badge" class="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-750 uppercase tracking-wider">Saindo</span>
+        </div>
+        
+        <!-- Linha com Moto Flutuante -->
+        <div class="relative py-4 pr-6 pl-4">
+          <!-- Estrada/Pista cinza -->
+          <div class="w-full h-2 bg-slate-250/80 rounded-full relative">
+            <div id="tracker-progress-bar" class="h-full bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-1000" style="width: 15%;"></div>
+          </div>
+          
+          <!-- Ícone fixo da Loja (Esquerda) -->
+          <div class="absolute left-0 top-2.5 text-lg leading-none" title="Restaurante">🏪</div>
+          
+          <!-- Moto flutuante que desliza conforme a porcentagem -->
+          <div id="tracker-moto-carrier" class="absolute top-[3px] text-2xl transition-all duration-1000 transform -translate-x-1/2 ease-out" style="left: 15%;">
+            🛵
+          </div>
+          
+          <!-- Ícone fixo da Casa do Cliente (Direita) -->
+          <div class="absolute right-0 top-2.5 text-lg leading-none" title="Seu Endereço">🏠</div>
+        </div>
+        
+        <!-- Texto Descritivo do Status -->
+        <div class="space-y-1 bg-white p-3 rounded-xl border border-slate-100 text-center">
+          <p id="tracker-status-desc" class="text-xs font-bold text-slate-700">O entregador está preparando os pertences para iniciar a rota...</p>
+          <p id="tracker-subdesc" class="text-[9.5px] text-gray-400 font-semibold">Atualizado em tempo real pelo painel</p>
+        </div>
+        
+        <!-- Uber Direct Link Container (hidden by default) -->
+        <div id="uber-tracking-container" class="hidden text-center mt-3">
+          <a id="uber-tracking-link" href="#" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer">
+            🚗 Rastrear com Uber
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- 🛡️ SECURITY PIN SECURE BADGE CARD -->
+      <div id="security-pin-card" class="bg-white rounded-2xl p-6 border border-red-100 shadow-md flex flex-col sm:flex-row items-center justify-between gap-5 text-left relative overflow-hidden hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -z-10"></div>
+        <div class="space-y-2 max-w-sm">
+          <span class="text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-1">
+            <span>🛡️ Entrega Segura</span>
+          </span>
+          <h4 id="security-pin-card-title" class="font-display font-bold text-sm text-gray-800">Código de Confirmação (PIN)</h4>
+          <p id="security-pin-card-desc" class="text-xs text-gray-500 leading-relaxed">
+            Para sua segurança, informe este código de <span class="font-bold text-red-500">4 dígitos</span> ao entregador quando ele chegar ao seu endereço para liberar o pacote.
+          </p>
+        </div>
+        <div class="bg-red-50 border-2 border-dashed border-red-200 rounded-2xl py-3 px-6 text-center shadow-inner shrink-0 flex flex-col justify-center items-center">
+          <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Seu PIN é</span>
+          <span id="route-lbl-pin" class="font-mono text-3xl font-black text-red-500 tracking-wider">----</span>
+        </div>
+      </div>
+
+      <!-- Order detail summaries index card -->
+      <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-5">
+        <h3 class="font-display font-semibold text-sm text-gray-800 border-b border-gray-50 pb-3">📦 Detalhes do Pedido</h3>
+        
+        <div id="track-order-items" class="space-y-4">
+          <!-- Items filled dynamically -->
+        </div>
+
+        <div class="border-t border-gray-100 pt-4 space-y-2 text-xs text-gray-500">
+          <div class="flex justify-between">
+            <span>Endereço de Entrega:</span>
+            <span id="track-lbl-address" class="font-semibold text-gray-700 text-right max-w-xs line-clamp-2">--</span>
+          </div>
+          <div id="track-row-ref" class="flex justify-between text-orange-500 font-medium hidden">
+            <span>Referência:</span>
+            <span id="track-lbl-ref" class="italic text-right">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Forma de Pagamento:</span>
+            <span id="track-lbl-payment" class="font-semibold text-gray-700">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Data/Hora:</span>
+            <span id="track-lbl-time" class="font-semibold text-gray-700">--</span>
+          </div>
+          <hr class="border-gray-100 my-2">
+          
+          <div class="flex justify-between">
+            <span>Subtotal:</span>
+            <span id="track-subtotal" class="font-semibold text-gray-700">R$ 0,00</span>
+          </div>
+          <div id="track-row-discount" class="flex justify-between text-brand-secondary hidden">
+            <span>Desconto:</span>
+            <span id="track-desconto" class="font-semibold">-R$ 0,00</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Taxa de Entrega:</span>
+            <span id="track-taxa" class="font-semibold text-gray-700">R$ 0,00</span>
+          </div>
+          <div class="flex justify-between text-sm font-bold text-gray-800 pt-1.5">
+            <span>Total final:</span>
+            <span id="track-total" class="text-brand-primary text-base">R$ 0,00</span>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button onclick="logoutTracker()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-3 rounded-xl text-xs transition-all cursor-pointer">
+            Sair/Mudar Conta
+          </button>
+        </div>
+      </div>
+
+      <!-- Notification Booster Card -->
+      <div id="notification-promoter-card" class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border border-orange-100 shadow-3xs flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+        <div class="flex items-start gap-3">
+          <span class="text-3xl">🔔</span>
+          <div class="space-y-1">
+            <h4 class="font-display font-extrabold text-sm text-gray-800">Deseja ser notificado no seu celular/computador?</h4>
+            <p class="text-xs text-gray-500 leading-relaxed">Ative as notificações para receber avisos imediatos assim que seu pedido for aceito, ficar pronto ou sair para entrega, mesmo se estiver em outras abas!</p>
+          </div>
+        </div>
+        <button onclick="requestCustomerNotificationPermission()" id="btn-customer-notification" class="w-full sm:w-auto bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-97">
+          🔔 Ativar Notificações
+        </button>
+      </div>
+
+      <!-- PWA Install Booster Card -->
+      <div id="pwa-promoter-card" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100 shadow-3xs flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <span class="text-3xl">📱</span>
+          <div class="space-y-1">
+            <h4 class="font-display font-extrabold text-sm text-gray-800">Instale o PopFood no seu celular!</h4>
+            <p class="text-xs text-gray-500 leading-relaxed">Tenha o PopFood diretamente na tela inicial do seu celular para acompanhar seu pedido mais facilmente, como um aplicativo de verdade.</p>
+          </div>
+        </div>
+        <button onclick="installPWA()" id="btn-pwa-install" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-97">
+          📱 Instalar App
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- MODAL DE AVALIAÇÃO DO PEDIDO -->
+  <div id="rating-modal" class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col text-center space-y-5 animate-fade-in">
+      <div class="flex justify-between items-center border-b border-gray-50 pb-3 text-left">
+        <h3 class="font-display font-bold text-base text-gray-800 flex items-center gap-1.5">🌟 Avaliar Seu Pedido</h3>
+        <button onclick="closeRatingModal()" class="text-gray-400 hover:text-gray-750 p-1 font-bold">✕</button>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <p class="text-[11px] text-gray-400 leading-relaxed">Sua avaliação é super importante para mantermos nossa qualidade escolar e de entrega lá no alto!</p>
+
+        <!-- Rating Section 1: Food Quality -->
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold text-gray-550 uppercase tracking-wider">🍔 Qualidade da Comida</label>
+          <div class="flex gap-1.5 justify-start">
+            <button type="button" onclick="setStarRating('food', 1)" id="star-food-1" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('food', 2)" id="star-food-2" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('food', 3)" id="star-food-3" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('food', 4)" id="star-food-4" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('food', 5)" id="star-food-5" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+          </div>
+        </div>
+
+        <!-- Rating Section 2: Delivery Speed/Quality -->
+        <div class="space-y-1">
+          <label id="rating-delivery-title" class="block text-[10px] font-bold text-gray-550 uppercase tracking-wider">🛵 Serviço de Entrega / Tempo</label>
+          <div class="flex gap-1.5 justify-start">
+            <button type="button" onclick="setStarRating('delivery', 1)" id="star-delivery-1" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('delivery', 2)" id="star-delivery-2" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('delivery', 3)" id="star-delivery-3" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('delivery', 4)" id="star-delivery-4" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+            <button type="button" onclick="setStarRating('delivery', 5)" id="star-delivery-5" class="text-gray-300 hover:text-amber-400 text-2xl focus:outline-none transition-colors">★</button>
+          </div>
+        </div>
+
+        <!-- Feedback Comments input -->
+        <div class="space-y-1 pt-1">
+          <label class="block text-[10px] font-bold text-gray-550 uppercase tracking-wider">Comentários (Opcional)</label>
+          <textarea id="rating-comment-text" rows="2.5" placeholder="Comida saborosa, embalagem excelente, motoboy simpático..." class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all placeholder:text-gray-300 resize-none font-sans"></textarea>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="submitOrderRating()" id="btn-submit-rating" class="w-full bg-brand-primary hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-orange-500/10 transition-all cursor-pointer active:scale-95">
+          Enviar Avaliação
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS RATING POPUP OVERLAY -->
+  <div id="rating-success" class="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col text-center space-y-4">
+      <div class="w-14 h-14 bg-green-50 text-brand-secondary flex items-center justify-center rounded-full mx-auto text-2xl border border-green-100">
+        💖
+      </div>
+      <div class="space-y-1">
+        <h3 class="font-display font-semibold text-base text-gray-800">Avaliação Enviada!</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">Muitíssimo obrigado pelo carinho! Sua avaliação nos ajuda demais a entregar o melhor serviço sempre. Bom apetite!</p>
+      </div>
+      <button onclick="closeRatingSuccessModal()" class="w-full bg-brand-secondary hover:bg-emerald-600 text-white py-2.5 rounded-xl font-semibold text-xs shadow-md transition-colors cursor-pointer">
+        Voltar para o Cardápio
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Chat Button -->
+  <button id="wa-chat-link" onclick="openChatModal()" class="fixed bottom-6 right-6 z-[60] bg-brand-primary hover:bg-orange-600 text-white font-semibold py-3 px-5 rounded-full flex items-center gap-2 shadow-lg shadow-brand-primary/30 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer">
+    <span class="text-lg leading-none">💬</span>
+    <span class="text-sm font-bold tracking-wide">Falar com a Loja</span>
+    <span id="chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold hidden border-2 border-white shadow-sm">!</span>
+  </button>
+
+  <!-- CHAT POPUP OVERLAY -->
+  <div id="chat-modal" class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-md h-[80vh] flex flex-col shadow-2xl relative overflow-hidden">
+      <!-- Header -->
+      <div class="bg-orange-500 text-white p-4 flex items-center justify-between shadow-sm z-10 shrink-0">
+        <div class="flex items-center gap-3">
+          <span class="text-xl">💬</span>
+          <div>
+            <h3 class="font-display font-bold text-sm">Chat com a Loja</h3>
+            <p class="text-[10px] text-orange-100 font-medium">Tire dúvidas sobre seu pedido</p>
+          </div>
+        </div>
+        <button onclick="closeChatModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-orange-600 transition-colors text-white">
+          <span class="font-bold">✕</span>
+        </button>
+      </div>
+      
+      <!-- Messages Area -->
+      <div id="chat-messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 flex flex-col">
+        <!-- Messages injected here -->
+      </div>
+      
+      <!-- Input Area -->
+      <div class="p-3 bg-white border-t border-gray-100 shrink-0">
+        <!-- Quick replies list -->
+        <div id="quick-replies-container" class="flex gap-2 overflow-x-auto pb-2 mb-2 scroll-smooth" style="scrollbar-width: none; -ms-overflow-style: none;">
+          <button onclick="window.quickReply('🔍 Status do Pedido')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            🔍 Status do Pedido
+          </button>
+          <button onclick="window.quickReply('💳 Forma de Pagamento')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            💳 Pagamento
+          </button>
+          <button onclick="window.quickReply('🛵 Entrega / Retirada')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            🛵 Entrega / Retirada
+          </button>
+          <button onclick="window.quickReply('🏷️ Promoções e Cupons')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            🏷️ Cupons/Promoções
+          </button>
+          <button onclick="window.quickReply('⚠️ Atraso ou Problema')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            ⚠️ Atraso / Problema
+          </button>
+          <button onclick="window.quickReply('🗣️ Falar com Atendente')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0">
+            🗣️ Falar com Humano
+          </button>
+        </div>
+        <form onsubmit="sendChatMessage(event)" class="flex items-center gap-2">
+          <input type="text" id="chat-input" placeholder="Digite sua mensagem ou use os botões..." class="flex-1 bg-gray-100 border-none outline-none focus:ring-2 focus:ring-orange-500 rounded-xl px-4 py-3 text-xs" autocomplete="off">
+          <button type="submit" id="chat-send-btn" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-xl font-bold text-xs shadow-md transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+            Enviar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth, Timestamp, COLLECTIONS, doc, getDoc, getDocs, collection, query, where, onSnapshot, setDoc, updateDoc } from './supabase-adapter.js';
+
+    if ('serviceWorker' in navigator) {
+      Promise.resolve()
+        .then(function(registration) {
+          console.log('Acompanhamento Registration successful, scope is:', (registration?.scope || '/'));
+          registration.update().catch(err => console.log('Error updating registration:', err));
+        }).catch(function(err) {
+          console.log('Acompanhamento Service worker registration failed, error:', err);
+        });
+    }
+
+    const urlStoreId = new URLSearchParams(window.location.search).get('store');
+    window.currentStoreId = urlStoreId ? urlStoreId.trim() : null;
+    if (!window.currentStoreId) {
+      alert("⚠️ Loja inválida. Por favor, acesse usando o link direto da loja. (Ex: ?store=ID)");
+    } else {
+      document.querySelectorAll('a[href="cliente.html"]').forEach(el => {
+        el.href = "cliente.html?store=" + window.currentStoreId;
+      });
+    }
+
+
+    let currentTrackOrder = null;
+    let restaurantPhone = "5511999999999"; // Fallback phone
+    let activeFoodRating = 0;
+    let activeDeliveryRating = 0;
+    let restaurantProfile = null;
+    let hasAutoOpenedRating = false;
+
+    window.toggleRatingModal = function(show) {
+      const modal = document.getElementById('rating-modal');
+      if (modal) {
+        if (show) {
+          activeFoodRating = 5; // Default stars on opening
+          activeDeliveryRating = 5;
+          updateStarsDisplay('food', 5);
+          updateStarsDisplay('delivery', 5);
+          (document.getElementById('rating-comment-text') || {}).value = '';
+          
+          const ratingDeliveryTitle = document.getElementById('rating-delivery-title');
+          if (ratingDeliveryTitle) {
+            const isPickup = currentTrackOrder && currentTrackOrder.customer && currentTrackOrder.customer.type === 'pickup';
+            if (isPickup) {
+              ratingDeliveryTitle.textContent = "🏪 Atendimento na Retirada";
+            } else {
+              ratingDeliveryTitle.textContent = "🛵 Serviço de Entrega / Tempo";
+            }
+          }
+          
+          modal.classList.remove('hidden');
+        } else {
+          modal.classList.add('hidden');
+        }
+      }
+    }
+
+    window.closeRatingModal = function() {
+      window.toggleRatingModal(false);
+    }
+
+    window.setStarRating = function(type, ratingValue) {
+      if (type === 'food') {
+        activeFoodRating = ratingValue;
+      } else if (type === 'delivery') {
+        activeDeliveryRating = ratingValue;
+      }
+      updateStarsDisplay(type, ratingValue);
+    }
+
+    function updateStarsDisplay(type, ratingValue) {
+      for (let i = 1; i <= 5; i++) {
+        const starBtn = document.getElementById(`star-${type}-${i}`);
+        if (starBtn) {
+          if (i <= ratingValue) {
+            starBtn.classList.remove('text-gray-300');
+            starBtn.classList.add('text-amber-400');
+          } else {
+            starBtn.classList.remove('text-amber-400');
+            starBtn.classList.add('text-gray-300');
+          }
+        }
+      }
+    }
+
+    window.submitOrderRating = async function() {
+      if (!currentTrackOrder) return;
+      
+      const btn = document.getElementById('btn-submit-rating');
+      btn.disabled = true;
+      btn.textContent = "Gravando avaliação...";
+
+      const commentText = document.getElementById('rating-comment-text').value.trim();
+
+      try {
+        const docRef = doc(db, COLLECTIONS.orders, currentTrackOrder.id);
+        await updateDoc(docRef, {
+          rating: {
+            starsFood: activeFoodRating,
+            starsDelivery: activeDeliveryRating,
+            comment: commentText,
+            ratedAt: new Date().toISOString()
+          }
+        });
+
+        window.toggleRatingModal(false);
+        const succOverlay = document.getElementById('rating-success');
+        if (succOverlay) {
+          succOverlay.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error("Erro ao registrar avaliação do pedido: ", err);
+        alert("Erro ao gravar avaliação: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Enviar Avaliação";
+      }
+    }
+
+    window.closeRatingSuccessModal = function() {
+      document.getElementById('rating-success').classList.add('hidden');
+      window.location.href = "cliente.html?store=" + (window.currentStoreId || "");
+    }
+
+    window.requestCustomerNotificationPermission = async function() {
+      if (!('Notification' in window)) {
+        alert("Seu navegador ou celular não possui suporte nativo para notificações de tela.");
+        return;
+      }
+
+      try {
+        const permission = await Notification.requestPermission();
+        updateCustomerNotificationUI(permission);
+
+        if (permission === 'granted') {
+          try {
+            const { getMessaging, getToken, onMessage, VAPID_KEY } = await import('./supabase-adapter.js');
+            const { app, db, doc, updateDoc } = await import('./supabase-adapter.js');
+            const messaging = getMessaging(app);
+
+            if (!messaging) {
+              console.warn("FCM Messaging is not supported or disabled in this browser.");
+              return;
+            }
+
+            // Listen to foreground notifications
+            try {
+              onMessage(messaging, (payload) => {
+                console.log("Foreground notification received in acompanhamento.html:", payload);
+                const title = payload.notification?.title || "Nova Notificação! 🔔";
+                const body = payload.notification?.body || "";
+                const icon = payload.notification?.image || "favicon.png";
+
+                if (Notification.permission === 'granted') {
+                  try {
+                    new Notification(title, {
+                      body: body,
+                      icon: icon
+                    });
+                  } catch (err) {
+                    console.error("Failed to show foreground desktop notification:", err);
+                  }
+                }
+
+                if (window.showToast) {
+                  window.showToast(`📢 ${title}: ${body}`);
+                }
+              });
+            } catch (err) {
+              console.error("Failed to register onMessage handler in acompanhamento.html:", err);
+            }
+
+            const registration = await Promise.resolve();
+            try {
+              await registration.update();
+            } catch (err) {
+              console.log("Failed to update SW registration:", err);
+            }
+            const currentToken = await getToken(messaging, {
+              vapidKey: VAPID_KEY,
+              serviceWorkerRegistration: registration
+            });
+            if (currentToken) {
+               console.log("Customer FCM Token:", currentToken);
+               if (window.currentTrackOrder && window.currentTrackOrder.id) {
+                 await updateDoc(doc(db, "orders", window.currentTrackOrder.id), {
+                   fcmToken: currentToken
+                 });
+               }
+
+               // Also register/update in clients collection for full promotional push notification reach
+               try {
+                 const { setDoc, COLLECTIONS } = await import('./supabase-adapter.js');
+                 const phone = localStorage.getItem("popfood_last_phone") || (window.currentTrackOrder && window.currentTrackOrder.customer && window.currentTrackOrder.customer.phone) || "";
+                 const name = localStorage.getItem("popfood_cust_name") || (window.currentTrackOrder && window.currentTrackOrder.customer && window.currentTrackOrder.customer.name) || "";
+                 const docId = phone ? phone : "fcm_" + currentToken;
+                 await setDoc(doc(db, COLLECTIONS.clients, docId), {
+                   id: docId,
+                   phone: phone || "",
+                   name: name || "Cliente do App",
+                   fcmToken: currentToken,
+                   storeId: window.currentStoreId || "",
+                   isSubscriber: true,
+                   lastSeen: new Date().toISOString()
+                 }, { merge: true });
+               } catch (err) {
+                 console.error("Failed to register customer to clients collection:", err);
+               }
+
+               // Register directly inside restaurantProfile clientTokens array
+               try {
+                 const storeIdToUse = window.currentStoreId || (window.currentTrackOrder && window.currentTrackOrder.storeId);
+                 if (storeIdToUse) {
+                   const { doc, updateDoc, arrayUnion, COLLECTIONS } = await import('./supabase-adapter.js');
+                   const profileRef = doc(db, COLLECTIONS.restaurantProfile, storeIdToUse);
+                   await updateDoc(profileRef, {
+                     clientTokens: arrayUnion(currentToken)
+                   });
+                   console.log("FCM Token successfully registered in restaurant profile clientTokens via acompanhamento.");
+                 }
+               } catch (profileErr) {
+                 console.error("Failed to append FCM token to restaurantProfile clientTokens from acompanhamento:", profileErr);
+               }
+            }
+          } catch(e) {
+            console.error("Failed to setup FCM Token for customer:", e);
+          }
+
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(function(registration) {
+              registration.showNotification("Notificações Prontas! 🎉", {
+                body: "Excelente! Agora você será avisado aqui na tela do seu dispositivo sempre que seu pedido avançar de etapa.",
+                icon: "favicon.png"
+              });
+            }).catch(e => {
+              new Notification("Notificações Prontas! 🎉", {
+                body: "Excelente! Agora você será avisado aqui na tela do seu dispositivo sempre que seu pedido avançar de etapa.",
+                icon: "favicon.png"
+              });
+            });
+          } else {
+            new Notification("Notificações Prontas! 🎉", {
+              body: "Excelente! Agora você será avisado aqui na tela do seu dispositivo sempre que seu pedido avançar de etapa.",
+              icon: "favicon.png"
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Error setting up customer notification:", e);
+      }
+    };
+
+    function updateCustomerNotificationUI(permission = null) {
+      const state = permission || (('Notification' in window) ? Notification.permission : 'unsupported');
+      const card = document.getElementById('notification-promoter-card');
+      const btn = document.getElementById('btn-customer-notification');
+      
+      if (state === 'granted') {
+        if (card) {
+          card.classList.add('hidden');
+        }
+      } else if (state === 'denied') {
+        if (btn) {
+          btn.textContent = "Bloqueado no Navegador";
+          btn.disabled = true;
+          btn.className = "w-full sm:w-auto bg-gray-300 text-gray-500 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed";
+        }
+      }
+    }
+    window.updateCustomerNotificationUI = updateCustomerNotificationUI;
+
+    function triggerStatusNotification(order, oldStatus) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+      let title = "Atualização do seu Pedido! 🍕";
+      let message = `Seu pedido #${order.id} mudou para o status: ${order.status}`;
+
+      if (order.status === "Preparando") {
+        title = "🧑‍🍳 Pedido na Cozinha!";
+        message = "O restaurante confirmou seu pedido e o preparo já começou.";
+      } else if (order.status === "Saiu para entrega") {
+        const isPickup = order.isPickup || (order.customer && order.customer.type === 'pickup') || false;
+        if (isPickup) {
+          title = "🛍️ Pronto para retirada!";
+          message = "Seu pedido já está esperando por você! Dirija-se ao caixa/balcão do restaurante para retirar.";
+        } else {
+          title = "🛵 Saiu para entrega!";
+          message = `O entregador já está a caminho do seu endereço com a refeição quentinha!`;
+        }
+      } else if (order.status === "Entregue") {
+        title = "💖 Entregue! Bom apetite!";
+        message = "Seu pedido foi finalizado. Não esqueça de deixar sua avaliação para nos ajudar a melhorar!";
+      } else if (order.status === "Cancelado") {
+        title = "❌ Pedido Cancelado";
+        message = "Infelizmente o estabelecimento precisou cancelar o seu pedido. Acesse o chat se precisar falar com o suporte.";
+      } else if (order.status === "Pronto") {
+        title = "🛍️ Pronto para retirada!";
+        message = "Seu pedido já está esperando por você! Dirija-se ao caixa/balcão do restaurante para retirar.";
+      }
+
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(function(registration) {
+            registration.showNotification(title, {
+              body: message,
+              icon: "favicon.png",
+              requireInteraction: true
+            });
+          }).catch(e => {
+            new Notification(title, {
+              body: message,
+              icon: "favicon.png",
+              requireInteraction: true
+            });
+          });
+        } else {
+          new Notification(title, {
+            body: message,
+            icon: "favicon.png",
+            requireInteraction: true
+          });
+        }
+      } catch (e) {
+        console.warn("Could not fire standard browser notification flow:", e);
+      }
+    }
+
+    window.onload = async () => {
+      if (typeof updateCustomerNotificationUI === 'function') {
+        updateCustomerNotificationUI();
+      }
+      // Lookup if phone matches local index
+      const localPhone = localStorage.getItem('popfood_last_phone');
+      const savedOrderId = localStorage.getItem('popfood_last_order_id');
+
+      // Grab restaurant profile
+      try {
+        const profSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId));
+        if (profSnap.exists()) {
+          restaurantProfile = profSnap.data();
+          if (restaurantProfile.phone) {
+            restaurantPhone = restaurantProfile.phone.replace(/\D/g, '');
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load restaurant Profile information: ", err);
+      }
+
+      // Check for direct order ID in URL params (e.g. from WhatsApp bot)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlOrderId = urlParams.get("order") || urlParams.get("orderId") || urlParams.get("id");
+      const urlPhone = urlParams.get("phone");
+
+      if (urlOrderId) {
+        try {
+          const directSnap = await getDoc(doc(db, COLLECTIONS.orders, urlOrderId));
+          if (directSnap.exists()) {
+            const ordData = directSnap.data();
+            const phone = ordData.customer?.phone || urlPhone || localPhone;
+            if (phone) {
+              localStorage.setItem('popfood_last_phone', phone);
+            }
+            localStorage.setItem('popfood_last_order_id', urlOrderId);
+            startDirectOrderTracker(urlOrderId, ordData);
+            return;
+          }
+        } catch (err) {
+          console.warn("Direct order tracking lookup error:", err);
+        }
+      }
+
+      if (urlPhone) {
+        localStorage.setItem('popfood_last_phone', urlPhone);
+        (document.getElementById('login-phone-field') || {}).value = urlPhone;
+        startOnSnapshotOrderTracker(urlPhone, urlOrderId || savedOrderId);
+        return;
+      }
+
+      if (localPhone) {
+        (document.getElementById('login-phone-field') || {}).value = localPhone;
+        // Verify active tracking
+        startOnSnapshotOrderTracker(localPhone, savedOrderId);
+      }
+    };
+
+    function startDirectOrderTracker(orderId, initialData = null) {
+      document.getElementById('tracker-login-panel').classList.add('hidden');
+      document.getElementById('tracker-active-panel').classList.remove('hidden');
+
+      if (initialData) {
+        currentTrackOrder = { id: orderId, ...initialData };
+        drawActiveTrackDetails(currentTrackOrder);
+      }
+
+      onSnapshot(doc(db, COLLECTIONS.orders, orderId), (docSnap) => {
+        if (docSnap.exists()) {
+          const targetOrder = { id: docSnap.id, ...docSnap.data() };
+          if (currentTrackOrder && currentTrackOrder.id === targetOrder.id && currentTrackOrder.status !== targetOrder.status) {
+            triggerStatusNotification(targetOrder, currentTrackOrder.status);
+          }
+          currentTrackOrder = targetOrder;
+          drawActiveTrackDetails(targetOrder);
+        }
+      }, (err) => {
+        console.error("Direct tracker error: ", err);
+      });
+    }
+
+    window.startTrackingByPhone = function() {
+      const phoneInput = document.getElementById('login-phone-field').value.replace(/\D/g, '');
+      if (phoneInput.length < 8) {
+        alert("Insira um número do WhatsApp válido contendo DDD!");
+        return;
+      }
+      
+      const btn = document.querySelector('button[onclick="startTrackingByPhone()"]');
+      if (btn) btn.innerHTML = 'Buscando...';
+
+      localStorage.setItem('popfood_last_phone', phoneInput);
+      startOnSnapshotOrderTracker(phoneInput);
+    }
+
+    // Helper to test if two phone numbers match flexibly
+    function matchPhones(phone1, phone2) {
+      if (!phone1 || !phone2) return false;
+      const c1 = String(phone1).replace(/\D/g, '');
+      const c2 = String(phone2).replace(/\D/g, '');
+      if (!c1 || !c2) return false;
+      if (c1 === c2) return true;
+      if (c1.endsWith(c2) || c2.endsWith(c1)) return true;
+      if (c1.length >= 8 && c2.length >= 8) {
+        if (c1.slice(-8) === c2.slice(-8)) return true;
+      }
+      return false;
+    }
+
+    // Launch instant Firestore listener monitoring the latest order written by customer
+    function startOnSnapshotOrderTracker(phone, orderIdInput = null) {
+      document.getElementById('tracker-login-panel').classList.add('hidden');
+      document.getElementById('tracker-active-panel').classList.remove('hidden');
+
+      const colRef = query(collection(db, COLLECTIONS.orders), where("storeId", "==", window.currentStoreId));
+      
+      onSnapshot(colRef, (snapshot) => {
+        let orders = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const docPhone = data.customer?.phone || data.phone || data.customerPhone || '';
+          
+          if (orderIdInput && docSnap.id === orderIdInput) {
+            orders.push({ id: docSnap.id, ...data });
+          } else if (phone && matchPhones(docPhone, phone)) {
+            orders.push({ id: docSnap.id, ...data });
+          }
+        });
+
+        if (orders.length === 0) {
+          document.getElementById('tracker-login-panel').classList.remove('hidden');
+          document.getElementById('tracker-active-panel').classList.add('hidden');
+          const btn = document.querySelector('button[onclick="startTrackingByPhone()"]');
+          if (btn) btn.innerHTML = 'Ver Meu Pedido';
+          alert("Nenhum pedido em andamento ou histórico encontrado para este número. Verifique se o número digitado está correto.");
+          localStorage.removeItem('popfood_last_phone');
+          return;
+        }
+
+        // Sort orders descending by date or choose matching id
+        orders.sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+        
+        let targetOrder = orders[0];
+        if (orderIdInput) {
+          const match = orders.find(o => o.id === orderIdInput);
+          if (match) targetOrder = match;
+        }
+
+        if (currentTrackOrder && currentTrackOrder.id === targetOrder.id && currentTrackOrder.status !== targetOrder.status) {
+          triggerStatusNotification(targetOrder, currentTrackOrder.status);
+        }
+
+        currentTrackOrder = targetOrder;
+        drawActiveTrackDetails(targetOrder);
+      }, (err) => {
+        console.error("Tracker snapshot listeners error: ", err);
+      });
+    }
+
+    // Bind values dynamically
+    function drawActiveTrackDetails(order) {
+      (document.getElementById('track-lbl-orderid') || {}).textContent = `#${order.id}`;
+
+      const isPickup = order.customer && order.customer.type === 'pickup';
+
+      // Update bullet 3 dynamically depending on pickup
+      const bullet2 = document.getElementById('step-bullet-2');
+      const text2 = document.getElementById('step-text-2');
+      if (bullet2 && text2) {
+        if (isPickup) {
+          bullet2.textContent = "🛍️";
+          text2.textContent = "Pedido Pronto";
+        } else {
+          bullet2.textContent = "🛵";
+          text2.textContent = "Em Rota";
+        }
+      }
+
+      // Est. Time Title
+      const timeTitle = document.getElementById('track-lbl-time-title');
+      if (timeTitle) {
+        timeTitle.textContent = isPickup ? "Previsão Estimada de Retirada" : "Previsão Estimada de Entrega";
+      }
+
+      let displayStatus = order.status;
+      if (isPickup && order.status === "Saiu para entrega") {
+        displayStatus = "Pronto p/ Retirada";
+      }
+      (document.getElementById('track-lbl-statusbadge') || {}).textContent = displayStatus;
+
+      // Color scheme for statuses
+      const badge = document.getElementById('track-lbl-statusbadge');
+      badge.className = "px-3.5 py-1.5 rounded-full text-xs font-bold text-center";
+      
+      if (order.status === "Pendente") {
+        badge.classList.add('bg-orange-100', 'text-brand-primary');
+        updateTimelineBar(0, "Pendente");
+      } else if (order.status === "Preparando") {
+        badge.classList.add('bg-blue-100', 'text-blue-600');
+        updateTimelineBar(33, "Preparando");
+      } else if (order.status === "Saiu para entrega") {
+        badge.classList.add('bg-purple-100', 'text-purple-600');
+        updateTimelineBar(66, "Saiu para entrega");
+      } else if (order.status === "Entregue") {
+        badge.classList.add('bg-green-100', 'text-brand-secondary');
+        updateTimelineBar(100, "Entregue");
+      } else {
+        badge.classList.add('bg-red-100', 'text-brand-danger');
+        updateTimelineBar(0, "Cancelado");
+      }
+
+      // Render Items list
+      const containerItems = document.getElementById('track-order-items');
+      if (!containerItems) return;
+      containerItems.innerHTML = '';
+
+      order.items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = "flex justify-between items-start text-xs border-b border-gray-50 pb-3";
+        
+        // Complements
+        let compsHtml = '';
+        if (item.complements && item.complements.length > 0) {
+          compsHtml = `<div class="text-[10px] text-gray-400 mt-0.5 uppercase italic">Com: ` + item.complements.map(c => c.optionName).join(', ') + `</div>`;
+        }
+
+        const notesHtml = item.notes ? `<div class="text-[10px] text-orange-500 font-medium italic mt-0.5">Obs: "${item.notes}"</div>` : '';
+
+        row.innerHTML = `
+          <div>
+            <div class="font-bold text-gray-700 capitalize">${item.quantity}x ${item.name}</div>
+            ${compsHtml}
+            ${notesHtml}
+          </div>
+          <span class="font-bold text-gray-800">R$ ${(item.totalItemPrice * item.quantity).toFixed(2).replace('.', ',')}</span>
+        `;
+        containerItems.appendChild(row);
+      });
+
+      // Fill address details
+      if (order.customer && (order.customer.type === 'pickup' || !order.customer.cep)) {
+        (document.getElementById('track-lbl-address') || {}).textContent = order.customer.address || "Retirada no Restaurante";
+      } else {
+        (document.getElementById('track-lbl-address') || {}).textContent = `${order.customer.address} (CEP: ${order.customer.cep})`;
+      }
+      
+      const rowRef = document.getElementById('track-row-ref');
+      if (order.customer.reference) {
+        rowRef.classList.remove('hidden');
+        (document.getElementById('track-lbl-ref') || {}).textContent = order.customer.reference;
+      } else {
+        rowRef.classList.add('hidden');
+      }
+
+      // Payments
+      let displayPaymentMethod = order.paymentMethod || "Dinheiro";
+      if (displayPaymentMethod === "Online" || displayPaymentMethod === "Pago Online") {
+        displayPaymentMethod = "Cartão Pago Online";
+      } else if (displayPaymentMethod === "PixOnline") {
+        displayPaymentMethod = "Pix Pago Online";
+      }
+      (document.getElementById('track-lbl-payment') || {}).textContent = displayPaymentMethod;
+      (document.getElementById('track-lbl-time') || {}).textContent = order.date;
+
+      // Receipts
+      (document.getElementById('track-subtotal') || {}).textContent = `R$ ${order.subtotal.toFixed(2).replace('.', ',')}`;
+      
+      const discRow = document.getElementById('track-row-discount');
+      if (order.desconto && order.desconto > 0) {
+        discRow.classList.remove('hidden');
+        (document.getElementById('track-desconto') || {}).textContent = `- R$ ${order.desconto.toFixed(2).replace('.', ',')}`;
+      } else {
+        discRow.classList.add('hidden');
+      }
+
+      (document.getElementById('track-taxa') || {}).textContent = `R$ ${order.deliveryFee.toFixed(2).replace('.', ',')}`;
+      (document.getElementById('track-total') || {}).textContent = `R$ ${order.total.toFixed(2).replace('.', ',')}`;
+
+      // Update chat unread badge
+      const chatBadge = document.getElementById('chat-unread-badge');
+      if (order.hasUnreadStoreMessage) {
+        chatBadge.classList.remove('hidden');
+      } else {
+        chatBadge.classList.add('hidden');
+      }
+      
+      // Update chat messages if modal is open
+      const chatModal = document.getElementById('chat-modal');
+      if (!chatModal.classList.contains('hidden')) {
+        renderChatMessages();
+      }
+
+      // Toggle Confirm Reception trigger button (Only when active status is "Saiu para entrega")
+      const rcvArea = document.getElementById('btn-received-area');
+      const confirmTextEl = document.getElementById('btn-confirm-text');
+      const confirmSubtextEl = document.getElementById('btn-confirm-subtext');
+      if (order.status === "Saiu para entrega") {
+        rcvArea.classList.remove('hidden');
+        if (confirmTextEl && confirmSubtextEl) {
+          if (isPickup) {
+            confirmTextEl.textContent = "✅ Confirmar Retirada do Pedido";
+            confirmSubtextEl.textContent = "Clique para confirmar que você já retirou o seu pedido com sucesso!";
+          } else {
+            confirmTextEl.textContent = "✅ Confirmar Recebimento do Pedido";
+            confirmSubtextEl.textContent = "Clique para confirmar que seu pedido foi entregue com sucesso!";
+          }
+        }
+      } else {
+        rcvArea.classList.add('hidden');
+      }
+
+      // Live remaining time countdown calculate & display
+      const activeStatuses = ["Pendente", "Preparando", "Saiu para entrega"];
+      const timeContainer = document.getElementById('track-time-remaining-container');
+      
+      if (!timeContainer) return;
+
+      if (!activeStatuses.includes(order.status)) {
+        timeContainer.classList.add('hidden');
+        if (window.remainingInterval) {
+          clearInterval(window.remainingInterval);
+          window.remainingInterval = null;
+        }
+      } else {
+        timeContainer.classList.remove('hidden');
+        
+        // Grab distance of order or default to average 2.0km
+        const distance = order.distance || 2.0;
+        
+        // Determine estimated duration minutes for this distance ceiling
+        const timesObj = (restaurantProfile && restaurantProfile.deliveryTimes) || {};
+        const ceilings = Object.keys(timesObj).map(Number).sort((a,b) => a-b);
+        
+        let matchedKM = 2; // Default km ceiling keys
+        for (let c of ceilings) {
+          if (distance <= c) {
+            matchedKM = c;
+            break;
+          }
+        }
+        if (ceilings.length > 0 && distance > Math.max(...ceilings)) {
+          matchedKM = Math.max(...ceilings);
+        }
+        
+        // Grab dynamic minutes or fallback to estimation based on accepted prep time
+        let durationMinutes;
+        let basisTime;
+        let isRestaurantDefined = false;
+
+        if (order.estimatedMinutes && order.prepStartedAt) {
+          durationMinutes = parseInt(order.estimatedMinutes);
+          basisTime = new Date(order.prepStartedAt).getTime();
+          isRestaurantDefined = true;
+        } else {
+          durationMinutes = timesObj[matchedKM] !== undefined ? parseInt(timesObj[matchedKM]) : (15 + matchedKM * 5);
+          basisTime = order.createdAt ? new Date(order.createdAt).getTime() : Date.now();
+        }
+        
+        const totalDurationMs = durationMinutes * 60 * 1000;
+        const targetTime = basisTime + totalDurationMs;
+        
+        const updateRemainingTimeDisplay = () => {
+          const now = Date.now();
+          const diffMs = targetTime - now;
+          const diffMinutes = Math.ceil(diffMs / (60 * 1000));
+          
+          const lbl = document.getElementById('track-lbl-time-remaining');
+          const pctLbl = document.getElementById('track-lbl-time-percent');
+          
+          if (!lbl || !pctLbl) return;
+          
+          // Calculate elapsed percentage progress
+          const elapsedMs = now - basisTime;
+          let elapsedPercent = Math.min(100, Math.max(0, Math.round((elapsedMs / totalDurationMs) * 100)));
+          pctLbl.textContent = `${elapsedPercent}%`;
+          
+          let restNotice = isRestaurantDefined ? " <span class='text-[10px] text-orange-500 font-bold block mt-0.5'>(Definido pelo restaurante: " + durationMinutes + " min)</span>" : "";
+
+          if (isPickup) {
+            if (diffMinutes > 1) {
+              lbl.innerHTML = `Faltam cerca de <strong>${diffMinutes} min</strong> para o preparo do seu pedido` + restNotice;
+            } else if (diffMinutes === 1) {
+              lbl.innerHTML = `Falta cerca de <strong>1 min</strong>! Seu pedido está quase pronto para retirada` + restNotice;
+            } else {
+              lbl.innerHTML = `Seu pedido já está pronto para ser retirado no local!` + restNotice;
+              pctLbl.textContent = `100%`;
+            }
+          } else {
+            if (diffMinutes > 1) {
+              lbl.innerHTML = `Faltam cerca de <strong>${diffMinutes} min</strong> para entrega` + restNotice;
+            } else if (diffMinutes === 1) {
+              lbl.innerHTML = `Falta cerca de <strong>1 min</strong> para entrega! Já está quase chegando` + restNotice;
+            } else {
+              lbl.innerHTML = `Pode chegar a qualquer momento! Já está a caminho` + restNotice;
+              pctLbl.textContent = `100%`;
+            }
+          }
+        };
+        
+        updateRemainingTimeDisplay();
+        if (window.remainingInterval) clearInterval(window.remainingInterval);
+        window.remainingInterval = setInterval(updateRemainingTimeDisplay, 5000); // update every 5 seconds for smooth real-time tracking
+      }
+
+      // --- NEW: DELIVERY PIN AUTO-GENERATOR & RENDERER ---
+      if (!order.deliveryPin && order.status !== "Cancelado") {
+        const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+        order.deliveryPin = generatedPin;
+        const docRef = doc(db, COLLECTIONS.orders, order.id);
+        updateDoc(docRef, { deliveryPin: generatedPin }).catch(err => {
+          console.warn("Error auto-generating PIN back to Firestore:", err);
+        });
+      }
+
+      const pinCard = document.getElementById('security-pin-card');
+      if (pinCard) {
+        if (order.status === "Entregue" || order.status === "Cancelado") {
+          pinCard.classList.add('hidden');
+        } else {
+          pinCard.classList.remove('hidden');
+          const pinValEl = document.getElementById('route-lbl-pin');
+          if (pinValEl) {
+            pinValEl.textContent = order.deliveryPin || "----";
+          }
+          const pinTitleEl = document.getElementById('security-pin-card-title');
+          const pinDescEl = document.getElementById('security-pin-card-desc');
+          if (isPickup) {
+            if (pinTitleEl) pinTitleEl.textContent = "Retirada Segura (PIN)";
+            if (pinDescEl) pinDescEl.textContent = "Para sua segurança, informe este código de 4 dígitos ao atendente no balcão no momento de retirar seu pedido.";
+          } else {
+            if (pinTitleEl) pinTitleEl.textContent = "Código de Confirmação (PIN)";
+            if (pinDescEl) pinDescEl.textContent = "Para sua segurança, informe este código de 4 dígitos ao entregador quando ele chegar ao seu endereço para liberar o pacote.";
+          }
+        }
+      }
+
+      // --- NEW: ROUTE TRACKING CARD RENDERER ---
+      const proximityPanel = document.getElementById('live-proximity-panel');
+      if (proximityPanel) {
+        if (order.status === "Saiu para entrega" && !isPickup) {
+          proximityPanel.classList.remove('hidden');
+          const progress = order.deliveryProgress !== undefined ? order.deliveryProgress : 15;
+          const milestone = order.deliveryMilestone || 'leaving_store';
+
+          // Move the gradient progress bar and shift the scooter carrier horizontally
+          const barEl = document.getElementById('tracker-progress-bar');
+          const carrierEl = document.getElementById('tracker-moto-carrier');
+          if (barEl) barEl.style.width = `${progress}%`;
+          if (carrierEl) {
+            // Keep container translations in safe bounds
+            const leftOffset = Math.max(0, Math.min(94, progress));
+            carrierEl.style.left = `${leftOffset}%`;
+          }
+
+          // Exchange text labels based on milestone
+          const badgeEl = document.getElementById('tracker-milestone-badge');
+          const descEl = document.getElementById('tracker-status-desc');
+
+          if (badgeEl && descEl) {
+            if (milestone === 'leaving_store') {
+              badgeEl.textContent = "Saindo da Loja";
+              badgeEl.className = "text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 uppercase tracking-wider";
+              descEl.textContent = "O entregador está organizando os pertences e saindo do restaurante...";
+            } else if (milestone === 'on_the_way') {
+              badgeEl.textContent = "Em Rota";
+              badgeEl.className = "text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 uppercase tracking-wider";
+              descEl.textContent = "Em trânsito! O entregador está a caminho acelerando em direção à sua residência...";
+            } else if (milestone === 'arriving_soon') {
+              badgeEl.textContent = "Quase Chegando";
+              badgeEl.className = "text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider animate-pulse";
+              descEl.textContent = "Muito perto! Fique atento(a) no seu portão/campainha, o motoboy está chegando.";
+            } else if (milestone === 'arrived') {
+              badgeEl.textContent = "Chegou!";
+              badgeEl.className = "text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 uppercase tracking-wider animate-bounce";
+              descEl.textContent = "Chegou! O motoboy está no seu portão te aguardando com a entrega.";
+            }
+          }
+
+          // Show Uber Tracking link if available
+          const uberContainer = document.getElementById('uber-tracking-container');
+          const uberLink = document.getElementById('uber-tracking-link');
+          if (uberContainer && uberLink) {
+            if (order.uberTrackingUrl) {
+              uberContainer.classList.remove('hidden');
+              uberLink.href = order.uberTrackingUrl;
+            } else {
+              uberContainer.classList.add('hidden');
+            }
+          }
+
+        } else {
+          proximityPanel.classList.add('hidden');
+        }
+      }
+
+      // --- NEW: AUTO COAX TO EVALUATION MODAL ---
+      if (order.status === "Entregue" && !order.rating && !hasAutoOpenedRating) {
+        hasAutoOpenedRating = true;
+        setTimeout(() => {
+          if (typeof window.toggleRatingModal === 'function') {
+            window.toggleRatingModal(true);
+          }
+        }, 1500);
+      }
+    }
+
+    // Step indicators and visual timelines renderer
+    function updateTimelineBar(percentValue, status) {
+      document.getElementById('timeline-progress-bar').style.width = `${percentValue}%`;
+      
+      // Clear visual bullet states
+      const stepsCount = 4;
+      for (let i = 0; i < stepsCount; i++) {
+        const bullet = document.getElementById(`step-bullet-${i}`);
+        const label = document.getElementById(`step-text-${i}`);
+        
+        bullet.className = "w-10 h-10 rounded-full border-4 border-gray-100 bg-white flex items-center justify-center text-sm transition-all shadow-sm";
+        label.className = "text-[11px] font-semibold text-gray-400 mt-2";
+      }
+
+      if (status === "Cancelado") return;
+
+      // Fill matching progression bullets
+      // Index tracker matching status mapping: [Pendente: 0, Preparando: 1, Saiu para entrega: 2, Entregue: 3]
+      let activeIndex = 0;
+      if (status === "Preparando") activeIndex = 1;
+      if (status === "Saiu para entrega") activeIndex = 2;
+      if (status === "Entregue") activeIndex = 3;
+
+      for (let j = 0; j <= activeIndex; j++) {
+        const bullet = document.getElementById(`step-bullet-${j}`);
+        const label = document.getElementById(`step-text-${j}`);
+        
+        bullet.classList.remove('border-gray-100');
+        bullet.classList.add('border-brand-secondary', 'bg-emerald-50', 'text-brand-secondary', 'scale-105');
+        label.classList.remove('text-gray-400');
+        label.classList.add('text-brand-secondary', 'font-bold');
+      }
+    }
+
+    // Client action: transition order status to Entregue
+    window.confirmOrderReceipt = async function() {
+      if (!currentTrackOrder) return;
+      
+      const isPickup = currentTrackOrder && currentTrackOrder.customer && currentTrackOrder.customer.type === 'pickup';
+      const promptText = isPickup 
+        ? "Deseja confirmar que retirou o seu pedido com sucesso? Ao confirmar, você poderá avaliar sua refeição e o atendimento."
+        : "Deseja confirmar que recebeu o seu pedido com sucesso? Ao confirmar, você poderá avaliar sua refeição e entrega.";
+
+      const confirmAction = await window.customConfirm(promptText);
+      if (!confirmAction) return;
+
+      const btn = document.getElementById('btn-confirm-receipt');
+      btn.disabled = true;
+      btn.innerHTML = `<span>Processando confirmação...</span>`;
+
+      try {
+        const docRef = doc(db, COLLECTIONS.orders, currentTrackOrder.id);
+        // Direct field secure key restriction
+        await updateDoc(docRef, {
+          status: "Entregue"
+        });
+        
+        // Clear receipt area trigger
+        const rcvArea = document.getElementById('btn-received-area');
+        if (rcvArea) rcvArea.classList.add('hidden');
+
+        // Show the beautiful rating modal directly!
+        window.toggleRatingModal(true);
+      } catch (err) {
+        console.error("Erro ao confirmar recebimento: ", err);
+        alert("Falha ao registrar confirmação: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>✅ Confirmar Recebimento do Pedido</span>`;
+      }
+    }
+
+    // Clear trackers
+    window.logoutTracker = function() {
+      localStorage.removeItem('popfood_last_phone');
+      localStorage.removeItem('popfood_last_order_id');
+      window.location.reload();
+    }
+
+    // Chat functionality
+    window.openChatModal = async function() {
+      const chatModal = document.getElementById('chat-modal');
+      chatModal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      
+      // Mark messages as read by customer
+      if (currentTrackOrder && currentTrackOrder.hasUnreadStoreMessage) {
+        try {
+          const docRef = doc(db, COLLECTIONS.orders, currentTrackOrder.id);
+          await updateDoc(docRef, { hasUnreadStoreMessage: false });
+        } catch(e) { console.error("Error marking messages as read:", e); }
+      }
+      
+      renderChatMessages();
+    }
+
+    window.closeChatModal = function() {
+      const chatModal = document.getElementById('chat-modal');
+      chatModal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function renderChatMessages() {
+      const container = document.getElementById('chat-messages-container');
+      if (!container || !currentTrackOrder) return;
+      
+      const messages = currentTrackOrder.chatMessages || [];
+      if (messages.length === 0) {
+        container.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-2 py-8">
+          <span class="text-3xl">👋</span>
+          <p class="text-xs">Envie uma mensagem para a loja.</p>
+        </div>`;
+        return;
+      }
+      
+      container.innerHTML = messages.map(msg => {
+        const isCustomer = msg.sender === 'customer';
+        const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+        
+        if (isCustomer) {
+          return `
+            <div class="flex flex-col items-end w-full">
+              <div class="bg-orange-500 text-white rounded-2xl rounded-tr-sm px-4 py-2 max-w-[85%] shadow-sm text-sm">
+                ${msg.text}
+              </div>
+              <span class="text-[9px] text-gray-400 mt-1">${timeStr}</span>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="flex flex-col items-start w-full">
+              <div class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-2 max-w-[85%] shadow-sm text-sm">
+                ${msg.text}
+              </div>
+              <span class="text-[9px] text-gray-400 mt-1">${timeStr}</span>
+            </div>
+          `;
+        }
+      }).join('');
+      
+      // Auto scroll to bottom
+      container.scrollTop = container.scrollHeight;
+    }
+
+    window.renderChatMessages = renderChatMessages;
+
+    window.quickReply = function(text) {
+      const input = document.getElementById('chat-input');
+      if (input) {
+        // Strip emojis if they exist for clean prompt matches, but keep them for display
+        input.value = text;
+        const sendBtn = document.getElementById('chat-send-btn');
+        if (sendBtn) {
+          sendBtn.click();
+        }
+      }
+    };
+
+    window.sendChatMessage = async function(e) {
+      e.preventDefault();
+      if (!currentTrackOrder) return;
+      
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      const btn = document.getElementById('chat-send-btn');
+      btn.disabled = true;
+      
+      try {
+        const newMessage = {
+          sender: 'customer',
+          text: text,
+          timestamp: new Date().toISOString()
+        };
+        
+        const docRef = doc(db, COLLECTIONS.orders, currentTrackOrder.id);
+        const currentMessages = currentTrackOrder.chatMessages || [];
+        
+        await updateDoc(docRef, {
+          chatMessages: [...currentMessages, newMessage],
+          hasUnreadCustomerMessage: true
+        });
+
+        // Notify the merchant about the new chat message
+        try {
+          const storeIdToUse = window.currentStoreId || currentTrackOrder.storeId;
+          if (storeIdToUse) {
+            const profileSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, storeIdToUse));
+            if (profileSnap.exists()) {
+              const profileData = profileSnap.data();
+              const merchantTokens = profileData.merchantTokens || [];
+              if (merchantTokens.length > 0) {
+                const sendPushNotification = async () => {};
+                const title = `💬 Mensagem do Cliente - #${currentTrackOrder.id.substring(0, 5).toUpperCase()}`;
+                const body = `${currentTrackOrder.customer?.name || "Cliente"}: ${text}`;
+                
+                for (const mToken of merchantTokens) {
+                  try {
+                    await sendPushNotification(mToken, title, body, {
+                      orderId: currentTrackOrder.id,
+                      type: "chat"
+                    });
+                  } catch (pushErr) {
+                    console.error("Error sending chat push to merchant token:", pushErr);
+                  }
+                }
+              }
+            }
+          }
+        } catch (fcmErr) {
+          console.error("Error sending chat push notification:", fcmErr);
+        }
+        
+        input.value = '';
+
+        // Rule-based Auto-Responder
+        if (currentTrackOrder.aiChatEnabled !== false) {
+          setTimeout(async () => {
+            const lowerText = text.toLowerCase();
+            let reply = "";
+            const status = currentTrackOrder.status || "Pendente";
+            const orderTotal = `R$ ${(currentTrackOrder.total || 0).toFixed(2).replace('.', ',')}`;
+            const customerName = currentTrackOrder.customer?.name ? currentTrackOrder.customer.name.split(' ')[0] : 'Cliente';
+            const isDelivery = currentTrackOrder.deliveryMethod === 'delivery';
+            const timeInfo = currentTrackOrder.preparationTime ? `A previsão é de aproximadamente **${currentTrackOrder.preparationTime} minutos**.` : '';
+            const storeName = restaurantProfile?.name || "Nossa Loja";
+            const shortOrderId = currentTrackOrder.id ? currentTrackOrder.id.slice(-6).toUpperCase() : "";
+
+            // Check if store is open based on openTime/closeTime
+            let isStoreOpenNow = true;
+            if (restaurantProfile && restaurantProfile.openTime && restaurantProfile.closeTime) {
+              const now = new Date();
+              const currentMins = now.getHours() * 60 + now.getMinutes();
+              const [openH, openM] = restaurantProfile.openTime.split(":").map(Number);
+              const openMins = openH * 60 + openM;
+              const [closeH, closeM] = restaurantProfile.closeTime.split(":").map(Number);
+              const closeMins = closeH * 60 + closeM;
+              if (openMins <= closeMins) {
+                isStoreOpenNow = currentMins >= openMins && currentMins <= closeMins;
+              } else {
+                isStoreOpenNow = currentMins >= openMins || currentMins <= closeMins;
+              }
+            }
+
+            // 1. HELP & HUMAN ESCALATION / TRANSBORDO
+            if (lowerText === "0" || lowerText.includes("atendente") || lowerText.includes("humano") || lowerText.includes("atendimento") || lowerText.includes("suporte") || lowerText.includes("equipe") || lowerText.includes("gerente") || lowerText.includes("gerência") || lowerText.includes("falar com")) {
+              reply = `Entendido! Estou transferindo você para um de nossos atendentes humanos agora mesmo. 🗣️ Um membro de nossa equipe foi notificado e responderá aqui no chat em instantes. Por favor, aguarde um momento! 🙏✨`;
+            }
+            // 2. STATUS & DELIVERY FORECAST
+            else if (lowerText.includes("status") || lowerText.includes("onde") || lowerText.includes("cadê") || lowerText.includes("demorar") || lowerText.includes("tempo") || lowerText.includes("previsão") || lowerText.includes("espera") || lowerText.includes("chegar") || lowerText.includes("rastrear")) {
+               if (status === "Pendente") {
+                 reply = `Claro, posso verificar isso para você! 🔍 Seu pedido **#${shortOrderId}** está sendo analisado pela nossa equipe. ${timeInfo} Assim que for aceito, começaremos a prepará-lo com muito carinho! 👨‍🍳🍔`;
+               } else if (status === "Preparando") {
+                 reply = `Seu pedido está sendo preparado com muito carinho pela nossa cozinha! 🍳👨‍🍳 ${timeInfo} Em breve ele será enviado!`;
+               } else if (status === "Saiu para Entrega") {
+                 reply = `Seu pedido já saiu para entrega! 🛵 O motoboy está a caminho e deve chegar em aproximadamente **${currentTrackOrder.preparationTime || '15'} minutos**. Fique de olho no seu portão ou portaria! 😉🎉`;
+               } else if (status === "Pronto p/ Retirada") {
+                 reply = `Seu pedido **#${shortOrderId}** já está prontinho para retirada em nosso balcão! 🛍️ Pode vir buscar quando desejar. Te esperamos!`;
+               } else if (status === "Entregue") {
+                 reply = `Seu pedido **#${shortOrderId}** consta como entregue/finalizado! Espero que tenha gostado da refeição. Se puder, não esqueça de nos avaliar com estrelas na tela inicial! ⭐🍽️`;
+               } else if (status === "Cancelado") {
+                 reply = `Este pedido **#${shortOrderId}** consta como cancelado em nosso sistema. Para qualquer esclarecimento, digite **'0'** para falar com um atendente.`;
+               } else {
+                 reply = `O status atual do seu pedido **#${shortOrderId}** é: **${status}**. Se precisar de mais informações, digite **'0'** para falar com a gente!`;
+               }
+            } 
+            // 3. PROBLEMS & DELAYS
+            else if (lowerText.includes("atraso") || lowerText.includes("atrasou") || lowerText.includes("demora") || lowerText.includes("demorando")) {
+               reply = `Peço sinceras desculpas pela demora! 🙏 Tivemos uma demanda de pedidos maior do que o esperado agora, mas seu pedido já está na fase final de preparo ou em trânsito. Vou verificar imediatamente com a equipe de entregas para agilizar o processo para você! 🛵💨`;
+            }
+            else if (lowerText.includes("errado") || lowerText.includes("incompleto") || lowerText.includes("faltou") || lowerText.includes("faltando") || lowerText.includes("reclamar") || lowerText.includes("problema")) {
+               reply = `Sinto muitíssimo por isso! 😔 Essa não é a experiência que queremos oferecer a você. Pode me enviar uma foto ou uma descrição do item que veio incorreto ou faltou? Vou acionar a gerência agora mesmo para resolvermos isso, seja com o envio do item faltante ou com o estorno/reembolso imediato! 🛠️💼`;
+            }
+            // 4. PAYMENTS & CHANGE
+            else if (lowerText.includes("pagamento") || lowerText.includes("pix") || lowerText.includes("cartão") || lowerText.includes("cartao") || lowerText.includes("dinheiro") || lowerText.includes("troco") || lowerText.includes("debito") || lowerText.includes("credito")) {
+               reply = `Aceitamos cartões de crédito/débito (Visa, Mastercard, Elo), Pix e dinheiro na entrega. 💳💵 Você pode selecionar a opção no momento de finalizar o pedido.\n\nPara o seu pedido atual, a forma de pagamento selecionada foi: **${currentTrackOrder.paymentMethod || 'Não informada'}**.\nO valor total a pagar é: **${orderTotal}**.`;
+            }
+            // 5. CANCELLATION
+            else if (lowerText.includes("cancelar") || lowerText.includes("cancelamento") || lowerText.includes("desistir")) {
+               if (status === "Preparando" || status === "Saiu para Entrega" || status === "Entregue") {
+                 reply = `Entendo o seu desejo de cancelar. No entanto, como o seu pedido **#${shortOrderId}** já está em preparação avançada ou saiu para entrega, podem haver restrições para o cancelamento automático. ⚠️ Por favor, digite **'0'** para falar com um atendente ou ligue para a loja para verificarmos a possibilidade.`;
+               } else {
+                 reply = `Pedido **#${shortOrderId}** cancelado com sucesso. O reembolso será processado automaticamente pelo meio de pagamento utilizado! 💸`;
+               }
+            }
+            // 6. SHIPPING / DELIVERY METHOD
+            else if (lowerText.includes("entrega") || lowerText.includes("retirar") || lowerText.includes("retirada") || lowerText.includes("frete") || lowerText.includes("taxa") || lowerText.includes("endereço")) {
+               if (isDelivery) {
+                  reply = `A taxa de entrega é calculada com base na sua localização. Você consegue visualizar o valor final no carrinho antes de confirmar o pagamento. 🛵\n\nSeu pedido está marcado para **Entrega** no endereço informado: *${currentTrackOrder.customer?.address || 'não especificado'}*. Previsão de entrega: **${currentTrackOrder.preparationTime || '40-50'} minutos**.`;
+               } else {
+                  reply = `Seu pedido está marcado para **Retirada** direto em nosso balcão! 🛍️\nPrevisão de preparo: **${currentTrackOrder.preparationTime || '30'} minutos**. Assim que estiver pronto, avisaremos aqui!`;
+               }
+            }
+            // 7. COUPONS & PROMOTIONS
+            else if (lowerText.includes("cupom") || lowerText.includes("cupons") || lowerText.includes("desconto") || lowerText.includes("promoção") || lowerText.includes("promocao") || lowerText.includes("oferta")) {
+               reply = `No momento temos ativo o cupom **PRIMEIRACOMPRA** que dá 10% de desconto na sua primeira compra! 🎉 Aproveite e use na finalização do seu pedido! 😉🏷_`;
+            }
+            // 8. GREETINGS & WELCOME
+            else if (lowerText.includes("oi") || lowerText.includes("olá") || lowerText.includes("ola") || lowerText.includes("boa noite") || lowerText.includes("boa tarde") || lowerText.includes("bom dia") || lowerText.includes("começar")) {
+               if (!isStoreOpenNow) {
+                 reply = `Olá! No momento estamos fechados. 🏪 Nosso horário de funcionamento é das **${restaurantProfile?.openTime || "18:00"}** até as **${restaurantProfile?.closeTime || "23:00"}**. Pode deixar sua mensagem que responderemos assim que abrirmos! 💤✨`;
+               } else {
+                 reply = `Olá, ${customerName}! Bem-vindo ao **${storeName}**! 🤖🍟\n\nEu sou o assistente virtual do estabelecimento. Como posso ajudar você hoje?\n\nVocê pode usar os botões rápidos abaixo ou digitar suas dúvidas sobre status, entrega, pagamento ou cupons! Se preferir falar com um humano, digite **'0'**.`;
+               }
+            }
+            // 9. DEFAULT FALLBACK
+            else {
+               reply = `Olá, ${customerName}! Recebi sua mensagem. 🤖\n\nNosso assistente virtual responde automaticamente a dúvidas sobre status, tempo de entrega, pagamentos ou cupons.\n\nSe você precisa de ajuda de um atendente humano agora mesmo, por favor digite **'0'** ou clique no botão **'Falar com Humano'** abaixo para transferirmos a conversa! 🗣️✨`;
+            }
+
+            try {
+              const replyMsg = {
+                sender: 'store',
+                text: reply,
+                timestamp: new Date().toISOString(),
+                isAutoReply: true
+              };
+              
+              // Refetch to get latest messages just in case
+              const freshSnap = await getDoc(docRef);
+              if (freshSnap.exists()) {
+                const freshMessages = freshSnap.data().chatMessages || [];
+                await updateDoc(docRef, {
+                  chatMessages: [...freshMessages, replyMsg],
+                  hasUnreadStoreMessage: true
+                });
+              }
+            } catch (autoErr) {
+              console.error("Auto-reply error:", autoErr);
+            }
+          }, 1500); // 1.5s delay to feel natural
+        }
+
+      } catch (err) {
+        console.error("Error sending message:", err);
+        alert("Erro ao enviar mensagem.");
+      } finally {
+        btn.disabled = false;
+        input.focus();
+      }
+    }
+  </script>
+
+  <!-- MODAL: INSTRUÇÕES DE INSTALAÇÃO NO IOS -->
+  <div
+    id="ios-install-modal"
+    onclick="if (event.target === this) toggleIosInstallModal(false);"
+    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs transition-opacity duration-300 opacity-0"
+  >
+    <div
+      class="bg-white rounded-[28px] w-full max-w-sm p-6 text-center space-y-6 relative border border-gray-100 shadow-2xl transform scale-95 opacity-0 transition-all duration-300"
+    >
+      <!-- Close Button -->
+      <button
+        onclick="toggleIosInstallModal(false)"
+        class="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 text-gray-500 p-2 rounded-full transition-colors cursor-pointer outline-none active:scale-90"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2.5"
+          stroke="currentColor"
+          class="w-4 h-4"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M6 18 18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
+      <div class="space-y-2">
+        <div class="text-4xl">📲</div>
+        <h3 class="font-display font-black text-lg text-gray-950 tracking-tight">Instalar no seu iPhone</h3>
+        <p class="text-xs text-gray-500 font-medium">Siga este passo a passo simples para adicionar o app na sua tela de início:</p>
+      </div>
+
+      <div class="text-left space-y-4 bg-stone-50 p-4 rounded-2xl border border-stone-200/60">
+        <div class="flex gap-3 items-start">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-[#895129]/10 text-[#895129] font-black text-xs flex items-center justify-center">1</span>
+          <p class="text-xs font-semibold text-gray-700 leading-relaxed">
+            No navegador **Safari**, toque no botão de **Compartilhar** <span class="inline-flex items-center justify-center p-1 bg-white border border-gray-200 rounded shadow-3xs"><svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></span> na barra inferior do celular.
+          </p>
+        </div>
+        <div class="flex gap-3 items-start">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-[#895129]/10 text-[#895129] font-black text-xs flex items-center justify-center">2</span>
+          <p class="text-xs font-semibold text-gray-700 leading-relaxed">
+            Role o menu de opções para baixo e selecione **"Adicionar à Tela de Início"** <span class="inline-flex items-center justify-center p-1 bg-white border border-gray-200 rounded shadow-3xs"><span class="text-gray-700 text-[10px] font-bold">➕</span></span>.
+          </p>
+        </div>
+        <div class="flex gap-3 items-start">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-[#895129]/10 text-[#895129] font-black text-xs flex items-center justify-center">3</span>
+          <p class="text-xs font-semibold text-gray-700 leading-relaxed">
+            Toque em **"Adicionar"** no canto superior direito para confirmar a instalação.
+          </p>
+        </div>
+      </div>
+
+      <button
+        onclick="toggleIosInstallModal(false)"
+        class="w-full bg-[#895129] hover:bg-[#724120] text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-md active:scale-98 uppercase tracking-wider"
+      >
+        Entendi
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let deferredPrompt;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+    // Handle standard Android/Desktop PWA installation prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('beforeinstallprompt event fired in acompanhamento');
+      e.preventDefault();
+      deferredPrompt = e;
+      const installContainer = document.getElementById('pwa-promoter-card');
+      if (installContainer) {
+        installContainer.classList.remove('hidden');
+        installContainer.classList.add('flex');
+      }
+    });
+
+    // Show promoter card manually for iOS if not already installed (standalone)
+    document.addEventListener('DOMContentLoaded', () => {
+      if (isIOS && !isStandalone) {
+        const installContainer = document.getElementById('pwa-promoter-card');
+        if (installContainer) {
+          installContainer.classList.remove('hidden');
+          installContainer.classList.add('flex');
+          const title = installContainer.querySelector('h4');
+          if (title) title.textContent = "Adicione à Tela de Início!";
+          const desc = installContainer.querySelector('p');
+          if (desc) desc.textContent = "Toque em Instalar para ver o passo a passo simples de como ter o app na tela de início do seu iPhone.";
+        }
+      }
+    });
+
+    window.toggleIosInstallModal = function(show) {
+      const modal = document.getElementById("ios-install-modal");
+      if (!modal) return;
+      const inner = modal.firstElementChild;
+      if (show) {
+        modal.classList.remove("hidden");
+        setTimeout(() => {
+          modal.classList.add("opacity-100");
+          if (inner) {
+            inner.classList.remove("scale-95", "opacity-0");
+            inner.classList.add("scale-100", "opacity-100");
+          }
+        }, 10);
+      } else {
+        modal.classList.remove("opacity-100");
+        if (inner) {
+          inner.classList.remove("scale-100", "opacity-100");
+          inner.classList.add("scale-95", "opacity-0");
+        }
+        setTimeout(() => {
+          modal.classList.add("hidden");
+        }, 300);
+      }
+    };
+
+    window.installPWA = async function() {
+      if (isIOS) {
+        toggleIosInstallModal(true);
+        return;
+      }
+
+      if (!deferredPrompt) return;
+      const installContainer = document.getElementById('pwa-promoter-card');
+      if (installContainer) installContainer.classList.add('hidden');
+      
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      deferredPrompt = null;
+    };
+    
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      const installContainer = document.getElementById('pwa-promoter-card');
+      if (installContainer) installContainer.classList.add('hidden');
+    });
+  </script>
+</body>
+</html>

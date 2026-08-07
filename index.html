@@ -1,0 +1,2552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administração - PopFood Delivery</title>
+  <script type="importmap">
+{
+      "imports": {
+        }
+    }
+</script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#f97316',
+              secondary: '#22c55e',
+              danger: '#ef4444',
+              light: '#f3f4f6',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        Promise.resolve()
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', (registration?.scope || '/'));
+          }, err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+  </script>
+  <style>
+    /* Collapsable Sidebar Styles */
+    #main-sidebar {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #main-sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    @media (max-width: 1023px) {
+      #main-sidebar {
+        transform: translateX(-100%) !important;
+      }
+      #main-sidebar.show-mobile {
+        transform: translateX(0) !important;
+      }
+    }
+    /* Side navigation active state indicators */
+    .menu-active {
+      background-color: #1e293b !important; /* bg-slate-800 */
+      color: #f97316 !important; /* text-brand-primary */
+      border-left: 4px solid #f97316 !important;
+    }
+  </style>
+</head>
+<body class="bg-brand-light font-sans text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Unauthenticated: Authentication Panels -->
+  <div id="auth-panel" class="flex-grow flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl w-full max-w-sm space-y-6">
+      <div class="text-center space-y-1">
+        <span class="text-4xl">🔑</span>
+        <h1 class="font-display font-bold text-xl text-gray-800 tracking-tight">PopFood Admin</h1>
+        <p class="text-xs text-gray-400">Portal restrito para gerenciamento do restaurante</p>
+      </div>
+
+      <!-- VIEW: LOGIN FORM -->
+      <form id="login-form" class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">E-mail</label>
+          <input type="email" id="login-email" required placeholder="admin@popfood.com" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <div class="space-y-1.5 relative">
+          <div class="flex justify-between items-center">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Senha</label>
+            <button type="button" onclick="switchAuthView('forgot')" class="text-xs text-brand-primary hover:underline font-semibold bg-transparent border-none cursor-pointer">Esqueceu a senha?</button>
+          </div>
+          <input type="password" id="login-password" required placeholder="******" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <button type="submit" class="w-full bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 text-sm">Entrar</button>
+        <p class="text-center text-xs text-gray-400 mt-2">
+          Não possui conta? <button type="button" onclick="switchAuthView('register')" class="text-brand-primary hover:underline font-semibold bg-transparent border-none cursor-pointer">Cadastre-se</button>
+        </p>
+      </form>
+
+      <!-- VIEW: REGISTER FORM -->
+      <form id="register-form" class="space-y-4 hidden">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Código Administrativo</label>
+          <input type="password" id="register-secret" required placeholder="Código fornecido pelo administrador" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">E-mail</label>
+          <input type="email" id="register-email" required placeholder="admin@popfood.com" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Senha</label>
+          <input type="password" id="register-password" required placeholder="Mínimo 6 dígitos" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Confirmar Senha</label>
+          <input type="password" id="register-confirm-password" required placeholder="Confirme sua senha" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <button type="submit" class="w-full bg-brand-secondary hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 text-sm">Cadastrar</button>
+        <p class="text-center text-xs text-gray-400 mt-2">
+          Já tem uma conta? <button type="button" onclick="switchAuthView('login')" class="text-brand-primary hover:underline font-semibold bg-transparent border-none cursor-pointer">Faça Login</button>
+        </p>
+      </form>
+
+      <!-- VIEW: FORGOT PASSWORD FORM -->
+      <form id="forgot-password-form" class="space-y-4 hidden">
+        <p class="text-xs text-gray-500 text-center mb-4">Informe seu e-mail e enviaremos um link para você redefinir sua senha.</p>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">E-mail de Recuperação</label>
+          <input type="email" id="forgot-email" required placeholder="admin@popfood.com" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 text-sm">Enviar Link de Recuperação</button>
+        <p class="text-center text-xs text-gray-400 mt-2">
+          Lembrou a senha? <button type="button" onclick="switchAuthView('login')" class="text-brand-primary hover:underline font-semibold bg-transparent border-none cursor-pointer">Faça Login</button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Authenticated: Master Admin Dashboard -->
+  <div id="admin-dashboard" class="hidden flex-grow flex flex-col lg:flex-row min-h-screen relative bg-slate-50">
+    
+    <!-- Mobile Sidebar overlay backdrop -->
+    <div id="sidebar-overlay" onclick="window.toggleSidebar(false)" class="hidden fixed inset-0 bg-slate-900/40 z-40"></div>
+
+    <!-- MAIN SIDEBAR MENU -->
+    <aside id="main-sidebar" class="bg-slate-900 text-white w-64 flex-shrink-0 fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col justify-between transition-all duration-300">
+      
+      <!-- Top Branding Section -->
+      <div class="p-5 border-b border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-3xl">🍔</span>
+            <div>
+              <h2 class="font-display font-black text-sm tracking-wider text-orange-500 uppercase">PopFood</h2>
+              <p class="text-[9px] text-slate-400">Painel Administrativo</p>
+            </div>
+          </div>
+          <!-- Close button for mobile -->
+          <button onclick="window.toggleSidebar(false)" class="lg:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Menu Items -->
+      <div class="flex-grow overflow-y-auto px-3.5 py-5 space-y-1.5 font-sans">
+        
+        <!-- Link: Cardápio / Painel -->
+        <a href="index.html" id="menu-link-cardapio" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group menu-active">
+          <span class="text-base group-hover:scale-110 transition-transform">🍔</span>
+          <span>Cardápio / Painel</span>
+        </a>
+
+        <!-- Link: Meus Pedidos -->
+        <a href="pedidos.html" id="menu-link-pedidos" class="flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <div class="flex items-center gap-3">
+            <span class="text-base group-hover:scale-110 transition-transform">🛵</span>
+            <span>Meus Pedidos</span>
+          </div>
+        </a>
+
+        <!-- Link: Editar Perfil -->
+        <a href="perfil.html" id="menu-link-perfil" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">⚙️</span>
+          <span>Editar Perfil</span>
+        </a>
+
+        <!-- Link: Clientes -->
+        <a href="clientes.html" id="menu-link-clientes" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">👥</span>
+          <span>Clientes</span>
+        </a>
+
+        <!-- Link: Relatórios -->
+        <a href="relatorios.html" id="menu-link-relatorios" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">📊</span>
+          <span>Relatórios</span>
+        </a>
+
+        <!-- Divider -->
+        <div class="border-t border-slate-800 my-4"></div>
+
+        <!-- Copiar Link Cliente Button -->
+        <button onclick="window.copyStoreLink()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-350 hover:bg-slate-800 hover:text-white text-left cursor-pointer">
+          <span class="text-base">🔗</span>
+          <span>Copiar Link Cliente</span>
+        </button>
+
+        <!-- Ver Cardápio Live Link -->
+        <a id="btn-view-cardapio-sidebar" href="cliente.html" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-350 hover:bg-slate-800 hover:text-white">
+          <span class="text-base">👁️</span>
+          <span>Ver Cardápio Live</span>
+        </a>
+
+      </div>
+
+      <!-- Sair e logout bar at bottom -->
+      <div class="p-4 border-t border-slate-800">
+        <button onclick="window.logoutAdmin()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-red-950/30 text-red-400 hover:bg-red-900/40 hover:text-white cursor-pointer" id="btn-logout-sidebar">
+          <span class="text-base">🚪</span>
+          <span>Sair e Deslogar</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- CONTENT WRAPPER FOR SIDEBAR LAYOUT -->
+    <div class="flex-grow flex flex-col min-w-0">
+
+      <!-- Admin Top Header Bar -->
+      <header class="bg-white border-b border-gray-200 sticky top-0 z-30 px-4 py-3 flex items-center justify-between">
+        
+        <!-- Left details and menu toggle -->
+        <div class="flex items-center gap-2.5">
+          <!-- Toggle Menu Button -->
+          <button onclick="window.toggleSidebar()" class="p-2 -ml-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all cursor-pointer" title="Mostrar/Ocultar Menu Lateral">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl hidden sm:inline">🍔</span>
+            <div>
+              <h1 class="font-display font-bold text-base text-gray-800">PopFood Manager</h1>
+              <p id="lbl-admin-email" class="text-xs text-gray-400 font-medium">admin@popfood.com</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Access actions on right -->
+        <div class="flex items-center gap-2">
+          <button onclick="window.copyStoreLink()" class="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            <span class="hidden md:inline">Link Cliente</span>
+          </button>
+          <a id="btn-view-cardapio" href="cliente.html" target="_blank" class="text-[11px] font-bold text-brand-secondary bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            <span class="hidden md:inline">Ver Cardápio</span>
+          </a>
+        </div>
+      </header>
+
+      <!-- Billing Notification Banner -->
+      <div id="store-billing-notice" class="hidden bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 mx-4 mt-6 rounded-xl shadow-lg flex-col sm:flex-row items-center justify-between gap-3 transform transition-all cursor-pointer">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl bg-white/20 p-2 rounded-lg">⚠️</span>
+          <div>
+            <h4 class="font-bold text-sm" id="billing-notice-title">Sua fatura vence em x dias!</h4>
+            <p class="text-xs text-red-100 mt-0.5 max-w-lg" id="billing-notice-desc">Evite o bloqueio da sua loja realizando o pagamento da mensalidade via PIX.</p>
+          </div>
+        </div>
+        <button onclick="window.viewInvoice()" class="bg-white text-red-600 text-xs font-bold py-2 px-4 rounded-lg hover:bg-red-50 hover:scale-105 active:scale-95 transition-all shadow-sm whitespace-nowrap">
+          📄 Ver Fatura / PIX
+        </button>
+      </div>
+
+      <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6" id="dashboard-main-content">
+      
+      <!-- COLUMN 1: CATEGORIES MANAGER BLOCK -->
+      <section class="lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-5 h-fit text-left">
+        <div>
+          <h3 class="font-display font-bold text-md text-gray-800 flex items-center gap-1.5">
+            <span>📁 Categorias</span>
+            <span id="lbl-categories-count" class="text-xs bg-gray-100 text-gray-500 py-0.5 px-2 rounded-full font-mono">0</span>
+          </h3>
+          <p class="text-[11px] text-gray-400">Monte as subdivisões do cardápio e ordene</p>
+        </div>
+
+        <!-- Add category forms -->
+        <div class="flex gap-2">
+          <input type="text" id="new-category-name" placeholder="Ex: Bebidas, Hambúrgueres" class="flex-grow text-xs p-2.5 border border-gray-200 rounded-lg focus:border-orange-400 focus:outline-none transition-all">
+          <button onclick="createNewCategory()" class="bg-gray-800 hover:bg-gray-950 text-white font-semibold py-2.5 px-3.5 text-xs rounded-lg transition-colors cursor-pointer">+</button>
+        </div>
+
+        <!-- List columns categories sorting buttons -->
+        <div id="categories-sort-list" class="space-y-2 max-h-96 overflow-y-auto">
+          <!-- Filled dynamically -->
+        </div>
+      </section>
+
+      <!-- COLUMN 2&3: PRODUCTS MANAGER CATALOG -->
+      <section class="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-6 flex flex-col h-fit text-left">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 pb-4">
+          <div>
+            <h3 class="font-display font-bold text-md text-gray-800">🍔 Produtos do Cardápio</h3>
+            <p class="text-[11px] text-gray-400">Adicione, edite ou pause itens do seu catálogo</p>
+          </div>
+          
+          <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
+            <button onclick="exportMenu()" class="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-150 px-3 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 active:scale-95">
+              📤 Exportar Cardápio
+            </button>
+            <button onclick="triggerImportMenuFileSelect()" class="text-xs font-bold text-gray-650 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 active:scale-95">
+              📥 Importar Cardápio
+            </button>
+            <button onclick="toggleProductFormModal(true)" class="bg-brand-primary hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95">
+              + Novo Produto
+            </button>
+            <!-- Hidden Import input field -->
+            <input type="file" id="import-menu-file" accept=".json" onchange="importMenuFileLoaded(event)" class="hidden">
+          </div>
+        </div>
+
+        <!-- Search Bar by code or title query -->
+        <div class="relative w-full">
+          <input type="text" id="product-search-bar" oninput="triggerProductsSearchFilter()" placeholder="🔍 Buscar por nome ou código PDV..." class="w-full text-xs p-3 pl-9 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+        </div>
+        
+        <!-- Filter Menu -->
+        <div class="flex flex-wrap gap-2 text-[10px] my-2">
+          <button onclick="applyCatalogFilter('all')" class="catalog-filter-btn px-3 py-1.5 rounded-full bg-orange-100 text-brand-primary font-bold transition-all" id="filter-all">Todos</button>
+          <button onclick="applyCatalogFilter('paused')" class="catalog-filter-btn px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 font-bold transition-all hover:bg-gray-200" id="filter-paused">Pausados</button>
+          <button onclick="applyCatalogFilter('lowstock')" class="catalog-filter-btn px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 font-bold transition-all hover:bg-gray-200" id="filter-lowstock">Estoque Baixo</button>
+          <button onclick="applyCatalogFilter('exclusive')" class="catalog-filter-btn px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 font-bold transition-all hover:bg-gray-200" id="filter-exclusive">Exclusivos</button>
+        </div>
+
+        <!-- Mass Actions Toolbar -->
+        <div id="mass-actions-toolbar" class="hidden bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 flex items-center justify-between transition-all">
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+              <input type="checkbox" id="select-all-products" onchange="toggleSelectAllProducts(this)" class="w-4 h-4 text-brand-primary rounded border-gray-300 focus:ring-brand-primary">
+              <span id="selected-products-count">0 itens selecionados</span>
+            </label>
+          </div>
+          <div class="flex gap-2">
+             <button onclick="massActionPause()" class="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors">Pausar/Ativar</button>
+             <button onclick="massActionDelete()" class="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-brand-danger text-white hover:bg-red-600 transition-colors">Deletar</button>
+          </div>
+        </div>
+
+        <!-- List rows products -->
+        <div id="products-catalog-list" class="space-y-4 font-sans">
+          <!-- Filled dynamically -->
+        </div>
+      </section>
+
+    </main>
+    </div> <!-- Closing content wrapper -->
+  </div> <!-- Closing admin-dashboard -->
+
+  <!-- MODAL: ADD/EDIT PRODUCT (Floating Dialog) -->
+  <div id="product-form-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col relative transform scale-95 duration-200">
+      <button onclick="toggleProductFormModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer font-sans">✕</button>
+
+      <div class="p-6 border-b border-gray-100 text-left">
+        <h2 id="product-form-title" class="font-display font-bold text-lg text-gray-800">Cadastrar Produto</h2>
+        <p class="text-xs text-gray-400 mt-1">Preencha os detalhes do produto de conveniência</p>
+      </div>
+
+      <!-- Main form -->
+      <form id="product-catalog-form" class="p-6 space-y-4 flex-grow text-left">
+        <input type="hidden" id="form-product-id">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Nome do Produto *</label>
+            <input type="text" id="form-product-name" required placeholder="Ex: Batata Frita Supreme" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Código PDV</label>
+            <input type="text" id="form-product-pdv" placeholder="Ex: COD-109" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Preço do Produto (R$) *</label>
+            <input type="number" step="0.01" id="form-product-price" required placeholder="Ex: 24.90" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Preço Original / De (Opcional)</label>
+            <input type="number" step="0.01" id="form-product-origprice" placeholder="Ex: 29.90" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Estoque (Opcional)</label>
+            <input type="number" step="1" min="0" id="form-product-stock" placeholder="Ex: 50" class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-all">
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-gray-650">Categoria do Produto *</label>
+            <select id="form-product-category" required class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none bg-white transition-all">
+              <option value="">Selecione a categoria...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-gray-650">Descrição do Produto</label>
+          <textarea id="form-product-desc" rows="3" placeholder="Ingredientes, porções, peso da embalagem..." class="w-full text-xs p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none placeholder:text-gray-400 transition-all resize-none"></textarea>
+        </div>
+
+        <!-- Image Uploader Converting strictly Base64 sizes -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-gray-650">Imagem do Produto (Máx 950KB) *</label>
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+              <img id="form-img-preview" src="" alt="Prv" class="w-full h-full object-cover hidden">
+              <span id="form-img-placeholder" class="text-xl text-gray-300 animate-pulse">🖼️</span>
+            </div>
+            <div class="flex-grow">
+              <input type="file" id="form-product-image-file" accept="image/*" onchange="convertProductImageToBase64()" class="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-brand-primary file:hover:bg-orange-100 cursor-pointer">
+              <p class="text-[9px] text-gray-400 mt-1 font-sans">Imagens de cantos quadrados (1:1) recomendadas.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product Availability (Days & Hours) -->
+        <div class="bg-gray-50/70 rounded-xl p-4 border border-gray-150 space-y-3.5">
+          <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider block flex items-center gap-1.5 select-none">
+            ⏰ Disponibilidade do Produto
+          </h4>
+          <p class="text-[10px] text-gray-400 font-medium leading-tight">Escolha os dias da semana e a faixa de horário em que o produto estará visível para os clientes comprar.</p>
+          
+          <div class="space-y-1.5">
+            <span class="block text-[10px] font-bold text-gray-650">Disponível em quais dias?</span>
+            <div class="flex flex-wrap gap-2 py-0.5">
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-1" class="w-3.5 h-3.5 text-orange-600 rounded"> Seg
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-2" class="w-3.5 h-3.5 text-orange-600 rounded"> Ter
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-3" class="w-3.5 h-3.5 text-orange-600 rounded"> Qua
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-4" class="w-3.5 h-3.5 text-orange-600 rounded"> Qui
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-5" class="w-3.5 h-3.5 text-orange-600 rounded"> Sex
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-6" class="w-3.5 h-3.5 text-orange-600 rounded"> Sáb
+              </label>
+              <label class="flex items-center gap-1 text-[11px] font-semibold text-gray-750 cursor-pointer bg-white border border-gray-200 px-2.5 py-1 rounded-lg hover:border-orange-200 hover:bg-orange-50/10 select-none">
+                <input type="checkbox" id="avail-day-0" class="w-3.5 h-3.5 text-orange-600 rounded"> Dom
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3.5 pt-1">
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-650 font-sans">Hora de Início (opcional)</label>
+              <input type="time" id="avail-time-start" class="w-full text-xs p-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+            </div>
+            <div class="space-y-1">
+              <label class="block text-[10px] font-bold text-gray-650 font-sans">Hora de Fim (opcional)</label>
+              <input type="time" id="avail-time-end" class="w-full text-xs p-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 py-1 select-none">
+          <input type="checkbox" id="form-product-exclusive" class="w-4.5 h-4.5 text-orange-600 border-gray-300 rounded focus:ring-orange-500 cursor-pointer">
+          <label for="form-product-exclusive" class="text-xs font-semibold text-gray-700 cursor-pointer">Marcar como "⭐ Produto Exclusivo"</label>
+        </div>
+
+        <div class="pt-4 flex gap-3">
+          <button type="button" onclick="toggleProductFormModal(false)" class="flex-1 border border-gray-200 py-3 rounded-xl text-xs text-gray-550 hover:bg-gray-50 font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" class="flex-1 bg-brand-primary hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer">Salvar</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- MODAL: COMPLEMENTS MANAGER FOR SPECIALIZED PRODUCTS -->
+  <div id="complements-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col relative transform scale-95 duration-200">
+      <button onclick="toggleComplementsModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer">✕</button>
+
+      <div class="p-6 border-b border-gray-100 text-left">
+        <h2 class="font-display font-bold text-lg text-gray-800 leading-tight block">Complementos de Qualidade</h2>
+        <p id="comp-lbl-product-name" class="text-xs text-brand-primary font-bold mt-1 uppercase">Carregando...</p>
+      </div>
+
+      <div class="p-6 space-y-6 flex-grow text-left">
+        <!-- New Group Creation block -->
+        <div class="bg-orange-50/50 rounded-xl p-4 border border-orange-100 space-y-3.5">
+          <h4 class="text-xs font-bold text-orange-850 uppercase tracking-widest block">Criar Grupo Adicional</h4>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input type="text" id="comp-new-group-name" placeholder="Nome (Ex: Escolha o queijo)" class="text-xs p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none">
+            <input type="text" id="comp-new-group-desc" placeholder="Aviso (Ex: Máximo 3 fatias)" class="text-xs p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer py-1 select-none">
+              <input type="checkbox" id="comp-new-group-mand" class="w-4 h-4 text-orange-600 border-gray-300 rounded"> É Obrigatório?
+            </label>
+            <input type="number" id="comp-new-group-min" placeholder="Mín seleção (Ex: 1)" class="text-xs p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none font-mono">
+            <input type="number" id="comp-new-group-max" placeholder="Max seleção (Ex: 3)" class="text-xs p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none font-mono">
+          </div>
+
+          <button onclick="saveComplementGroup()" class="w-full bg-orange-100 hover:bg-orange-200 text-brand-primary py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer">Adicionar Grupo</button>
+        </div>
+
+        <!-- Render Current Groups List -->
+        <div id="complements-groups-list" class="space-y-4 max-h-96 overflow-y-auto">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT COMPLEMENT GROUP -->
+  <div id="edit-complement-group-modal" class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col relative text-left space-y-4 transform scale-95 duration-200">
+      <button onclick="toggleEditComplementGroupModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer">✕</button>
+
+      <div class="space-y-1">
+        <h3 class="font-display font-bold text-base text-gray-800">⚙️ Editar Grupo de Complementos</h3>
+        <p class="text-[11px] text-gray-450 leading-normal">Edite as configurações deste grupo</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome do Grupo</label>
+          <input type="text" id="comp-edit-group-name" placeholder="Nome (Ex: Escolha o queijo)" class="w-full text-xs p-2.5 bg-stone-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Descrição/Aviso</label>
+          <input type="text" id="comp-edit-group-desc" placeholder="Aviso (Ex: Máximo 3 fatias)" class="w-full text-xs p-2.5 bg-stone-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary">
+        </div>
+
+        <div class="pt-2 border-t border-gray-100">
+          <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer py-1 select-none">
+            <input type="checkbox" id="comp-edit-group-mand" class="w-4 h-4 text-orange-600 border-gray-300 rounded"> É Obrigatório?
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mín. Seleção</label>
+            <input type="number" id="comp-edit-group-min" placeholder="Mín seleção (Ex: 1)" class="w-full text-xs p-2.5 bg-stone-50 border border-gray-200 rounded-lg focus:outline-none font-mono">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Máx. Seleção</label>
+            <input type="number" id="comp-edit-group-max" placeholder="Max seleção (Ex: 3)" class="w-full text-xs p-2.5 bg-stone-50 border border-gray-200 rounded-lg focus:outline-none font-mono">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="toggleEditComplementGroupModal(false)" class="flex-1 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold py-2.5 rounded-xl text-xs transition-all cursor-pointer">Cancelar</button>
+        <button onclick="saveEditComplementGroup()" class="flex-1 bg-gray-800 hover:bg-gray-950 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition-all cursor-pointer">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPORT CARDAPIO -->
+  <div id="import-menu-modal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col relative text-left space-y-4">
+      <button onclick="toggleImportMenuModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-xs font-bold z-10 cursor-pointer">✕</button>
+      
+      <div class="space-y-1">
+        <h3 class="font-display font-bold text-base text-gray-800">📥 Importar Cardápio (JSON)</h3>
+        <p class="text-[11px] text-gray-450 leading-normal">Verifique os dados detectados antes de prosseguir</p>
+      </div>
+
+      <div class="bg-orange-50/50 p-4 border border-orange-100 rounded-xl space-y-2.5 text-[11px]">
+        <div class="flex justify-between items-center text-gray-700">
+          <span class="font-medium text-gray-500">📁 Categorias Encontradas:</span>
+          <span id="import-lbl-categories" class="font-bold font-mono bg-orange-100 text-brand-primary px-2 py-0.5 rounded">0</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-700">
+          <span class="font-medium text-gray-500">🍔 Produtos Encontrados:</span>
+          <span id="import-lbl-products" class="font-bold font-mono bg-orange-100 text-brand-primary px-2 py-0.5 rounded">0</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-700">
+          <span class="font-medium text-gray-500">⚙️ Grupos de Complementos:</span>
+          <span id="import-lbl-complements" class="font-bold font-mono bg-orange-100 text-brand-primary px-2 py-0.5 rounded">0</span>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-yellow-150 bg-yellow-50/70 p-3 space-y-1">
+        <span class="block text-[9px] font-bold text-yellow-850 uppercase tracking-wider">⚠️ Atenção: Substituir tudo deletará os dados atuais!</span>
+      </div>
+
+      <div class="flex flex-col gap-2 pt-1 font-sans">
+        <button onclick="executeImport('merge')" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer">
+          🤝 Mesclar (Preserva outros já existentes)
+        </button>
+        <button onclick="executeImport('replace')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer">
+          🚨 Substituir Tudo (Deleta o atual!)
+        </button>
+        <button onclick="toggleImportMenuModal(false)" class="w-full text-center py-1 text-xs font-semibold text-gray-500 hover:text-gray-700 cursor-pointer">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INVOICE / FATURA -->
+  <div id="invoice-modal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col relative text-left space-y-4">
+      <button onclick="document.getElementById('invoice-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-xs font-bold z-10 cursor-pointer">✕</button>
+      
+      <div class="space-y-1">
+        <h3 class="font-display font-bold text-base text-gray-800">📄 Fatura Mensalidade</h3>
+        <p class="text-[11px] text-gray-450 leading-normal" id="invoice-modal-subtitle">Detalhes para pagamento da sua loja.</p>
+      </div>
+
+      <div class="bg-gray-50 p-4 border border-gray-100 rounded-xl space-y-3 text-[11px]">
+        <div class="flex justify-between items-center text-gray-700">
+          <span class="font-medium text-gray-500">Valor da Mensalidade:</span>
+          <span id="invoice-lbl-fee" class="font-bold text-green-700 text-sm">R$ 0,00</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-700">
+          <span class="font-medium text-gray-500">Data de Vencimento:</span>
+          <span id="invoice-lbl-date" class="font-bold">Todo dia --</span>
+        </div>
+        
+        <div class="pt-3 border-t border-gray-200">
+          <span class="block font-bold text-gray-600 mb-1">Pagamento via PIX (Chave):</span>
+          <div class="bg-white border border-gray-300 rounded p-2 text-center select-all cursor-text font-mono font-bold text-sm" id="invoice-lbl-pix">
+            --
+          </div>
+          <p class="text-[9px] text-center text-gray-400 mt-1">Copie a chave acima e realize o pagamento.</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2 pt-1 font-sans">
+        <button onclick="document.getElementById('invoice-modal').classList.add('hidden')" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center transition-all shadow-3xs cursor-pointer">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth, Timestamp, COLLECTIONS, collection, query, where, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from './supabase-adapter.js';
+
+    window.currentStoreId = null;
+
+    // App state
+    let activeCategories = [];
+    let activeProducts = [];
+    let activeComplementsMap = {}; 
+    let imageBase64Data = "";
+    let activeCatalogFilter = 'all';
+    let activeComplementProduct = null;
+    let productsFiltered = [];
+    let currentImportData = null;
+    let complementSearchQuery = "";
+
+    window.exportMenu = async function() {
+      try {
+        const complementsRef = query(collection(db, COLLECTIONS.complements), where("storeId", "==", window.currentStoreId));
+        const compSnap = await getDocs(complementsRef);
+        const complementsList = [];
+        compSnap.forEach(snap => {
+          complementsList.push({ id: snap.id, ...snap.data() });
+        });
+
+        const exportData = {
+          version: "1.0",
+          exportedAt: new Date().toISOString(),
+          categories: activeCategories,
+          products: activeProducts,
+          complements: complementsList
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `cardapio_exportado_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        
+        alert("📊 Cardápio (categorias, produtos e complementos) exportado com sucesso em arquivo JSON!");
+      } catch (err) {
+        console.error("Erro ao exportar cardápio: ", err);
+        alert("Erro ao exportar cardápio: " + err.message);
+      }
+    }
+
+    window.triggerImportMenuFileSelect = function() {
+      const fileInput = document.getElementById('import-menu-file');
+      if (fileInput) {
+        fileInput.value = '';
+        fileInput.click();
+      }
+    }
+
+    window.toggleImportMenuModal = function(show) {
+      const modal = document.getElementById('import-menu-modal');
+      if (modal) {
+        if (show) modal.classList.remove('hidden');
+        else modal.classList.add('hidden');
+      }
+    }
+
+    window.importMenuFileLoaded = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          
+          if (!parsed.categories || !Array.isArray(parsed.categories) || !parsed.products || !Array.isArray(parsed.products)) {
+            alert("⚠️ Arquivo inválido! O JSON importado precisa conter 'categories' e 'products'.");
+            return;
+          }
+
+          currentImportData = parsed;
+          
+          (document.getElementById('import-lbl-categories') || {}).textContent = parsed.categories.length;
+          (document.getElementById('import-lbl-products') || {}).textContent = parsed.products.length;
+          (document.getElementById('import-lbl-complements') || {}).textContent = (parsed.complements || []).length;
+
+          window.toggleImportMenuModal(true);
+        } catch (err) {
+          alert("⚠️ Erro ao decodificar arquivo JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.executeImport = async function(mode) {
+      if (!currentImportData) {
+        alert("Nenhum dado carregado para importação.");
+        return;
+      }
+
+      const categoriesCount = currentImportData.categories.length;
+      const productsCount = currentImportData.products.length;
+
+      const confirmMessage = mode === 'replace'
+        ? `⚠️ ATENÇÃO MÁXIMA 🚨\n\nIsso irá APAGAR TODAS as suas categorias (${activeCategories.length}), produtos (${activeProducts.length}) e respectivos complementos atuais para substituí-los pelos novos do arquivo JSON!\n\nDeseja mesmo continuar?`
+        : `Deseja mesclar estes dados de cardápio (${categoriesCount} categorias e ${productsCount} produtos com o existente)?`;
+
+      if (!await window.customConfirm(confirmMessage)) return;
+
+      try {
+        window.toggleImportMenuModal(false);
+        
+        if (mode === 'replace') {
+          // 1. Delete all existing categories
+          for (const cat of activeCategories) {
+            await deleteDoc(doc(db, COLLECTIONS.categories, cat.id));
+          }
+          // 2. Delete all existing products and complements
+          for (const prd of activeProducts) {
+            await deleteDoc(doc(db, COLLECTIONS.products, prd.id));
+            await deleteDoc(doc(db, COLLECTIONS.complements, prd.id));
+          }
+        }
+
+        // 3. Write imported categories
+        for (const cat of currentImportData.categories) {
+          const catId = cat.id || doc(collection(db, COLLECTIONS.categories)).id;
+          const cleanCat = {
+            name: cat.name || "Sem Nome",
+            order: typeof cat.order === 'number' ? cat.order : 0
+          ,
+storeId: window.currentStoreId
+};
+          await setDoc(doc(db, COLLECTIONS.categories, catId), cleanCat);
+        }
+
+        // 4. Write imported products
+        for (const prd of currentImportData.products) {
+          const prdId = prd.id || doc(collection(db, COLLECTIONS.products)).id;
+          const cleanPrd = {
+            id: prdId,
+            name: prd.name || "Produto Sem Nome",
+            price: typeof prd.price === 'number' ? prd.price : parseFloat(prd.price || 0),
+            originalPrice: prd.originalPrice !== undefined ? (typeof prd.originalPrice === 'number' ? prd.originalPrice : parseFloat(prd.originalPrice || 0)) : null,
+            category: prd.category || "",
+            description: prd.description || "",
+            pdvCode: prd.pdvCode || "",
+            imageUrl: prd.imageUrl || "",
+            exclusive: prd.exclusive === true || prd.exclusive === "true",
+            paused: prd.paused === true || prd.paused === "true",
+            createdAt: prd.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          ,
+storeId: window.currentStoreId
+};
+          
+          // Remove undefined or null keys that shouldn't be in DB
+          Object.keys(cleanPrd).forEach(key => {
+            if (cleanPrd[key] === undefined) {
+              delete cleanPrd[key];
+            }
+          });
+          await setDoc(doc(db, COLLECTIONS.products, prdId), cleanPrd, { merge: true });
+        }
+
+        // 5. Write imported complements if available
+        if (currentImportData.complements && Array.isArray(currentImportData.complements)) {
+          for (const comp of currentImportData.complements) {
+            if (!comp.id) continue;
+            const cleanComp = {
+              id: comp.id,
+              groups: Array.isArray(comp.groups) ? comp.groups.map(g => ({
+                name: g.name || "",
+                description: g.description || "",
+                isMandatory: g.isMandatory === true,
+                minChoices: typeof g.minChoices === 'number' ? g.minChoices : (parseInt(g.minChoices) || 1),
+                maxChoices: typeof g.maxChoices === 'number' ? g.maxChoices : (parseInt(g.maxChoices) || 1),
+                options: Array.isArray(g.options) ? g.options.map(o => ({
+                  name: o.name || "",
+                  price: typeof o.price === 'number' ? o.price : (parseFloat(o.price) || 0),
+                  paused: o.paused === true
+                })) : []
+              })) : []
+            ,
+storeId: window.currentStoreId
+};
+            await setDoc(doc(db, COLLECTIONS.complements, comp.id), cleanComp);
+          }
+        }
+
+        alert("🎉 Cardápio importado com sucesso no Firebase!");
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Erro importando cardápio: ", err);
+        alert("⚠️ Ocorreu um erro durante a importação do cardápio: " + err.message);
+      } finally {
+        currentImportData = null;
+      }
+    }
+
+    window.onload = () => {
+      // Check auth states
+      window.currentStoreId = null;
+      onAuthStateChanged(auth, async (user) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStoreId = urlParams.get('store');
+        const customStoreId = localStorage.getItem('popfood_custom_store_id');
+        const customStoreEmail = localStorage.getItem('popfood_custom_store_email');
+        const overrideStoreId = localStorage.getItem('popfood_admin_store_override');
+
+        const authView = document.getElementById('auth-panel');
+        const dashView = document.getElementById('admin-dashboard');
+
+        if (user || customStoreId || urlStoreId) {
+          if (urlStoreId) {
+            window.currentStoreId = urlStoreId;
+          } else if (overrideStoreId) {
+            window.currentStoreId = overrideStoreId;
+          } else if (customStoreId) {
+            window.currentStoreId = customStoreId;
+          } else {
+            window.currentStoreId = user.uid;
+          }
+
+          if (overrideStoreId && window.currentStoreId === overrideStoreId) {
+            injectOverrideBannerUI();
+          }
+
+          // Dynamically update address bar URL if store parameter is missing or different
+          if (window.currentStoreId) {
+            const currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.get('store') !== window.currentStoreId) {
+              currentUrl.searchParams.set('store', window.currentStoreId);
+              window.history.replaceState(null, '', currentUrl.toString());
+            }
+          }
+
+          // Dynamically append currentStoreId universally to ALL internal admin links
+          document.querySelectorAll('a').forEach(el => {
+            const href = el.getAttribute('href');
+            if (href) {
+              const adminPages = ['index.html', 'perfil.html', 'pedidos.html', 'clientes.html', 'relatorios.html', 'cliente.html', 'motoboy.html'];
+              const basePath = href.split('?')[0];
+              if (adminPages.includes(basePath)) {
+                el.href = `${basePath}?store=${window.currentStoreId}`;
+              }
+            }
+          });
+
+          authView.classList.add('hidden');
+          dashView.classList.remove('hidden');
+          (document.getElementById('lbl-admin-email') || {}).textContent = customStoreEmail || (user ? user.email : 'admin');
+          document.getElementById('btn-view-cardapio').href = `cliente.html?store=${window.currentStoreId}`;
+          
+          // Boot admin tracking pipelines
+          setupAdminRealtimeDatabases();
+        } else {
+          window.currentStoreId = null;
+          authView.classList.remove('hidden');
+          dashView.classList.add('hidden');
+        }
+      });
+
+      // Bind login register forms
+      document.getElementById('login-form').onsubmit = triggerLoginAction;
+      document.getElementById('register-form').onsubmit = triggerRegisterAction;
+      document.getElementById('forgot-password-form').onsubmit = triggerForgotAction;
+      document.getElementById('product-catalog-form').onsubmit = saveOrUpdateCatalogProduct;
+    };
+
+    async function triggerForgotAction(e) {
+      e.preventDefault();
+      const mail = document.getElementById('forgot-email').value.trim();
+      if (!mail) return;
+      try {
+        await sendPasswordResetEmail(auth, mail);
+        alert('Um e-mail de recuperação foi enviado para ' + mail);
+        window.switchAuthView('login');
+      } catch (err) {
+        console.error("Forgot error: ", err);
+        alert('Erro ao enviar e-mail: ' + (err.message || err));
+      }
+    }
+
+    window.switchAuthView = function(view) {
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('register-form').classList.add('hidden');
+      document.getElementById('forgot-password-form').classList.add('hidden');
+      
+      if (view === 'register') {
+        document.getElementById('register-form').classList.remove('hidden');
+      } else if (view === 'forgot') {
+        document.getElementById('forgot-password-form').classList.remove('hidden');
+      } else {
+        document.getElementById('login-form').classList.remove('hidden');
+      }
+    }
+
+    // Call Login SDK API
+    async function triggerLoginAction(e) {
+      e.preventDefault();
+      const mail = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-password').value.trim();
+      try {
+        // First, authenticate with Firebase Auth to get permission to query Firestore
+        const userCredential = await signInWithEmailAndPassword(auth, mail, pass);
+        const loggedUser = userCredential.user;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStoreId = urlParams.get('store');
+
+        let matchedStoreDoc = null;
+        let matchedStoreId = null;
+
+        // 1. Check if urlStoreId from URL matches an existing store in Firestore
+        if (urlStoreId) {
+          try {
+            const urlSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, urlStoreId));
+            if (urlSnap.exists()) {
+              const urlData = urlSnap.data();
+              // Verify if this store belongs to this user/email
+              const storeMail = (urlData.adminEmail || urlData.email || '').trim().toLowerCase();
+              if (!storeMail || storeMail === mail.toLowerCase() || urlData.storeId === urlStoreId) {
+                matchedStoreDoc = urlSnap;
+                matchedStoreId = urlStoreId;
+              }
+            }
+          } catch (e) {
+            console.warn("Could not check urlStoreId doc directly:", e);
+          }
+        }
+
+        // 2. Query restaurantProfile by adminEmail (exact or case-insensitive)
+        if (!matchedStoreId) {
+          const profilesRef = collection(db, COLLECTIONS.restaurantProfile);
+          const queriesToTry = [
+            query(profilesRef, where("adminEmail", "==", mail.toLowerCase())),
+            query(profilesRef, where("adminEmail", "==", mail)),
+            query(profilesRef, where("email", "==", mail.toLowerCase())),
+            query(profilesRef, where("email", "==", mail))
+          ];
+
+          for (const q of queriesToTry) {
+            try {
+              const qSnap = await getDocs(q);
+              if (!qSnap.empty) {
+                matchedStoreDoc = qSnap.docs[0];
+                matchedStoreId = matchedStoreDoc.id;
+                break;
+              }
+            } catch (e) {
+              console.warn("Query attempt failed:", e);
+            }
+          }
+        }
+
+        // 3. Fallback scan of all stores if query yielded no results
+        if (!matchedStoreId) {
+          try {
+            const allSnap = await getDocs(collection(db, COLLECTIONS.restaurantProfile));
+            for (const docSnap of allSnap.docs) {
+              const d = docSnap.data();
+              const storeMail = (d.adminEmail || d.email || d.ownerEmail || '').trim().toLowerCase();
+              if (storeMail && storeMail === mail.toLowerCase()) {
+                matchedStoreDoc = docSnap;
+                matchedStoreId = docSnap.id;
+                break;
+              }
+              if (urlStoreId && docSnap.id === urlStoreId) {
+                matchedStoreDoc = docSnap;
+                matchedStoreId = docSnap.id;
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn("Fallback store scan failed:", e);
+          }
+        }
+
+        // 4. Check if a store document exists with user's UID
+        if (!matchedStoreId) {
+          try {
+            const uidSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, loggedUser.uid));
+            if (uidSnap.exists()) {
+              matchedStoreDoc = uidSnap;
+              matchedStoreId = loggedUser.uid;
+            }
+          } catch (e) {
+            console.warn("Could not check UID doc directly:", e);
+          }
+        }
+
+        // Final decision
+        if (matchedStoreDoc && matchedStoreDoc.exists()) {
+          const storeData = matchedStoreDoc.data();
+          if (storeData.isStoreOwner === false || storeData.isStoreOwner === "false") {
+            await signOut(auth);
+            alert("Acesso Negado: Você não tem permissão de 'Dono de Loja'. Entre em contato com o administrador.");
+            return;
+          }
+        }
+
+        const finalStoreId = matchedStoreId || urlStoreId || loggedUser.uid;
+        localStorage.setItem('popfood_custom_store_id', finalStoreId);
+        localStorage.setItem('popfood_custom_store_email', mail);
+
+        // Redirect to index.html explicitly appending ?store=STORE_ID
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('store', finalStoreId);
+        window.location.href = targetUrl.toString();
+      } catch (err) {
+        console.error("Login Admin fail: ", err);
+        alert("Falha ao entrar: " + err.message);
+      }
+    }
+
+    // Call Register SDK API
+    async function triggerRegisterAction(e) {
+      e.preventDefault();
+      const secret = document.getElementById('register-secret').value.trim();
+      const mail = document.getElementById('register-email').value.trim();
+      const pass = document.getElementById('register-password').value.trim();
+      const conf = document.getElementById('register-confirm-password').value.trim();
+
+      // Simple security hardcoded block for invite code
+      if (secret !== "CIA2026") {
+        alert("Código administrativo inválido! O cadastro automático está restrito apenas para parceiros convidados.");
+        return;
+      }
+
+      if (pass !== conf) {
+        alert("As senhas não coincidem!");
+        return;
+      }
+      if (pass.length < 6) {
+        alert("A senha deve conter no mínimo 6 caracteres.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, mail, pass);
+        const newUser = userCredential.user;
+
+        const initialProfile = {
+          id: newUser.uid,
+          storeId: newUser.uid,
+          name: "Minha Nova Loja",
+          description: "Bem-vindo ao nosso delivery!",
+          phone: "",
+          cep: "",
+          address: "Endereço da Loja, Número",
+          openTime: "18:00",
+          closeTime: "23:59",
+          operatingDays: [0, 1, 2, 3, 4, 5, 6],
+          show: true,
+          suspended: false,
+          adminEmail: mail.toLowerCase(),
+          adminPassword: pass,
+          createdAt: new Date().toISOString(),
+          deliveryRates: {
+            "1": 5.0,
+            "2": 6.5,
+            "3": 8.0,
+            "4": 9.5,
+            "5": 11.0,
+            "6": 12.5,
+            "7": 14.0,
+            "8": 15.5,
+            "9": 17.0,
+            "10": 18.5
+          },
+          deliveryTimes: {
+            "1": 25, "2": 30, "3": 35, "4": 40, "5": 45, "6": 50, "7": 55, "8": 60, "9": 65, "10": 70
+          }
+        };
+
+        await setDoc(doc(db, COLLECTIONS.restaurantProfile, newUser.uid), initialProfile);
+        alert("Cadastro realizado com sucesso! Seu estabelecimento foi configurado e o acesso está liberado.");
+      } catch (err) {
+        console.error("Register Admin error: ", err);
+        alert("Falha ao cadastrar: " + err.message);
+      }
+    }
+
+    window.viewInvoice = function() {
+      if (!window.currentInvoiceDetails) return;
+      (document.getElementById('invoice-lbl-fee') || {}).textContent = `R$ ${window.currentInvoiceDetails.fee}`;
+      (document.getElementById('invoice-lbl-date') || {}).textContent = `Todo dia ${window.currentInvoiceDetails.date}`;
+      (document.getElementById('invoice-lbl-pix') || {}).textContent = window.currentInvoiceDetails.pix;
+      document.getElementById('invoice-modal').classList.remove('hidden');
+    }
+
+    window.logoutAdmin = async function() {
+      localStorage.removeItem('popfood_custom_store_id');
+      localStorage.removeItem('popfood_custom_store_email');
+      localStorage.removeItem('popfood_admin_store_override');
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Signout error: ", err);
+      }
+      window.location.href = "index.html";
+    }
+
+    function injectOverrideBannerUI() {
+      const overrideStoreName = localStorage.getItem('popfood_admin_store_name_override') || 'Parceiro';
+      let ribbon = document.getElementById('superuser-override-ribbon');
+      if (!ribbon) {
+        ribbon = document.createElement('div');
+        ribbon.id = 'superuser-override-ribbon';
+        ribbon.className = "bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold py-2.5 px-4 text-center flex items-center justify-between gap-3 shadow-md sticky top-0 z-[9999]";
+        ribbon.innerHTML = `
+          <div class="mx-auto flex items-center gap-1.5 flex-wrap justify-center">
+            <span>🛡️</span>
+            <span><strong>MODO SIMULAÇÃO SUPER-USUÁRIO ATIVO:</strong> Gerenciando a loja <strong class="underline">${overrideStoreName}</strong></span>
+          </div>
+          <button onclick="localStorage.removeItem('popfood_admin_store_override'); localStorage.removeItem('popfood_admin_store_name_override'); window.location.reload();" class="bg-white/20 hover:bg-white/35 text-white active:scale-95 transition-all px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer shrink-0">
+            Sair e Voltar ao Admin Geral
+          </button>
+        `;
+        document.body.insertBefore(ribbon, document.body.firstChild);
+      }
+    }
+
+    window.copyStoreLink = function() {
+      if (!window.currentStoreId) return;
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const link = `${window.location.origin}${basePath}/cliente.html?store=${window.currentStoreId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert("Link do seu cardápio copiado!");
+      }).catch(err => {
+        console.error("Falha ao copiar", err);
+        alert("Não foi possível copiar automaticamente. Use este link: " + link);
+      });
+    }
+
+    window.copyMotoboyLink = function() {
+      if (!window.currentStoreId) return;
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const link = `${window.location.origin}${basePath}/motoboy.html?store=${window.currentStoreId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert("Link do painel de rastreio para entregadores copiado!");
+      }).catch(err => {
+        console.error("Falha ao copiar", err);
+        alert("Não foi possível copiar automaticamente. Use este link: " + link);
+      });
+    }
+
+    // Sync arrays (Real-time tracking for Management)
+    function setupAdminRealtimeDatabases() {
+      if (!window.currentStoreId) return;
+
+      // Monitor profile for suspension lock
+      onSnapshot(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), (docSnap) => {
+        const isSuperUserOverride = localStorage.getItem('popfood_admin_store_override') === window.currentStoreId;
+        
+        if (!docSnap.exists() && !isSuperUserOverride) {
+          document.body.innerHTML = `
+            <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]">
+               <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                  <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                  <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+               </div>
+               <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Loja Excluída</h1>
+               <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                 O estabelecimento associado a esta conta foi completamente <strong>removido</strong> do sistema.
+                 <br><br>Todas as operações estão bloqueadas e não é mais possível acessar o painel.
+               </p>
+               <button onclick="window.logoutAdmin()" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Sair e Deslogar</button>
+            </div>
+          `;
+          return;
+        }
+
+        if (docSnap.exists() && docSnap.data().suspended === true) {
+          if(!isSuperUserOverride) {
+            document.body.innerHTML = `
+              <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]">
+                 <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                    <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                    <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                 </div>
+                 <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Acesso Suspenso</h1>
+                 <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                   O sistema da sua loja está temporariamente <strong>indisponível</strong>. Provavelmente ocorreu alguma pendência na renovação de sua assinatura ou ocorreu solicitação de revisão. 
+                   <br><br>Entre em contato com o administrador da plataforma para regularizar e restabelecer o funcionamento imediato.
+                 </p>
+                 <button onclick="window.logoutAdmin()" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Sair e Deslogar</button>
+              </div>
+            `;
+          }
+        }
+
+        // --- BILLING EVALUATION ---
+        if (docSnap.exists()) {
+          const profileData = docSnap.data();
+          const billingDay = profileData.billingDay;
+          const monthlyFee = profileData.monthlyFee;
+          const pixKey = profileData.pixKey;
+
+          const noticeEl = document.getElementById('store-billing-notice');
+          if (billingDay && monthlyFee && pixKey && noticeEl) {
+            const today = new Date();
+            const currentDay = today.getDate();
+            
+            // Calculate days left to billing day
+            let daysLeft = 0;
+            if (billingDay >= currentDay) {
+              daysLeft = billingDay - currentDay;
+            } else {
+              // Billing day is in next month
+              const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, billingDay);
+              const diffTime = nextMonth.getTime() - today.getTime();
+              daysLeft = Math.ceil(diffTime / (1000 * 3600 * 24));
+            }
+
+            if (daysLeft <= 5) {
+              const currentMonthYear = `${today.getMonth()}-${today.getFullYear()}`;
+              if (profileData.lastPaidMonthYear === currentMonthYear) {
+                noticeEl.classList.add('hidden');
+                noticeEl.classList.remove('flex');
+                return;
+              }
+
+              noticeEl.classList.remove('hidden');
+              noticeEl.classList.add('flex');
+              
+              let title = `Sua fatura vence hoje!`;
+              let urgencyClass = 'from-red-600 to-red-800'; // Today
+              
+              if (daysLeft === 1) {
+                title = `Sua fatura vence amanhã!`;
+                urgencyClass = 'from-red-500 to-red-600';
+              } else if (daysLeft > 1) {
+                title = `Sua fatura vence em ${daysLeft} dias.`;
+                urgencyClass = 'from-orange-500 to-red-500';
+              }
+
+              (document.getElementById('billing-notice-title') || {}).textContent = title;
+              noticeEl.className = `bg-gradient-to-r ${urgencyClass} text-white px-4 py-3 mx-4 mt-6 rounded-xl shadow-lg flex-col sm:flex-row items-center justify-between gap-3 transform transition-all cursor-pointer`;
+              
+              // Helper details for modal
+              window.currentInvoiceDetails = {
+                fee: parseFloat(monthlyFee).toFixed(2).replace('.', ','),
+                date: billingDay,
+                pix: pixKey
+              };
+            } else {
+              noticeEl.classList.add('hidden');
+              noticeEl.classList.remove('flex');
+            }
+          } else if (noticeEl) {
+            noticeEl.classList.add('hidden');
+            noticeEl.classList.remove('flex');
+          }
+        }
+      });
+
+      // Listen to Categories
+      onSnapshot(query(collection(db, COLLECTIONS.categories), where("storeId", "==", window.currentStoreId)), (catSnap) => {
+        activeCategories = [];
+        catSnap.forEach(snap => {
+          activeCategories.push({ id: snap.id, ...snap.data() });
+        });
+        activeCategories.sort((a,b) => (a.order || 0) - (b.order || 0));
+        
+        renderCategoriesManager();
+        fillProductFormCategorySelect();
+      });
+
+      // Listen to Products
+      onSnapshot(query(collection(db, COLLECTIONS.products), where("storeId", "==", window.currentStoreId)), (prodSnap) => {
+        activeProducts = [];
+        prodSnap.forEach(snap => {
+          activeProducts.push({ id: snap.id, ...snap.data() });
+        });
+
+        triggerProductsSearchFilter();
+      });
+
+      // Listen to Complements (indexing for searching)
+      onSnapshot(query(collection(db, COLLECTIONS.complements), where("storeId", "==", window.currentStoreId)), (compSnap) => {
+        activeComplementsMap = {};
+        compSnap.forEach(snap => {
+          activeComplementsMap[snap.id] = snap.data();
+        });
+        
+        // If searching, we skip re-render unless needed, but usually search relies on this map
+        if (complementSearchQuery) {
+          triggerProductsSearchFilter();
+        }
+      });
+    }
+
+    // Keep function for manual triggers if needed, but it essentially triggers the render if already tracking
+    async function refreshManagementDatabases() {
+      // Re-render manually using active state
+      renderCategoriesManager();
+      fillProductFormCategorySelect();
+      triggerProductsSearchFilter();
+    }
+
+    // Category CRUD list builder
+    function renderCategoriesManager() {
+      const container = document.getElementById('categories-sort-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      (document.getElementById('lbl-categories-count') || {}).textContent = activeCategories.length;
+
+      activeCategories.forEach((cat, idx) => {
+        const item = document.createElement('div');
+        item.className = "bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between shadow-2xs";
+        
+        item.innerHTML = `
+          <div class="flex-grow pr-4">
+            <span class="text-xs font-bold text-gray-800 block capitalize">${cat.name}</span>
+            <span class="block text-[9px] text-gray-400 font-semibold font-mono">Ordem: ${cat.order || 0}</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button onclick="moveCategorySorting(${idx}, -1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer">▲</button>
+            <button onclick="moveCategorySorting(${idx}, 1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer">▼</button>
+            <button onclick="deleteCategoryAction('${cat.id}')" class="w-7 h-7 bg-red-100 text-brand-danger hover:bg-red-200 text-xs font-bold rounded-md flex items-center justify-center cursor-pointer">✕</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    window.moveCategorySorting = async function(index, dir) {
+      if (index === 0 && dir === -1) return;
+      if (index === activeCategories.length - 1 && dir === 1) return;
+
+      const targetIdx = index + dir;
+      const current = activeCategories[index];
+      const other = activeCategories[targetIdx];
+
+      const tempOrder = current.order || 0;
+      current.order = other.order || 0;
+      other.order = tempOrder;
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.categories, current.id), { order: current.order });
+        await updateDoc(doc(db, COLLECTIONS.categories, other.id), { order: other.order });
+        
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Sorting transition error: ", err);
+      }
+    }
+
+    window.createNewCategory = async function() {
+      const nameIn = document.getElementById('new-category-name').value.trim();
+      if (!nameIn) return;
+
+      try {
+        const catId = "CAT-" + Date.now().toString(36);
+        const nextOrderIndex = activeCategories.length > 0 ? (Math.max(...activeCategories.map(c => c.order || 0)) + 1) : 0;
+        
+        const block = {
+          id: catId,
+          name: nameIn,
+          order: nextOrderIndex,
+          createdAt: new Date().toISOString()
+        ,
+storeId: window.currentStoreId
+};
+
+        await setDoc(doc(db, COLLECTIONS.categories, catId), block);
+        (document.getElementById('new-category-name') || {}).value = '';
+        refreshManagementDatabases();
+      } catch(err) {
+        console.error("Creating category fail: ", err);
+      }
+    }
+
+    window.deleteCategoryAction = async function(catId) {
+      const confirmState = await window.customConfirm("Deseja realmente excluir esta categoria? Atenção: isso não excluirá os produtos, mas eles perderão o link da categoria!");
+      if (!confirmState) return;
+
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.categories, catId));
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Excluir categoria fail: ", err);
+      }
+    }
+
+    function fillProductFormCategorySelect() {
+      const sel = document.getElementById('form-product-category');
+      if (sel) sel.innerHTML = `<option value="">Selecione a categoria...</option>`;
+      activeCategories.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.name;
+        sel.appendChild(option);
+      });
+    }
+
+    window.toggleProductFormModal = function(show, prd = null) {
+      const modal = document.getElementById('product-form-modal');
+      const box = modal.querySelector('div');
+      
+      if (show) {
+        if (prd) {
+          (document.getElementById('product-form-title') || {}).textContent = "Editar Produto";
+          (document.getElementById('form-product-id') || {}).value = prd.id;
+          (document.getElementById('form-product-name') || {}).value = prd.name;
+          (document.getElementById('form-product-pdv') || {}).value = prd.pdvCode || '';
+          (document.getElementById('form-product-price') || {}).value = prd.price;
+          (document.getElementById('form-product-stock') || {}).value = prd.stock !== null && prd.stock !== undefined ? prd.stock : '';
+          (document.getElementById('form-product-origprice') || {}).value = prd.originalPrice || '';
+          (document.getElementById('form-product-category') || {}).value = prd.categoryId;
+          (document.getElementById('form-product-desc') || {}).value = prd.description || '';
+          (document.getElementById('form-product-exclusive') || {}).checked = !!prd.exclusivo;
+
+          // Setup availability fields
+          const days = prd.availableDays || [0, 1, 2, 3, 4, 5, 6];
+          for (let d = 0; d <= 6; d++) {
+            const dayChkbx = document.getElementById(`avail-day-${d}`);
+            if (dayChkbx) dayChkbx.checked = days.includes(d);
+          }
+          (document.getElementById('avail-time-start') || {}).value = prd.availableTimeStart || '';
+          (document.getElementById('avail-time-end') || {}).value = prd.availableTimeEnd || '';
+
+          if (prd.image) {
+            imageBase64Data = prd.image;
+            (document.getElementById('form-img-preview') || {}).src = prd.image;
+            document.getElementById('form-img-preview').classList.remove('hidden');
+            document.getElementById('form-img-placeholder').classList.add('hidden');
+          } else {
+            imageBase64Data = "";
+            document.getElementById('form-img-preview').classList.add('hidden');
+            document.getElementById('form-img-placeholder').classList.remove('hidden');
+          }
+        } else {
+          (document.getElementById('product-form-title') || {}).textContent = "Cadastrar Produto";
+          document.getElementById('product-catalog-form').reset();
+          (document.getElementById('form-product-id') || {}).value = '';
+          imageBase64Data = "";
+          document.getElementById('form-img-preview').classList.add('hidden');
+          document.getElementById('form-img-placeholder').classList.remove('hidden');
+
+          // Reset availability fields to check all days
+          for (let d = 0; d <= 6; d++) {
+            const dayChkbx = document.getElementById(`avail-day-${d}`);
+            if (dayChkbx) dayChkbx.checked = true;
+          }
+          (document.getElementById('avail-time-start') || {}).value = '';
+          (document.getElementById('avail-time-end') || {}).value = '';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          box.classList.remove('scale-95');
+        }, 50);
+      } else {
+        box.classList.add('scale-95');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+    }
+
+    window.convertProductImageToBase64 = async function() {
+      const fileInput = document.getElementById('form-product-image-file');
+      const preview = document.getElementById('form-img-preview');
+      const placeholder = document.getElementById('form-img-placeholder');
+
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      try {
+        if (window.optimizeAndConvertToBase64) {
+          imageBase64Data = await window.optimizeAndConvertToBase64(file, 950);
+        } else {
+          // Fallback if not loaded
+          if (file.size > 950 * 1024) {
+            alert("🔒 Atenção: O arquivo da imagem excede os limites de segurança da plataforma: Máximo 950KB compatível com Firestore!");
+            fileInput.value = '';
+            return;
+          }
+          imageBase64Data = await new Promise((resolve, reject) => {
+             const reader = new FileReader();
+             reader.onload = () => resolve(reader.result);
+             reader.onerror = reject;
+             reader.readAsDataURL(file);
+          });
+        }
+        preview.src = imageBase64Data;
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+      } catch (err) {
+        console.error("Error optimizing image:", err);
+        alert("Erro ao otimizar imagem: " + err);
+        fileInput.value = '';
+      }
+    }
+
+    async function saveOrUpdateCatalogProduct(e) {
+      e.preventDefault();
+
+      const prdId = document.getElementById('form-product-id').value || "PRD-" + Date.now().toString(36);
+      const name = document.getElementById('form-product-name').value.trim();
+      const pdv = document.getElementById('form-product-pdv').value.trim() || prdId;
+      const price = parseFloat(document.getElementById('form-product-price').value || 0);
+      const stockInput = document.getElementById('form-product-stock').value;
+      const stock = stockInput ? parseInt(stockInput, 10) : null;
+      const origInput = document.getElementById('form-product-origprice').value;
+      const origPrice = origInput ? parseFloat(origInput) : null;
+      const cat = document.getElementById('form-product-category').value;
+      const desc = document.getElementById('form-product-desc').value.trim();
+      const excl = document.getElementById('form-product-exclusive').checked;
+
+      // Extract available days
+      const availableDays = [];
+      for (let d = 0; d <= 6; d++) {
+        const checkbox = document.getElementById(`avail-day-${d}`);
+        if (checkbox && checkbox.checked) {
+          availableDays.push(d);
+        }
+      }
+
+      // Extract times
+      const availableTimeStart = document.getElementById('avail-time-start').value || null;
+      const availableTimeEnd = document.getElementById('avail-time-end').value || null;
+
+      const productBlock = {
+        id: prdId,
+        name: name,
+        pdvCode: pdv,
+        price: price,
+        stock: stock,
+        originalPrice: origPrice,
+        categoryId: cat,
+        description: desc,
+        image: imageBase64Data,
+        paused: false,
+        exclusivo: excl,
+        availableDays: availableDays,
+        availableTimeStart: availableTimeStart,
+        availableTimeEnd: availableTimeEnd,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        storeId: window.currentStoreId
+      };
+
+      try {
+        await setDoc(doc(db, COLLECTIONS.products, prdId), productBlock, { merge: true });
+        toggleProductFormModal(false);
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Setting product fail: ", err);
+        alert("Erro ao cadastrar produto: " + err.message);
+      }
+    }
+
+    window.toggleProductPauseState = async function(prdId, isCurrentlyPaused) {
+      try {
+        await updateDoc(doc(db, COLLECTIONS.products, prdId), {
+          paused: !isCurrentlyPaused
+        });
+        refreshManagementDatabases();
+      } catch(err) {
+        console.error("Pause toggle prd error: ", err);
+      }
+    }
+
+    window.deleteProductAction = async function(prdId) {
+      const state = await window.customConfirm("Deseja deletar este produto? Essa ação também apagará os complementos relativos configurados.");
+      if (!state) return;
+
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.products, prdId));
+        await deleteDoc(doc(db, COLLECTIONS.complements, prdId));
+        refreshManagementDatabases();
+      } catch(err) {
+        console.error("Deleting catalog products fail: ", err);
+      }
+    }
+
+    window.duplicateProductAction = async function(prdId) {
+      const prd = activeProducts.find(p => p.id === prdId);
+      if (!prd) return;
+
+      const state = await window.customConfirm(`Deseja duplicar o produto "${prd.name}"? (Isso criará uma cópia com os mesmos complementos se houver)`);
+      if (!state) return;
+
+      try {
+        const newPrdId = "PRD-" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        
+        // Let's copy product attributes
+        const clonedPrd = {
+          ...prd,
+          id: newPrdId,
+          name: prd.name + " (Cópia)",
+          pdvCode: prd.pdvCode ? prd.pdvCode + "-COPIA" : "COP-" + Math.floor(100 + Math.random() * 900).toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        ,
+storeId: window.currentStoreId
+};
+
+        // Write new product to Firestore
+        await setDoc(doc(db, COLLECTIONS.products, newPrdId), clonedPrd);
+
+        // Fetch source complements document to duplicate
+        const compRef = doc(db, COLLECTIONS.complements, prd.id);
+        const compSnap = await getComplementDoc(compRef, prd.id);
+        if (compSnap.exists()) {
+          const compData = compSnap.data();
+          compData.id = newPrdId;
+          compData.storeId = window.currentStoreId;
+          await setDoc(doc(db, COLLECTIONS.complements, newPrdId), compData);
+        }
+
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Erro ao duplicar produto: ", err);
+        alert("Erro ao duplicar produto: " + err.message);
+      }
+    }
+
+    window.triggerProductsSearchFilter = function() {
+      const searchInput = document.getElementById('product-search-bar');
+      if (!searchInput) return;
+      
+      const barValue = searchInput.value.trim().toLowerCase();
+      complementSearchQuery = barValue; // Sync with global query for modals
+      drawProductsCatalogViewer(barValue);
+    }
+
+    window.applyCatalogFilter = function(filterType) {
+      activeCatalogFilter = filterType;
+      
+      // Update UI buttons
+      document.querySelectorAll('.catalog-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-orange-100', 'text-brand-primary');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+      });
+      document.getElementById(`filter-${filterType}`).classList.add('bg-orange-100', 'text-brand-primary');
+      document.getElementById(`filter-${filterType}`).classList.remove('bg-gray-100', 'text-gray-600');
+      
+      drawProductsCatalogViewer(complementSearchQuery);
+    }
+
+    // No trigger needed here anymore as it syncs with main search
+    window.triggerComplementsStructureFilter = function() {}
+
+    function drawProductsCatalogViewer(searchQuery = "") {
+      const parent = document.getElementById('products-catalog-list');
+      if (!parent) return;
+      parent.innerHTML = '';
+
+      // Reset mass actions state
+      const selectAll = document.getElementById('select-all-products');
+      if (selectAll) selectAll.checked = false;
+      const toolbar = document.getElementById('mass-actions-toolbar');
+      if (toolbar) toolbar.classList.add('hidden');
+      const countLabel = document.getElementById('selected-products-count');
+      if (countLabel) countLabel.textContent = '0 itens selecionados';
+
+      let matching = activeProducts;
+      
+      // 1. Apply filter
+      if (activeCatalogFilter === 'paused') {
+        matching = matching.filter(p => p.paused === true);
+      } else if (activeCatalogFilter === 'lowstock') {
+        matching = matching.filter(p => p.stock !== undefined && p.stock !== null && p.stock <= 5);
+      } else if (activeCatalogFilter === 'exclusive') {
+        matching = matching.filter(p => p.exclusivo === true);
+      }
+
+      // 2. Apply search
+      if (searchQuery) {
+        matching = matching.filter(p => {
+          // 1. Search in Name/PDV
+          const basicMatch = p.name.toLowerCase().includes(searchQuery) || 
+                             p.pdvCode.toLowerCase().includes(searchQuery);
+          if (basicMatch) return true;
+
+          // 2. Search in its complements if loaded
+          const prdComps = activeComplementsMap[p.id];
+          if (prdComps && prdComps.groups) {
+            return prdComps.groups.some(group => {
+              const groupMatches = group.name.toLowerCase().includes(searchQuery);
+              const optionsMatch = group.options.some(opt => opt.name.toLowerCase().includes(searchQuery));
+              return groupMatches || optionsMatch;
+            });
+          }
+          return false;
+        });
+      }
+
+      if (matching.length === 0) {
+        parent.innerHTML = `
+          <div class="text-center py-10 text-gray-400">
+            <p class="text-xs">Nenhum produto encontrado neste filtro.</p>
+          </div>`;
+        return;
+      }
+
+      // Group products by category (activeCategories is already sorted by "order")
+      activeCategories.forEach(cat => {
+        const catProducts = matching.filter(p => p.categoryId === cat.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+        if (catProducts.length > 0) {
+          // Create category section container
+          const catSection = document.createElement('div');
+          catSection.className = "mb-6 space-y-2.5";
+
+          // Header
+          const catHeader = document.createElement('div');
+          catHeader.className = "flex items-center gap-2 mb-2 mt-4 sticky top-0 bg-white z-10 py-1.5 border-b border-gray-100";
+          catHeader.innerHTML = `
+            <span class="text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg">${cat.name.toUpperCase()}</span>
+            <span class="text-[10px] font-bold text-gray-400">(${catProducts.length} ${catProducts.length === 1 ? 'item' : 'itens'})</span>
+          `;
+          catSection.appendChild(catHeader);
+
+          // Render rows
+          catProducts.forEach(prd => {
+            const row = createProductCatalogRow(prd, cat.name);
+            catSection.appendChild(row);
+          });
+
+          parent.appendChild(catSection);
+        }
+      });
+
+      // Products without category (uncategorized)
+      const uncategorizedProducts = matching.filter(p => !p.categoryId || !activeCategories.some(c => c.id === p.categoryId));
+      if (uncategorizedProducts.length > 0) {
+        const catSection = document.createElement('div');
+        catSection.className = "mb-6 space-y-2.5";
+
+        const catHeader = document.createElement('div');
+        catHeader.className = "flex items-center gap-2 mb-2 mt-4 sticky top-0 bg-white z-10 py-1.5 border-b border-gray-100";
+        catHeader.innerHTML = `
+          <span class="text-[10px] font-bold uppercase tracking-wider text-gray-650 bg-gray-100 px-2.5 py-1 rounded-lg">SEM CATEGORIA</span>
+          <span class="text-[10px] font-bold text-gray-400">(${uncategorizedProducts.length} ${uncategorizedProducts.length === 1 ? 'item' : 'itens'})</span>
+        `;
+        catSection.appendChild(catHeader);
+
+        uncategorizedProducts.forEach(prd => {
+          const row = createProductCatalogRow(prd, "Sem Categoria");
+          catSection.appendChild(row);
+        });
+
+        parent.appendChild(catSection);
+      }
+    }
+
+    // Helper to render product row
+    function createProductCatalogRow(prd, categoryName) {
+      const row = document.createElement('div');
+      row.className = "bg-gray-50/50 p-3.5 rounded-2xl border border-gray-150/40 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between text-left transition-all hover:bg-white hover:border-orange-200/50 shadow-2xs";
+
+      const defaultSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23fed7aa'/><text x='50' y='55' font-family='sans-serif' font-size='24' fill='%23ea580c' text-anchor='middle'>🍔</text></svg>`;
+      const imgPrvUrl = prd.image || defaultSvg;
+
+      row.innerHTML = `
+        <div class="flex items-center gap-3.5 flex-grow pr-4 w-full sm:w-auto">
+          <label class="cursor-pointer flex items-center shrink-0 mr-1">
+             <input type="checkbox" value="${prd.id}" onchange="updateSelectedProductsCount()" class="product-selection-checkbox w-4 h-4 text-brand-primary rounded border-gray-300 focus:ring-brand-primary">
+          </label>
+          <div class="w-14 h-14 bg-orange-100 rounded-xl overflow-hidden border border-orange-200 flex items-center justify-center flex-shrink-0">
+            <img src="${imgPrvUrl}" class="w-full h-full object-cover">
+          </div>
+          <div class="space-y-0.5 flex-grow min-w-0">
+            <h4 class="font-bold text-xs text-gray-800 capitalize leading-relaxed truncate">${prd.name}</h4>
+            <p class="text-[10px] text-gray-400 font-semibold font-mono">PDV: ${prd.pdvCode || prd.id} | ${categoryName}</p>
+            <p class="text-xs font-bold text-brand-primary">R$ ${(prd.price).toFixed(2).replace('.', ',')}</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-end">
+          <button onclick="moveProductSorting('${prd.id}', -1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer" title="Mover para cima">▲</button>
+          <button onclick="moveProductSorting('${prd.id}', 1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer" title="Mover para baixo">▼</button>
+          <button onclick="openComplementsModal('${prd.id}')" class="bg-gray-800 hover:bg-gray-950 text-white font-semibold py-2 px-3 text-[10px] rounded-lg transition-transform hover:scale-105 cursor-pointer">✏️ Complementos</button>
+          <button onclick="toggleProductPauseState('${prd.id}', ${prd.paused})" class="py-2 px-3 text-[10px] rounded-lg transition-all font-semibold cursor-pointer ${prd.paused ? 'bg-orange-100 text-brand-primary' : 'bg-gray-100 text-gray-650'} hover:scale-105">${prd.paused ? 'Retomar' : 'Pausar'}</button>
+          <button onclick="triggerProductEditionTrigger('${prd.id}')" class="bg-blue-50 text-blue-650 hover:bg-blue-100 py-2 px-3 text-[10px] font-semibold rounded-lg hover:scale-105 cursor-pointer">Editar</button>
+          <button onclick="duplicateProductAction('${prd.id}')" class="bg-green-50 text-green-650 hover:bg-green-150 py-2 px-3 text-[10px] font-semibold rounded-lg hover:scale-105 cursor-pointer" title="Duplicar Produto">📁 Duplicar</button>
+          <button onclick="deleteProductAction('${prd.id}')" class="bg-red-50 text-brand-danger hover:bg-red-100 py-2 px-3 text-[10px] font-bold rounded-lg hover:scale-105 cursor-pointer">Deletar</button>
+        </div>
+      `;
+      return row;
+    }
+
+    // Mass Actions Logic
+    window.toggleSelectAllProducts = function(checkbox) {
+      const isChecked = checkbox.checked;
+      const checkboxes = document.querySelectorAll('.product-selection-checkbox');
+      checkboxes.forEach(cb => {
+         cb.checked = isChecked;
+      });
+      updateSelectedProductsCount();
+    }
+
+    window.updateSelectedProductsCount = function() {
+      const selected = document.querySelectorAll('.product-selection-checkbox:checked');
+      const countLabel = document.getElementById('selected-products-count');
+      const toolbar = document.getElementById('mass-actions-toolbar');
+      
+      if (selected.length > 0) {
+        toolbar.classList.remove('hidden');
+        countLabel.textContent = `${selected.length} ${selected.length === 1 ? 'item selecionado' : 'itens selecionados'}`;
+      } else {
+        toolbar.classList.add('hidden');
+        // Uncheck "select all" if 0 selected
+        (document.getElementById('select-all-products') || {}).checked = false;
+      }
+    }
+
+    window.massActionPause = async function() {
+      const selected = Array.from(document.querySelectorAll('.product-selection-checkbox:checked')).map(cb => cb.value);
+      if (selected.length === 0) return;
+
+      if (!confirm(`Tem certeza que deseja alternar o status de pausa de ${selected.length} produtos?`)) return;
+
+      try {
+         for (const prdId of selected) {
+            const prd = activeProducts.find(p => p.id === prdId);
+            if (prd) {
+               const newStatus = !prd.paused;
+               const ref = doc(db, COLLECTIONS.products, prdId);
+               await updateDoc(ref, { paused: newStatus });
+               prd.paused = newStatus; // Update local state for immediate feedback
+            }
+         }
+         
+         // Uncheck all and hide toolbar
+         document.querySelectorAll('.product-selection-checkbox').forEach(cb => cb.checked = false);
+         updateSelectedProductsCount();
+         drawProductsCatalogViewer(document.getElementById('product-search-bar').value);
+      } catch (e) {
+         console.error("Erro na ação em massa:", e);
+         alert("Ocorreu um erro ao atualizar alguns produtos.");
+      }
+    }
+
+    window.massActionDelete = async function() {
+      const selected = Array.from(document.querySelectorAll('.product-selection-checkbox:checked')).map(cb => cb.value);
+      if (selected.length === 0) return;
+
+      if (!confirm(`Tem certeza que deseja DELETAR ${selected.length} produtos? Esta ação não pode ser desfeita.`)) return;
+
+      try {
+         for (const prdId of selected) {
+            const ref = doc(db, COLLECTIONS.products, prdId);
+            await deleteDoc(ref);
+         }
+         
+         // Uncheck all and hide toolbar
+         document.querySelectorAll('.product-selection-checkbox').forEach(cb => cb.checked = false);
+         updateSelectedProductsCount();
+         // The snapshot listener will trigger and redraw automatically, but we can redraw manually too
+         // drawProductsCatalogViewer(document.getElementById('product-search-bar').value);
+      } catch (e) {
+         console.error("Erro ao deletar em massa:", e);
+         alert("Ocorreu um erro ao deletar alguns produtos.");
+      }
+    }
+
+    window.triggerProductEditionTrigger = function(prdId) {
+      const prd = activeProducts.find(p => p.id === prdId);
+      if (prd) toggleProductFormModal(true, prd);
+    }
+
+    window.moveProductSorting = async function(prdId, dir) {
+      const prd = activeProducts.find(p => p.id === prdId);
+      if (!prd) return;
+      const catProducts = activeProducts.filter(p => p.categoryId === prd.categoryId).sort((a, b) => (a.order || 0) - (b.order || 0));
+      const idx = catProducts.findIndex(p => p.id === prdId);
+      if (idx === 0 && dir === -1) return;
+      if (idx === catProducts.length - 1 && dir === 1) return;
+      
+      const targetIdx = idx + dir;
+      const other = catProducts[targetIdx];
+      
+      const tempOrder = prd.order || 0;
+      prd.order = other.order || 0;
+      other.order = tempOrder;
+      
+      // Se a ordem for igual, usa o índice para forçar a troca
+      if (prd.order === other.order) {
+        prd.order = targetIdx;
+        other.order = idx;
+      }
+      
+      try {
+        await updateDoc(doc(db, COLLECTIONS.products, prd.id), { order: prd.order });
+        await updateDoc(doc(db, COLLECTIONS.products, other.id), { order: other.order });
+      } catch (err) {
+        console.error("Erro ao reordenar produtos: ", err);
+      }
+    }
+
+    window.toggleComplementsModal = function(show) {
+      const modal = document.getElementById('complements-modal');
+      const inner = modal.querySelector('div');
+      if (show) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          inner.classList.remove('scale-95');
+        }, 50);
+      } else {
+        inner.classList.add('scale-95');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+    }
+
+    window.openComplementsModal = async function(prdId) {
+      const prd = activeProducts.find(p => p.id === prdId);
+      if (!prd) return;
+
+      activeComplementProduct = prd;
+      (document.getElementById('comp-lbl-product-name') || {}).textContent = prd.name;
+
+      (document.getElementById('comp-new-group-name') || {}).value = '';
+      (document.getElementById('comp-new-group-desc') || {}).value = '';
+      (document.getElementById('comp-new-group-mand') || {}).checked = false;
+      (document.getElementById('comp-new-group-min') || {}).value = '';
+      (document.getElementById('comp-new-group-max') || {}).value = '';
+
+      drawProductComplementsStructure();
+      toggleComplementsModal(true);
+    }
+
+    window.moveComplementGroup = async function(idx, dir) {
+      if (!activeComplementProduct) return;
+      try {
+        const compRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(compRef, activeComplementProduct.id);
+        
+        if (compSnap.exists() && compSnap.data().groups) {
+          const compsListArr = compSnap.data().groups;
+          const targetIdx = idx + dir;
+          
+          if (targetIdx < 0 || targetIdx >= compsListArr.length) return;
+          
+          const temp = compsListArr[idx];
+          compsListArr[idx] = compsListArr[targetIdx];
+          compsListArr[targetIdx] = temp;
+          
+          await updateDoc(compRef, { groups: compsListArr });
+          drawProductComplementsStructure();
+        }
+      } catch (err) {
+        console.error("Erro ao reordenar grupo: ", err);
+        alert("Ocorreu um erro ao reordenar o grupo.");
+      }
+    };
+
+    async function getComplementDoc(ref, id) {
+      try {
+        const snap = await getDoc(ref);
+        return snap;
+      } catch (e) {
+        if (activeComplementsMap[id]) {
+          return {
+            exists: () => true,
+            data: () => activeComplementsMap[id]
+          };
+        }
+        return { exists: () => false, data: () => null };
+      }
+    }
+
+    async function drawProductComplementsStructure() {
+      const parentList = document.getElementById('complements-groups-list');
+      if (!parentList) return;
+      parentList.innerHTML = '';
+
+      try {
+        const compRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(compRef, activeComplementProduct.id);
+
+        if (compSnap.exists() && compSnap.data().groups && compSnap.data().groups.length > 0) {
+          const compsListArr = compSnap.data().groups;
+
+          compsListArr.forEach((group, idx) => {
+            // Filter logic: if search query exists, check if group name or any option name matches
+            const groupMatches = group.name.toLowerCase().includes(complementSearchQuery);
+            const optionsMatching = group.options.filter(o => o.name.toLowerCase().includes(complementSearchQuery));
+            
+            if (complementSearchQuery && !groupMatches && optionsMatching.length === 0) {
+              return; // Skip this group if no match
+            }
+
+            const groupCard = document.createElement('div');
+            groupCard.className = "bg-gray-50 p-4 border border-gray-150/40 rounded-xl space-y-3.5 text-left transition-all duration-200";
+            
+            const mandateBadge = group.isMandatory ? `<span class="bg-orange-100 text-brand-primary font-bold text-[9px] px-2 py-0.5 rounded">Obrigatório</span>` : `<span class="bg-gray-200 text-gray-500 font-bold text-[9px] px-2 py-0.5 rounded">Opcional</span>`;
+
+            groupCard.innerHTML = `
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="flex flex-col gap-0.5">
+                    <button onclick="moveComplementGroup(${idx}, -1)" class="w-5 h-5 bg-white text-gray-650 hover:text-brand-primary text-[10px] font-semibold rounded border border-gray-200 flex items-center justify-center cursor-pointer transition-colors" title="Mover para cima" ${idx === 0 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''}>▲</button>
+                    <button onclick="moveComplementGroup(${idx}, 1)" class="w-5 h-5 bg-white text-gray-650 hover:text-brand-primary text-[10px] font-semibold rounded border border-gray-200 flex items-center justify-center cursor-pointer transition-colors" title="Mover para baixo" ${idx === compsListArr.length - 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''}>▼</button>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-gray-800 uppercase tracking-tight block">${group.name}</h4>
+                    <p class="text-[10px] text-gray-400 italic">${group.description || "Escolha adereços adicionais"}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  ${mandateBadge}
+                  <button onclick="triggerEditComplementGroup(${idx})" class="text-[9px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded transition-colors cursor-pointer">Editar</button>
+                  <button onclick="removeComplementGroupByIndex(${idx})" class="text-[9px] font-bold text-brand-danger hover:text-red-700 bg-red-100 px-2 py-1 rounded transition-colors cursor-pointer">Deletar</button>
+                </div>
+              </div>
+              
+              <hr class="border-gray-200/50">
+
+              <div class="space-y-1.5" id="group-opts-${idx}"></div>
+
+              <div class="space-y-2 bg-white p-2 border border-gray-100 rounded-lg">
+                <div class="flex gap-2">
+                  <input type="text" id="add-opt-name-${idx}" placeholder="Opcional (Ex: Queijo)" class="flex-grow text-[10px] bg-transparent focus:outline-none min-w-0">
+                  <input type="text" id="add-opt-pdv-${idx}" placeholder="PDV" class="w-10 text-[10px] bg-transparent focus:outline-none text-center border-x border-gray-100 px-1">
+                  <input type="number" id="add-opt-stock-${idx}" placeholder="Estoque" class="w-14 text-[10px] bg-transparent focus:outline-none text-center border-r border-gray-100 px-1" title="Estoque">
+                  <input type="number" step="0.01" id="add-opt-price-${idx}" placeholder="R$ 0,00" class="w-14 text-[10px] bg-transparent focus:outline-none text-right">
+                  <button onclick="addNewOptionToGroupByIndex(${idx})" class="bg-gray-800 hover:bg-gray-950 text-white py-1 px-3 text-[10px] rounded font-semibold transition-colors cursor-pointer flex-shrink-0">+</button>
+                </div>
+                <input type="text" id="add-opt-desc-${idx}" placeholder="Descrição opcional..." class="w-full text-[9px] text-gray-400 bg-transparent focus:outline-none border-t border-gray-50 pt-1">
+                <div class="flex items-center justify-between border-t border-gray-50 pt-1.5 px-0.5">
+                  <label class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-500 hover:text-brand-primary cursor-pointer select-none">
+                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span>Adicionar Foto</span>
+                    <input type="file" id="add-opt-image-${idx}" accept="image/*" class="hidden" onchange="previewComplementOptionImage(${idx})">
+                  </label>
+                  <span id="add-opt-image-lbl-${idx}" class="text-[8px] text-emerald-600 font-bold hidden">✓ Foto Selecionada</span>
+                </div>
+              </div>
+            `;
+
+            parentList.appendChild(groupCard);
+
+            const optsContainer = document.getElementById(`group-opts-${idx}`);
+            group.options.forEach((opt, optIdx) => {
+              if (complementSearchQuery && !opt.name.toLowerCase().includes(complementSearchQuery) && !groupMatches) {
+                return; // Only show matching options (or all if group name matched)
+              }
+
+              const optDiv = document.createElement('div');
+              optDiv.className = "flex items-start justify-between text-xs py-2 hover:bg-white px-2 rounded transition-all border-b border-gray-100/50 last:border-0";
+              
+              const formattedPrice = `R$ ${(opt.price || 0).toFixed(2).replace('.', ',')}`;
+              const pdvLabel = opt.pdvCode ? `<span class="bg-gray-100 text-[8px] text-gray-500 font-mono px-1.5 py-0.5 rounded uppercase font-bold inline-block mt-0.5 mr-1">PDV: ${opt.pdvCode}</span>` : "";
+              const stockLabel = (opt.stock !== null && opt.stock !== undefined) ? `<span class="bg-orange-100 text-[8px] text-orange-600 font-mono px-1.5 py-0.5 rounded uppercase font-bold inline-block mt-0.5">Estoque: ${opt.stock}</span>` : "";
+              const decorationClass = opt.paused ? "line-through text-gray-400" : "";
+
+              const optImgHtml = opt.image 
+                ? `<img src="${opt.image}" class="w-10 h-10 object-cover rounded-lg border border-gray-200 mr-2 flex-shrink-0">`
+                : `<div class="w-10 h-10 rounded-lg bg-gray-150 flex items-center justify-center text-[10px] text-gray-400 mr-2 flex-shrink-0 select-none">📷</div>`;
+
+              optDiv.innerHTML = `
+                <div class="flex items-center gap-2 max-w-[65%] min-w-0">
+                  ${optImgHtml}
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-medium capitalize ${decorationClass} truncate">${opt.name} (${formattedPrice})</span>
+                    ${opt.description ? `<span class="text-[9px] text-gray-400 italic truncate">${opt.description}</span>` : ""}
+                    <div>${pdvLabel}${stockLabel}</div>
+                    <label class="text-[8px] text-brand-primary hover:underline cursor-pointer select-none mt-0.5 inline-block">
+                      Alterar Foto
+                      <input type="file" accept="image/*" class="hidden" onchange="uploadComplementOptionImageDirectly(${idx}, ${optIdx}, this)">
+                    </label>
+                  </div>
+                </div>
+                <div class="flex gap-1.5 items-center flex-shrink-0">
+                  <button onclick="toggleComplementOptionPausedState(${idx}, ${optIdx}, ${opt.paused})" class="text-[9px] font-bold cursor-pointer ${opt.paused ? 'text-brand-primary bg-orange-100' : 'text-gray-500 bg-gray-100'} px-2 py-0.5 rounded transition-colors">${opt.paused ? 'Ativar' : 'Pausar'}</button>
+                  <button onclick="triggerEditComplementOption(${idx}, ${optIdx})" class="text-[9px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded transition-colors cursor-pointer">Editar</button>
+                  <button onclick="removeComplementOptionByIndex(${idx}, ${optIdx})" class="text-[9px] font-bold text-brand-danger hover:text-red-700 bg-red-100 px-2 py-0.5 rounded transition-colors cursor-pointer font-sans">Remover</button>
+                </div>
+              `;
+              optsContainer.appendChild(optDiv);
+            });
+          });
+        } else {
+          parentList.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Sem grupos configurados. Adicione acima.</div>`;
+        }
+      } catch (err) {
+        console.error("Complement error: ", err);
+      }
+    }
+
+    window.saveComplementGroup = async function() {
+      const gName = document.getElementById('comp-new-group-name').value.trim();
+      const gDesc = document.getElementById('comp-new-group-desc').value.trim();
+      const gMand = document.getElementById('comp-new-group-mand').checked;
+      const gMin = parseInt(document.getElementById('comp-new-group-min').value || 1);
+      const gMax = parseInt(document.getElementById('comp-new-group-max').value || 1);
+
+      if (!gName) {
+        alert("Preencha o nome do grupo!");
+        return;
+      }
+
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        let data = { id: activeComplementProduct.id, groups: [], storeId: window.currentStoreId };
+        if (compSnap.exists()) {
+          data = compSnap.data();
+          data.storeId = window.currentStoreId;
+        }
+
+        const newGroup = {
+          name: gName,
+          description: gDesc,
+          isMandatory: gMand,
+          minSelection: gMin,
+          maxSelection: gMax,
+          options: []
+        };
+
+        data.groups.push(newGroup);
+        await setDoc(docRef, data);
+
+        (document.getElementById('comp-new-group-name') || {}).value = '';
+        (document.getElementById('comp-new-group-desc') || {}).value = '';
+        (document.getElementById('comp-new-group-mand') || {}).checked = false;
+        (document.getElementById('comp-new-group-min') || {}).value = '';
+        (document.getElementById('comp-new-group-max') || {}).value = '';
+
+        drawProductComplementsStructure();
+      } catch (err) {
+        console.error("Failing saving group document complements: ", err);
+      }
+    }
+
+    window.removeComplementGroupByIndex = async function(index) {
+      const state = await window.customConfirm("Deseja realmente deletar este grupo de complementos?");
+      if (!state) return;
+
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        if (compSnap.exists()) {
+          const data = compSnap.data();
+          data.groups.splice(index, 1);
+          await setDoc(docRef, data);
+          drawProductComplementsStructure();
+        }
+      } catch (err) {
+        console.error("Deleting complement group indices fail: ", err);
+      }
+    }
+
+    window.previewComplementOptionImage = function(groupIdx) {
+      const fileInput = document.getElementById(`add-opt-image-${groupIdx}`);
+      const lbl = document.getElementById(`add-opt-image-lbl-${groupIdx}`);
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        lbl.classList.remove('hidden');
+      } else {
+        lbl.classList.add('hidden');
+      }
+    }
+
+    window.uploadComplementOptionImageDirectly = async function(groupIdx, optIdx, fileInput) {
+      if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
+      
+      const file = fileInput.files[0];
+
+      try {
+        let base64;
+        if (window.optimizeAndConvertToBase64) {
+          base64 = await window.optimizeAndConvertToBase64(file, 950);
+        } else {
+          if (file.size > 950 * 1024) {
+            alert("🔒 Erro: Imagem do complemento excede 950KB.");
+            fileInput.value = '';
+            return;
+          }
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+          
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        if (compSnap.exists()) {
+          const data = compSnap.data();
+          data.groups[groupIdx].options[optIdx].image = base64;
+          await setDoc(docRef, data);
+          drawProductComplementsStructure();
+        }
+      } catch (e) {
+        console.error("Direct image edit error: ", e);
+        alert("Erro ao salvar imagem do complemento.");
+      }
+    }
+
+    window.addNewOptionToGroupByIndex = async function(groupIdx) {
+      const optNameField = document.getElementById(`add-opt-name-${groupIdx}`);
+      const optPDVField = document.getElementById(`add-opt-pdv-${groupIdx}`);
+      const optPriceField = document.getElementById(`add-opt-price-${groupIdx}`);
+      const optStockField = document.getElementById(`add-opt-stock-${groupIdx}`);
+      const optDescField = document.getElementById(`add-opt-desc-${groupIdx}`);
+      const fileInput = document.getElementById(`add-opt-image-${groupIdx}`);
+
+      const optName = optNameField.value.trim();
+      const optPDV = optPDVField.value.trim();
+      const optPrice = parseFloat(optPriceField.value || 0);
+      const optStock = optStockField.value.trim() !== '' ? parseInt(optStockField.value, 10) : null;
+      const optDesc = optDescField.value.trim();
+
+      if (!optName) {
+        alert("Preencha o nome da opção!");
+        return;
+      }
+
+            let optionImage = "";
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+          
+        try {
+          if (window.optimizeAndConvertToBase64) {
+            optionImage = await window.optimizeAndConvertToBase64(file, 950);
+          } else {
+            if (file.size > 950 * 1024) {
+              alert("🔒 Erro: Imagem do complemento excede limite de 950KB.");
+              return;
+            }
+            optionImage = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = (err) => reject(err);
+              reader.readAsDataURL(file);
+            });
+          }
+        } catch (e) {
+          alert("Erro ao ler/otimizar arquivo da imagem.");
+          return;
+        }
+      }
+
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        if (compSnap.exists()) {
+          const data = compSnap.data();
+          
+          if (!data.groups[groupIdx].options) {
+            data.groups[groupIdx].options = [];
+          }
+
+          data.groups[groupIdx].options.push({
+            name: optName,
+            pdvCode: optPDV,
+            price: optPrice,
+            stock: optStock,
+            description: optDesc,
+            image: optionImage,
+            paused: false
+          });
+
+          await setDoc(docRef, data);
+
+          optNameField.value = '';
+          optPDVField.value = '';
+          optPriceField.value = '';
+          optDescField.value = '';
+          if (fileInput) fileInput.value = '';
+          
+          const lbl = document.getElementById(`add-opt-image-lbl-${groupIdx}`);
+          if (lbl) lbl.classList.add('hidden');
+
+          drawProductComplementsStructure();
+        }
+      } catch (err) {
+        console.error("Adding complement options indices failed: ", err);
+      }
+    }
+
+    let editingComplementGroupIdx = null;
+
+    window.toggleEditComplementGroupModal = function(show) {
+      const modal = document.getElementById('edit-complement-group-modal');
+      const inner = modal.querySelector('div');
+      if (show) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          inner.classList.remove('scale-95');
+        }, 50);
+      } else {
+        inner.classList.add('scale-95');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+    }
+
+    window.triggerEditComplementGroup = async function(groupIdx) {
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+        if (!compSnap.exists()) return;
+
+        const data = compSnap.data();
+        const group = data.groups[groupIdx];
+
+        editingComplementGroupIdx = groupIdx;
+
+        // Pre-fill fields
+        (document.getElementById('comp-edit-group-name') || {}).value = group.name || '';
+        (document.getElementById('comp-edit-group-desc') || {}).value = group.description || '';
+        (document.getElementById('comp-edit-group-mand') || {}).checked = !!group.isMandatory;
+        (document.getElementById('comp-edit-group-min') || {}).value = group.minSelection !== undefined ? group.minSelection : 1;
+        (document.getElementById('comp-edit-group-max') || {}).value = group.maxSelection !== undefined ? group.maxSelection : 1;
+
+        toggleEditComplementGroupModal(true);
+      } catch (err) {
+        console.error("Edit complement group fail: ", err);
+      }
+    }
+
+    window.saveEditComplementGroup = async function() {
+      if (editingComplementGroupIdx === null) return;
+      
+      const newName = document.getElementById('comp-edit-group-name').value.trim();
+      const newDesc = document.getElementById('comp-edit-group-desc').value.trim();
+      const newMand = document.getElementById('comp-edit-group-mand').checked;
+      const newMin = parseInt(document.getElementById('comp-edit-group-min').value || 1);
+      const newMax = parseInt(document.getElementById('comp-edit-group-max').value || 1);
+
+      if (!newName) {
+        alert("Preencha o nome do grupo!");
+        return;
+      }
+
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+        if (!compSnap.exists()) return;
+
+        const data = compSnap.data();
+        const group = data.groups[editingComplementGroupIdx];
+
+        group.name = newName;
+        group.description = newDesc;
+        group.isMandatory = newMand;
+        group.minSelection = newMin;
+        group.maxSelection = newMax;
+
+        await setDoc(docRef, data);
+        
+        toggleEditComplementGroupModal(false);
+        drawProductComplementsStructure();
+      } catch (err) {
+        console.error("Save complement group fail: ", err);
+      }
+    }
+
+    window.triggerEditComplementOption = async function(groupIdx, optIdx) {
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+        if (!compSnap.exists()) return;
+
+        const data = compSnap.data();
+        const opt = data.groups[groupIdx].options[optIdx];
+
+        const newName = prompt("Nome do Complemento:", opt.name);
+        if (newName === null) return;
+
+        const newPDV = prompt("Código PDV:", opt.pdvCode || "");
+        if (newPDV === null) return;
+
+        const newPriceStr = prompt("Preço (R$):", opt.price || "0");
+        if (newPriceStr === null) return;
+        const newPrice = parseFloat(newPriceStr.replace(',', '.') || 0);
+
+        const newStockStr = prompt("Estoque (vazio para ilimitado):", opt.stock !== null && opt.stock !== undefined ? opt.stock : "");
+        if (newStockStr === null) return;
+        const newStock = newStockStr.trim() !== '' ? parseInt(newStockStr, 10) : null;
+
+        const newDesc = prompt("Descrição:", opt.description || "");
+        if (newDesc === null) return;
+
+        opt.name = newName;
+        opt.pdvCode = newPDV;
+        opt.price = newPrice;
+        opt.stock = newStock;
+        opt.description = newDesc;
+
+        await setDoc(docRef, data);
+        drawProductComplementsStructure();
+      } catch (err) {
+        console.error("Edit complement option fail: ", err);
+      }
+    }
+
+    window.toggleComplementOptionPausedState = async function(groupIdx, optIdx, isCurrentlyPaused) {
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        if (compSnap.exists()) {
+          const data = compSnap.data();
+          data.groups[groupIdx].options[optIdx].paused = !isCurrentlyPaused;
+          await setDoc(docRef, data);
+          drawProductComplementsStructure();
+        }
+      } catch (err) {
+        console.error("Pause opt complement error: ", err);
+      }
+    }
+
+    window.removeComplementOptionByIndex = async function(groupIdx, optIdx) {
+      try {
+        const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
+        const compSnap = await getComplementDoc(docRef, activeComplementProduct.id);
+
+        if (compSnap.exists()) {
+          const data = compSnap.data();
+          data.groups[groupIdx].options.splice(optIdx, 1);
+          await setDoc(docRef, data);
+          drawProductComplementsStructure();
+        }
+      } catch (err) {
+        console.error("Removing complement option index failed: ", err);
+      }
+    }
+
+    // Sidebar toggle and state handling
+    window.toggleSidebar = function(forceMobileShow) {
+      const sidebar = document.getElementById('main-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (!sidebar) return;
+
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        if (forceMobileShow === true) {
+          sidebar.classList.add('show-mobile');
+          if (overlay) overlay.classList.remove('hidden');
+        } else if (forceMobileShow === false) {
+          sidebar.classList.remove('show-mobile');
+          if (overlay) overlay.classList.add('hidden');
+        } else {
+          const isVisible = sidebar.classList.contains('show-mobile');
+          if (isVisible) {
+            sidebar.classList.remove('show-mobile');
+            if (overlay) overlay.classList.add('hidden');
+          } else {
+            sidebar.classList.add('show-mobile');
+            if (overlay) overlay.classList.remove('hidden');
+          }
+        }
+      } else {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (isCollapsed) {
+          sidebar.classList.remove('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'false');
+        } else {
+          sidebar.classList.add('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'true');
+        }
+      }
+    }
+
+    // Apply sidebar state on load
+    const applySidebarState = () => {
+      const sidebar = document.getElementById('main-sidebar');
+      if (sidebar && window.innerWidth >= 1024) {
+        if (localStorage.getItem('popfood_sidebar_collapsed') === 'true') {
+          sidebar.classList.add('collapsed');
+        } else {
+          sidebar.classList.remove('collapsed');
+        }
+      }
+    }
+    
+    // Auto-detect load state
+    setTimeout(applySidebarState, 100);
+  </script>
+  <script src="image-optimizer.js"></script>
+</body>
+</html>

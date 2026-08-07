@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes CRM - PopFood Delivery</title>
+  <script type="importmap">
+{
+      "imports": {
+        }
+    }
+</script>
+<script>
+window.copyStoreLink = function() {
+      if (!window.currentStoreId) return;
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+      const link = `${window.location.origin}${basePath}/cliente.html?store=${window.currentStoreId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        window.customAlert ? window.customAlert("Link do seu cardápio copiado!") : alert("Link copiado!");
+      }).catch(err => {
+        console.error('Falha ao copiar', err);
+        window.customAlert ? window.customAlert("Não foi possível copiar automaticamente. Use este link: " + link) : alert("Use este link: " + link);
+      });
+    };
+</script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#f97316',
+              secondary: '#22c55e',
+              danger: '#ef4444',
+              light: '#f3f4f6',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Collapsable Sidebar Styles */
+    #main-sidebar {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #main-sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    @media (max-width: 1023px) {
+      #main-sidebar {
+        transform: translateX(-100%) !important;
+      }
+      #main-sidebar.show-mobile {
+        transform: translateX(0) !important;
+      }
+    }
+    /* Side navigation active state indicators */
+    .menu-active {
+      background-color: #1e293b !important; /* bg-slate-800 */
+      color: #f97316 !important; /* text-brand-primary */
+      border-left: 4px solid #f97316 !important;
+    }
+  </style>
+</head>
+<body class="bg-brand-light font-sans text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Authenticated Layout container -->
+  <div class="flex-grow flex flex-col lg:flex-row min-h-screen relative bg-slate-50">
+    
+    <!-- Mobile Sidebar overlay backdrop -->
+    <div id="sidebar-overlay" onclick="window.toggleSidebar(false)" class="hidden fixed inset-0 bg-slate-900/40 z-40"></div>
+
+    <!-- MAIN SIDEBAR MENU -->
+    <aside id="main-sidebar" class="bg-slate-900 text-white w-64 flex-shrink-0 fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col justify-between transition-all duration-300">
+      
+      <!-- Top Branding Section -->
+      <div class="p-5 border-b border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-3xl">🍔</span>
+            <div>
+              <h2 class="font-display font-black text-sm tracking-wide text-orange-500 uppercase">PopFood</h2>
+              <p class="text-[9px] text-slate-400">Painel Administrativo</p>
+            </div>
+          </div>
+          <!-- Close button for mobile -->
+          <button onclick="window.toggleSidebar(false)" class="lg:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Menu Items -->
+      <div class="flex-grow overflow-y-auto px-3.5 py-5 space-y-1.5 font-sans">
+        
+        <!-- Link: Cardápio / Painel -->
+        <a href="index.html" id="menu-link-cardapio" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">🍔</span>
+          <span>Cardápio / Painel</span>
+        </a>
+
+        <!-- Link: Meus Pedidos -->
+        <a href="pedidos.html" id="menu-link-pedidos" class="flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <div class="flex items-center gap-3">
+            <span class="text-base group-hover:scale-110 transition-transform">🛵</span>
+            <span>Meus Pedidos</span>
+          </div>
+        </a>
+
+        <!-- Link: Editar Perfil -->
+        <a href="perfil.html" id="menu-link-perfil" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">⚙️</span>
+          <span>Editar Perfil</span>
+        </a>
+
+        <!-- Link: Clientes -->
+        <a href="clientes.html" id="menu-link-clientes" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group menu-active">
+          <span class="text-base group-hover:scale-110 transition-transform">👥</span>
+          <span>Clientes</span>
+        </a>
+
+        <!-- Link: Relatórios -->
+        <a href="relatorios.html" id="menu-link-relatorios" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all hover:bg-slate-800 hover:text-orange-500 group">
+          <span class="text-base group-hover:scale-110 transition-transform">📊</span>
+          <span>Relatórios</span>
+        </a>
+
+        <!-- Divider -->
+        <div class="border-t border-slate-800 my-4"></div>
+
+        <!-- Copiar Link Cliente Button -->
+        <button onclick="window.copyStoreLink()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white text-left cursor-pointer">
+          <span class="text-base">🔗</span>
+          <span>Copiar Link Cliente</span>
+        </button>
+
+        <!-- Ver Cardápio Live Link -->
+        <a id="btn-view-cardapio-sidebar" href="cliente.html" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-slate-355 hover:bg-slate-800 hover:text-white">
+          <span class="text-base">👁️</span>
+          <span>Ver Cardápio Live</span>
+        </a>
+
+      </div>
+
+      <!-- Sair e logout bar at bottom -->
+      <div class="p-4 border-t border-slate-800">
+        <button onclick="window.logoutAdmin()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all bg-red-950/30 text-red-400 hover:bg-red-900/40 hover:text-white cursor-pointer" id="btn-logout-sidebar">
+          <span class="text-base">🚪</span>
+          <span>Sair e Deslogar</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- CONTENT WRAPPER FOR SIDEBAR LAYOUT -->
+    <div class="flex-grow flex flex-col min-w-0">
+
+      <!-- Admin Top Header Bar -->
+      <header class="bg-white border-b border-gray-200 sticky top-0 z-30 px-4 py-3 flex items-center justify-between">
+        
+        <!-- Left details and menu toggle -->
+        <div class="flex items-center gap-2.5">
+          <!-- Toggle Menu Button -->
+          <button onclick="window.toggleSidebar()" class="p-2 -ml-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all cursor-pointer" title="Mostrar/Ocultar Menu Lateral">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          <div class="flex items-center gap-3">
+            <span class="text-2xl hidden sm:inline">👥</span>
+            <div>
+              <h1 class="font-display font-bold text-base text-gray-800 leading-none">Clientes (CRM)</h1>
+              <p class="text-xs text-gray-400 mt-1 leading-none font-medium">Histórico de compras, LTV e métricas de fidelização</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2">
+          <button onclick="window.copyStoreLink()" class="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            <span class="hidden md:inline font-bold">Copiar Link</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+    
+    <!-- CRM CORE ANALYTICS STRIP KBD -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <!-- Card 1 -->
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base de Clientes</span>
+          <h3 id="lbl-total-clients" class="text-2xl font-display font-bold text-gray-800 leading-tight">0</h3>
+        </div>
+        <span class="text-3xl bg-orange-50 p-2 rounded-xl text-brand-primary">👥</span>
+      </div>
+      <!-- Card 2 -->
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Faturamento Clientes</span>
+          <h3 id="lbl-total-ltv" class="text-2xl font-display font-bold text-gray-800 leading-tight">R$ 0,00</h3>
+        </div>
+        <span class="text-3xl bg-green-50 p-2 rounded-xl text-brand-secondary">💰</span>
+      </div>
+      <!-- Card 3 -->
+      <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ticket Médio Geral</span>
+          <h3 id="lbl-avg-ticket" class="text-2xl font-display font-bold text-gray-800 leading-tight">R$ 0,00</h3>
+        </div>
+        <span class="text-3xl bg-blue-50 p-2 rounded-xl text-blue-500">📈</span>
+      </div>
+    </section>
+
+    <!-- TABLE CONTROLLER STATS -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-4 p-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Search bar input -->
+        <div class="relative w-full max-w-md">
+          <input type="text" id="crm-search-bar" oninput="triggerGlobalCrmSearchFilter()" placeholder="🔍 Buscar por nome, celular ou endereço..." class="w-full text-xs p-3 pl-9 border border-gray-200 rounded-xl focus:outline-none">
+        </div>
+
+        <button onclick="exportClientsListToCsv()" class="bg-gray-800 hover:bg-gray-950 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer self-end sm:self-auto">
+          <span>📥 Exportar CSV</span>
+        </button>
+      </div>
+
+      <!-- Main table clients -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-150 text-xs text-left">
+          <thead class="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-wider">
+            <tr>
+              <th scope="col" class="px-6 py-3.5">Cliente</th>
+              <th scope="col" class="px-6 py-3.5">Localização</th>
+              <th scope="col" class="px-6 py-3.5">Pedidos Realizados</th>
+              <th scope="col" class="px-6 py-3.5 text-center">Progresso Fidelidade</th>
+              <th scope="col" class="px-6 py-3.5">LTV (Total Gasto)</th>
+              <th scope="col" class="px-6 py-3.5 text-right">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="crm-table-body" class="divide-y divide-gray-100 text-gray-600 font-medium">
+            <!-- Populated dynamically -->
+            <tr>
+              <td colspan="5" class="text-center py-10 text-gray-400 text-xs">Aguardando carregamento da base...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+    </div> <!-- Closing content wrapper -->
+  </div> <!-- Closing layout container -->
+
+  <!-- MODAL DIALOG: SPECIFIC CLIENT ORDERS HISTORIC VIEW -->
+  <div id="crm-historic-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col relative transform scale-95 duration-200">
+      <button onclick="toggleCrmHistoricModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 text-sm font-bold z-10 cursor-pointer">✕</button>
+
+      <div class="p-6 border-b border-gray-100">
+        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-loose">Histórico de Compras</span>
+        <h2 id="crm-lbl-client-name" class="font-display font-bold text-lg text-gray-800">Carregando...</h2>
+        <p id="crm-lbl-client-phone" class="text-xs text-brand-primary font-semibold mt-1">Contato: --</p>
+      </div>
+
+      <!-- Orders history scroller -->
+      <div id="crm-orders-history-container" class="p-6 overflow-y-auto max-h-[50vh] space-y-4 bg-gray-50/50">
+        <!-- Content dynamic -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth, Timestamp, COLLECTIONS, collection, getDocs, doc, getDoc, query, where, orderBy, onAuthStateChanged, onSnapshot, signOut } from './supabase-adapter.js';
+
+    window.logoutAdmin = async function() {
+      localStorage.removeItem('popfood_custom_store_id');
+      localStorage.removeItem('popfood_custom_store_email');
+      localStorage.removeItem('popfood_admin_store_override');
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Signout error: ", err);
+      }
+      window.location.href = "index.html";
+    };
+
+    // App CRM memory structures
+    let globalClientsList = [];
+    let globalOrdersListForCrm = [];
+    let restaurantProfile = null;
+
+    window.onload = async () => {
+      window.currentStoreId = null;
+      onAuthStateChanged(auth, async (user) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStoreId = urlParams.get('store');
+        const customStoreId = localStorage.getItem('popfood_custom_store_id');
+        const overrideStoreId = localStorage.getItem('popfood_admin_store_override');
+        
+        if (urlStoreId) {
+          window.currentStoreId = urlStoreId;
+        } else if (overrideStoreId) {
+          window.currentStoreId = overrideStoreId;
+        } else if (customStoreId) {
+          window.currentStoreId = customStoreId;
+        } else if (user) {
+          window.currentStoreId = user.uid;
+        }
+
+        if (!user && !customStoreId && !urlStoreId) {
+          alert("Acesso restrito! Por favor faça login primeiro.");
+          window.location.href = "index.html";
+          return;
+        }
+
+        if (!window.currentStoreId) {
+          window.location.href = "index.html";
+          return;
+        }
+
+        if (overrideStoreId && window.currentStoreId === overrideStoreId) {
+          injectOverrideBannerUI();
+        }
+
+        // Dynamically update address bar URL if store parameter is missing or different
+        if (window.currentStoreId) {
+          const currentUrl = new URL(window.location.href);
+          if (currentUrl.searchParams.get('store') !== window.currentStoreId) {
+            currentUrl.searchParams.set('store', window.currentStoreId);
+            window.history.replaceState(null, '', currentUrl.toString());
+          }
+        }
+
+        // Monitor suspensions globally on route
+        onSnapshot(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), (docSnap) => {
+          if (!docSnap.exists() && !overrideStoreId) {
+             document.body.innerHTML = `
+               <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]" style="overflow:hidden;">
+                  <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                     <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                     <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                  </div>
+                  <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Loja Excluída</h1>
+                  <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                    A sua loja foi completamente <strong>removida</strong> do sistema e este painel foi desativado.
+                  </p>
+                  <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Retornar ao Início</button>
+               </div>
+             `;
+             return;
+          }
+          if (docSnap.exists() && docSnap.data().suspended === true && !overrideStoreId) {
+             document.body.innerHTML = `
+               <div class="h-screen w-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 fixed inset-0 z-[9999999]" style="overflow:hidden;">
+                  <div class="bg-red-500/20 text-red-500 p-5 rounded-full mb-6 relative">
+                     <div class="absolute inset-0 border-4 border-red-500/30 rounded-full animate-ping"></div>
+                     <svg class="w-12 h-12 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                  </div>
+                  <h1 class="text-2xl lg:text-3xl font-black font-display text-center mb-3">Acesso Suspenso</h1>
+                  <p class="text-slate-400 text-center max-w-sm mb-8 text-sm leading-relaxed">
+                    O sistema da sua loja está temporariamente <strong>indisponível</strong>. Provavelmente ocorreu alguma pendência na renovação de sua assinatura.
+                  </p>
+                  <button onclick="window.location.href='index.html'" class="bg-white hover:bg-gray-100 text-slate-900 font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:scale-[1.02] active:scale-95">Retornar ao Dashboard</button>
+               </div>
+             `;
+          }
+        });
+
+        // Dynamically append currentStoreId universally to ALL internal admin links
+        document.querySelectorAll('a').forEach(el => {
+          const href = el.getAttribute('href');
+          if (href) {
+            const adminPages = ['index.html', 'perfil.html', 'pedidos.html', 'clientes.html', 'relatorios.html', 'cliente.html', 'motoboy.html'];
+            const basePath = href.split('?')[0];
+            if (adminPages.includes(basePath)) {
+              el.href = `${basePath}?store=${window.currentStoreId}`;
+            }
+          }
+        });
+  
+
+        // Fetch Profile for Loyalty Settings
+        try {
+          const profileSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId));
+          if (profileSnap.exists()) {
+            restaurantProfile = profileSnap.data();
+          }
+        } catch (e) { console.error(e); }
+
+        // Synchronize database loads
+        await loadCrmMasterDatabases();
+      });
+    };
+
+    function injectOverrideBannerUI() {
+      const overrideStoreName = localStorage.getItem('popfood_admin_store_name_override') || 'Parceiro';
+      let ribbon = document.getElementById('superuser-override-ribbon');
+      if (!ribbon) {
+        ribbon = document.createElement('div');
+        ribbon.id = 'superuser-override-ribbon';
+        ribbon.className = "bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold py-2.5 px-4 text-center flex items-center justify-between gap-3 shadow-md sticky top-0 z-[9999]";
+        ribbon.innerHTML = `
+          <div class="mx-auto flex items-center gap-1.5 flex-wrap justify-center">
+            <span>🛡️</span>
+            <span><strong>MODO SIMULAÇÃO SUPER-USUÁRIO ATIVO:</strong> Gerenciando a loja <strong class="underline">${overrideStoreName}</strong></span>
+          </div>
+          <button onclick="localStorage.removeItem('popfood_admin_store_override'); localStorage.removeItem('popfood_admin_store_name_override'); window.location.reload();" class="bg-white/20 hover:bg-white/35 text-white active:scale-95 transition-all px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer shrink-0">
+            Sair e Voltar ao Admin Geral
+          </button>
+        `;
+        document.body.insertBefore(ribbon, document.body.firstChild);
+      }
+    }
+
+    async function loadCrmMasterDatabases() {
+      try {
+        // Fetch clients
+        const clientsSnap = await getDocs(query(collection(db, COLLECTIONS.clients), where("storeId", "==", window.currentStoreId)));
+        const clientsArr = [];
+        clientsSnap.forEach(snap => {
+          clientsArr.push({ id: snap.id, ...snap.data() });
+        });
+
+        // Fetch orders and parse allocations counters and metrics in strict coherence in case client record has empty counters
+        const ordersSnap = await getDocs(query(collection(db, COLLECTIONS.orders), where("storeId", "==", window.currentStoreId)));
+        const ordersArr = [];
+        ordersSnap.forEach(snap => {
+          ordersArr.push({ id: snap.id, ...snap.data() });
+        });
+
+        globalOrdersListForCrm = ordersArr;
+
+        // Perform programmatic cross check validation to structure actual spending and counters (LTV calculation)
+        globalClientsList = clientsArr.map(client => {
+          const clientPhone = (client.phone || "").replace(/\D/g, '');
+          if (!clientPhone) return null;
+          const matchingOrders = ordersArr.filter(o => {
+            const orderPhone = (o.customer && o.customer.phone || "").replace(/\D/g, '');
+            return orderPhone === clientPhone && o.status !== "Cancelado";
+          });
+
+          // programmatic sum overriding placeholder indices
+          const parsedCount = matchingOrders.length;
+          const parsedSpent = matchingOrders.reduce((acc, order) => acc + (order.total || 0), 0);
+
+          return {
+            ...client,
+            totalOrders: parsedCount,
+            totalSpent: parsedSpent
+          };
+        }).filter(c => c !== null);
+
+        // Render analytics metrics stats strips
+        calculateCrmStripSummaryMetrics();
+
+        // Render grid lists
+        triggerGlobalCrmSearchFilter();
+
+      } catch (err) {
+        console.error("Retrieving CRM databases index cards error: ", err);
+      }
+    }
+
+    function calculateCrmStripSummaryMetrics() {
+      const activeClients = globalClientsList.length;
+      const totalCumulativeLtv = globalClientsList.reduce((acc, c) => acc + (c.totalSpent || 0), 0);
+      
+      // Ticket average
+      const finishedNonCancelledOrdersCount = globalOrdersListForCrm.filter(o => o.status !== "Cancelado").length;
+      const avgTicket = finishedNonCancelledOrdersCount > 0 ? (totalCumulativeLtv / finishedNonCancelledOrdersCount) : 0;
+
+      (document.getElementById('lbl-total-clients') || {}).textContent = activeClients;
+      (document.getElementById('lbl-total-ltv') || {}).textContent = `R$ ${totalCumulativeLtv.toFixed(2).replace('.', ',')}`;
+      (document.getElementById('lbl-avg-ticket') || {}).textContent = `R$ ${avgTicket.toFixed(2).replace('.', ',')}`;
+    }
+
+    // Filter searchable indexes
+    window.triggerGlobalCrmSearchFilter = function() {
+      const queryStr = document.getElementById('crm-search-bar').value.trim().toLowerCase();
+      drawCrmClientsGrid(queryStr);
+    }
+
+    // Render table rows
+    function drawCrmClientsGrid(searchQuery = "") {
+      const body = document.getElementById('crm-table-body');
+      if (!body) return;
+      body.innerHTML = '';
+
+      let matching = globalClientsList;
+      if (searchQuery) {
+        matching = globalClientsList.filter(c => 
+          c.name.toLowerCase().includes(searchQuery) ||
+          c.phone.toLowerCase().includes(searchQuery) ||
+          (c.address && c.address.toLowerCase().includes(searchQuery))
+        );
+      }
+
+      // Sort matching descending by LTV spent to display biggest spenders first
+      matching.sort((a,b) => (b.totalSpent || 0) - (a.totalSpent || 0));
+
+      if (matching.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-10 text-gray-400 font-medium">Nenhum cliente cadastrado ou localizado neste filtro.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      matching.forEach(client => {
+        const row = document.createElement('tr');
+        row.className = "hover:bg-gray-50 border-b border-gray-100 transition-colors";
+        
+        row.innerHTML = `
+          <td class="px-6 py-4.5">
+            <div class="space-y-0.5">
+              <span class="font-bold text-gray-800 capitalize block">${client.name}</span>
+              <span class="text-[10px] text-gray-400 block">${client.phone}</span>
+            </div>
+          </td>
+          <td class="px-6 py-4.5">
+            <span class="line-clamp-1 max-w-sm text-xs text-gray-500">${client.address || 'Sem endereço disponível'}</span>
+          </td>
+          <td class="px-6 py-4.5">
+            <span class="px-2.5 py-0.5 bg-gray-100 rounded-md text-[11px] font-bold text-gray-600">${client.totalOrders || 0} pedidos</span>
+          </td>
+          <td class="px-6 py-4.5 text-center">
+            ${(() => {
+              if (!restaurantProfile || !restaurantProfile.loyaltyActive) return '<span class="text-gray-300 italic text-[10px]">Inativo</span>';
+              const minOrders = restaurantProfile.loyaltyMinOrders || 3;
+              const cleanPhone = client.phone.replace(/\D/g, '');
+              const allC = globalOrdersListForCrm.filter(o => o.customer.phone.replace(/\D/g, '') === cleanPhone);
+              
+              const completedWithoutLoyalty = allC.filter(o => o.status === "Entregue" && !(o.descontoFidelidade > 0 || o.fidelidadeAtivo === true)).length;
+              const redeemedCount = allC.filter(o => o.status !== "Cancelado" && (o.descontoFidelidade > 0 || o.fidelidadeAtivo === true)).length;
+              
+              const earned = Math.floor(completedWithoutLoyalty / minOrders);
+              const outstanding = Math.max(0, earned - redeemedCount);
+              const currentCycle = completedWithoutLoyalty % minOrders;
+              
+              if (outstanding > 0) {
+                return `<div class="flex flex-col items-center gap-1"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight">🎁 Prêmio Pronto</span><span class="text-[9px] text-gray-400 font-bold">${currentCycle}/${minOrders} para prox.</span></div>`;
+              }
+              return `<div class="flex items-center justify-center gap-1">
+                ${Array.from({length: minOrders}).map((_, i) => `<span class="w-2.5 h-2.5 rounded-full ${i < currentCycle ? 'bg-orange-500 shadow-sm shadow-orange-200' : 'bg-gray-200'}"></span>`).join('')}
+              </div>`;
+            })()}
+          </td>
+          <td class="px-6 py-4.5">
+            <span class="font-bold text-brand-secondary">R$ ${(client.totalSpent || 0).toFixed(2).replace('.', ',')}</span>
+          </td>
+          <td class="px-6 py-4.5 text-right flex-shrink-0">
+            <button onclick="openClientOrdersHistoryDrawer('${client.phone}')" class="bg-brand-primary hover:bg-orange-600 text-white font-semibold py-1.5 px-3 rounded-lg text-[10px] transition-transform hover:scale-105 cursor-pointer">
+              🔍 Histórico Completo
+            </button>
+          </td>
+        `;
+        body.appendChild(row);
+      });
+    }
+
+    // Modal view controller
+    window.toggleCrmHistoricModal = function(show) {
+      const modal = document.getElementById('crm-historic-modal');
+      const box = modal.querySelector('div');
+
+      if (show) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          box.classList.remove('scale-95');
+        }, 50);
+      } else {
+        box.classList.add('scale-105');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+    }
+
+    // Open detailed histories drawer
+    window.openClientOrdersHistoryDrawer = function(phone) {
+      const client = globalClientsList.find(c => c.phone.replace(/\D/g, '') === phone.replace(/\D/g, ''));
+      if (!client) return;
+
+      (document.getElementById('crm-lbl-client-name') || {}).textContent = client.name;
+      (document.getElementById('crm-lbl-client-phone') || {}).textContent = `Celular: ${client.phone}`;
+
+      const historyParent = document.getElementById('crm-orders-history-container');
+      if (!historyParent) return;
+      historyParent.innerHTML = '';
+
+      // Find matching client orders
+      const cleanTargetPhone = phone.replace(/\D/g, '');
+      const clientOrders = globalOrdersListForCrm.filter(o => o.customer.phone.replace(/\D/g, '') === cleanTargetPhone);
+
+      if (clientOrders.length === 0) {
+        historyParent.innerHTML = `<div class="text-center py-6 text-xs text-gray-400">Nenhum pedido efetuado no histórico deste cliente.</div>`;
+      } else {
+        // Sort newest first
+        clientOrders.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        clientOrders.forEach(order => {
+          const block = document.createElement('div');
+          block.className = "bg-white p-4 rounded-xl border border-gray-100 shadow-xs space-y-3";
+          
+          let statusStyle = "bg-gray-100 text-gray-500";
+          if (order.status === "Pendente") statusStyle = "bg-orange-100 text-brand-primary";
+          if (order.status === "Preparando") statusStyle = "bg-blue-100 text-blue-600";
+          if (order.status === "Saiu para entrega") statusStyle = "bg-purple-100 text-purple-600";
+          if (order.status === "Entregue") statusStyle = "bg-green-100 text-green-700";
+          if (order.status === "Cancelado") statusStyle = "bg-red-100 text-brand-danger";
+
+          const itemsSummaryLi = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+
+          block.innerHTML = `
+            <div class="flex justify-between items-center sm:items-start">
+              <div>
+                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">${order.date}</span>
+                <h4 class="font-mono text-xs font-bold text-gray-800">#${order.id}</h4>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${statusStyle}">${order.status}</span>
+            </div>
+            <p class="text-xs text-gray-650 font-semibold capitalize">${itemsSummaryLi}</p>
+            <div class="flex justify-between items-center text-[10px] text-gray-400 font-bold border-t border-gray-50 pt-2.5">
+              <span>FORMA: ${order.paymentMethod.toUpperCase()}</span>
+              <span class="text-brand-primary text-xs">Total: R$ ${order.total.toFixed(2).replace('.', ',')}</span>
+            </div>
+          `;
+          historyParent.appendChild(block);
+        });
+      }
+
+      toggleCrmHistoricModal(true);
+    }
+
+    // Export Excel CSV formatting downloader station
+    window.exportClientsListToCsv = function() {
+      if (globalClientsList.length === 0) {
+        alert("Nenhum cliente disponível para exportar.");
+        return;
+      }
+
+      // Define standard headers
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // UTF-8 BOM representation
+      csvContent += "Nome,Celular,CEP,Endereco,Pedidos Realizados,Total Gasto (R$)\n";
+
+      globalClientsList.forEach(c => {
+        const addressEscaped = c.address ? `"${c.address.replace(/"/g, '""')}"` : 'N/A';
+        const nameEscaped = `"${c.name.replace(/"/g, '""')}"`;
+        const spentVal = (c.totalSpent || 0).toFixed(2);
+        
+        const line = `${nameEscaped},${c.phone},${c.cep || ''},${addressEscaped},${c.totalOrders || 0},${spentVal}\n`;
+        csvContent += line;
+      });
+
+      // Trigger browser background anchor download
+      const encodedUri = encodeURI(csvContent);
+      const hostAnchor = document.createElement("a");
+      hostAnchor.setAttribute("href", encodedUri);
+      hostAnchor.setAttribute("download", `Clientes_PopFood_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(hostAnchor);
+      hostAnchor.click();
+      document.body.removeChild(hostAnchor);
+    }
+
+    // Sidebar toggle and state handling
+    window.toggleSidebar = function(forceMobileShow) {
+      const sidebar = document.getElementById('main-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (!sidebar) return;
+
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        if (forceMobileShow === true) {
+          sidebar.classList.add('show-mobile');
+          if (overlay) overlay.classList.remove('hidden');
+        } else if (forceMobileShow === false) {
+          sidebar.classList.remove('show-mobile');
+          if (overlay) overlay.classList.add('hidden');
+        } else {
+          const isVisible = sidebar.classList.contains('show-mobile');
+          if (isVisible) {
+            sidebar.classList.remove('show-mobile');
+            if (overlay) overlay.classList.add('hidden');
+          } else {
+            sidebar.classList.add('show-mobile');
+            if (overlay) overlay.classList.remove('hidden');
+          }
+        }
+      } else {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (isCollapsed) {
+          sidebar.classList.remove('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'false');
+        } else {
+          sidebar.classList.add('collapsed');
+          localStorage.setItem('popfood_sidebar_collapsed', 'true');
+        }
+      }
+    }
+
+    // Apply sidebar state on load
+    const applySidebarState = () => {
+      const sidebar = document.getElementById('main-sidebar');
+      if (sidebar && window.innerWidth >= 1024) {
+        if (localStorage.getItem('popfood_sidebar_collapsed') === 'true') {
+          sidebar.classList.add('collapsed');
+        } else {
+          sidebar.classList.remove('collapsed');
+        }
+      }
+    }
+    
+    // Auto-detect load state
+    setTimeout(applySidebarState, 100);
+  </script>
+</body>
+</html>
