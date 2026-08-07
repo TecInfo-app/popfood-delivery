@@ -153,11 +153,11 @@ export const COLLECTIONS = {
 
 export const collection = (db, path) => ({ type: 'collection', path });
 export const doc = (db, path, id) => {
-    if (id) return { type: 'doc', path, id };
+    const genId = () => 'id_' + Math.random().toString(36).substring(2, 11);
     if (typeof db === 'object' && db.type === 'collection') {
-        return { type: 'doc', path: db.path, id: path };
+        return { type: 'doc', path: db.path, id: path ? String(path) : genId() };
     }
-    return { type: 'doc', path, id: undefined };
+    return { type: 'doc', path, id: id ? String(id) : genId() };
 };
 export const query = (col, ...args) => ({ ...col, queryArgs: args });
 export const where = (field, op, value) => ({ type: 'where', field, op, value });
