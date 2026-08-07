@@ -87,44 +87,74 @@ export const arrayUnion = (...args) => ({ type: 'arrayUnion', args });
 export const arrayRemove = (...args) => ({ type: 'arrayRemove', args });
 
 export const getDoc = async (docRef) => {
-    const { data, error } = await supabase.from(docRef.path).select('*').eq('id', docRef.id).maybeSingle();
-    return {
-        exists: () => !!data,
-        data: () => data || null,
-        id: docRef.id
-    };
+    try {
+        const { data, error } = await supabase.from(docRef.path).select('*').eq('id', docRef.id).maybeSingle();
+        if (error) {
+            console.warn(`Supabase table or row error on ${docRef.path}:`, error.message);
+            return {
+                exists: () => false,
+                data: () => null,
+                id: docRef.id
+            };
+        }
+        return {
+            exists: () => !!data,
+            data: () => data || null,
+            id: docRef.id
+        };
+    } catch (e) {
+        console.warn(`Supabase getDoc exception on ${docRef.path}:`, e);
+        return { exists: () => false, data: () => null, id: docRef.id };
+    }
 };
 
 export const getDocs = async (queryRef) => {
-    let q = supabase.from(queryRef.path).select('*');
-    if (queryRef.queryArgs) {
-        queryRef.queryArgs.forEach(arg => {
-            if (arg.type === 'where') {
-                if (arg.op === '==') q = q.eq(arg.field, arg.value);
-                if (arg.op === '>') q = q.gt(arg.field, arg.value);
-                if (arg.op === '<') q = q.lt(arg.field, arg.value);
-                if (arg.op === '>=') q = q.gte(arg.field, arg.value);
-                if (arg.op === '<=') q = q.lte(arg.field, arg.value);
-                if (arg.op === 'array-contains') q = q.contains(arg.field, [arg.value]);
-            }
-            if (arg.type === 'orderBy') {
-                q = q.order(arg.field, { ascending: arg.dir === 'asc' });
-            }
-            if (arg.type === 'limit') {
-                q = q.limit(arg.num);
-            }
-        });
+    try {
+        let q = supabase.from(queryRef.path).select('*');
+        if (queryRef.queryArgs) {
+            queryRef.queryArgs.forEach(arg => {
+                if (arg.type === 'where') {
+                    if (arg.op === '==') q = q.eq(arg.field, arg.value);
+                    if (arg.op === '>') q = q.gt(arg.field, arg.value);
+                    if (arg.op === '<') q = q.lt(arg.field, arg.value);
+                    if (arg.op === '>=') q = q.gte(arg.field, arg.value);
+                    if (arg.op === '<=') q = q.lte(arg.field, arg.value);
+                    if (arg.op === 'array-contains') q = q.contains(arg.field, [arg.value]);
+                }
+                if (arg.type === 'orderBy') {
+                    q = q.order(arg.field, { ascending: arg.dir === 'asc' });
+                }
+                if (arg.type === 'limit') {
+                    q = q.limit(arg.num);
+                }
+            });
+        }
+        const { data, error } = await q;
+        if (error) {
+            console.warn(`Supabase table error on ${queryRef.path}:`, error.message);
+            return {
+                empty: true,
+                docs: [],
+                forEach: function(cb) {}
+            };
+        }
+        return {
+            empty: !data || data.length === 0,
+            docs: (data || []).map(d => ({
+                id: d.id,
+                data: () => d,
+                exists: () => true
+            })),
+            forEach: function(cb) { this.docs.forEach(cb) }
+        };
+    } catch (e) {
+        console.warn(`Supabase getDocs exception on ${queryRef.path}:`, e);
+        return {
+            empty: true,
+            docs: [],
+            forEach: function(cb) {}
+        };
     }
-    const { data, error } = await q;
-    return {
-        empty: !data || data.length === 0,
-        docs: (data || []).map(d => ({
-            id: d.id,
-            data: () => d,
-            exists: () => true
-        })),
-        forEach: function(cb) { this.docs.forEach(cb) }
-    };
 };
 
 export const setDoc = async (docRef, data, options = {}) => {
