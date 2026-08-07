@@ -1,0 +1,8 @@
+Isso ocorreu por causa de uma regra de segurança (fallback/contingência) que existia no código: sempre que você digitava *qualquer* e-mail no login, e esse e-mail não era encontrado (como no caso do e-mail da loja que você acabou de excluir), o sistema gerava um "perfil provisório de testes" para não travar a tela. Esse perfil provisório usava o próprio nome do seu e-mail para gerar aquele código estranho (ex: `store_x6mxw4`).
+
+Como a loja verdadeira tinha sido apagada, o login "caiu" nessa contingência, criando uma loja fantasma com esse slug aleatório em vez de avisar que a senha estava incorreta ou o e-mail não existia.
+
+**Já realizei a correção no código:**
+Removi essa regra genérica. A partir de agora, se você excluir uma loja pelo painel administrativo e tentar logar com ela novamente, o sistema vai mostrar corretamente a mensagem: `"E-mail ou senha inválidos. Verifique as credenciais cadastradas para esta loja"`. 
+
+Dessa forma, lojas diferentes nunca mais vão se misturar e o sistema só fará login se a loja realmente existir no banco de dados com o link correto que você configurou. Pode testar novamente excluindo uma loja se desejar, verá que o login agora será barrado corretamente!

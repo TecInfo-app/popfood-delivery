@@ -93,7 +93,7 @@ export const auth = {
         } catch (err) {}
 
         // 5. Allow demo / test accounts and self-provisioning store accounts
-        if (cleanEmail === 'teste@gmail.com' || cleanEmail.includes('ciadochopp') || cleanEmail.includes('admin') || cleanEmail.includes('@')) {
+        if (cleanEmail === 'teste@gmail.com' || cleanEmail === 'ciadochopp.contato@gmail.com' || cleanEmail === 'admin@gmail.com') {
             const generatedId = 'store_' + Math.abs(cleanEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(36);
             const mockUser = { email: cleanEmail, id: generatedId, uid: generatedId };
             auth.currentUser = mockUser;
