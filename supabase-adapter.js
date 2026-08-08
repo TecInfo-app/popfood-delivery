@@ -301,11 +301,32 @@ function serializeRow(path, realPath, payload) {
     const validCols = tableColumns[realPath];
     if (validCols) {
         const serialized = {};
-        validCols.forEach(col => {
-            if (payload[col] !== undefined) {
-                serialized[col] = payload[col];
+        const extraFields = {};
+
+        Object.keys(payload).forEach(key => {
+            // Map categoryId to category for products
+            let dbKey = key;
+            if (realPath === 'products' && key === 'categoryId') {
+                dbKey = 'category';
+            }
+            
+            if (validCols.includes(dbKey)) {
+                serialized[dbKey] = payload[key];
+            } else {
+                extraFields[key] = payload[key];
             }
         });
+
+        // Store extra fields inside 'description' column if it exists in the schema
+        if (Object.keys(extraFields).length > 0 && validCols.includes('description')) {
+            let desc = payload.description || '';
+            const idx = desc.indexOf('\n\n__METADATA__:');
+            if (idx >= 0) {
+                desc = desc.substring(0, idx);
+            }
+            serialized.description = desc + '\n\n__METADATA__:' + JSON.stringify(extraFields);
+        }
+
         return serialized;
     }
     
@@ -314,7 +335,8 @@ function serializeRow(path, realPath, payload) {
 
 function deserializeRow(path, row) {
     if (!row) return row;
-    const deserialized = { ...row };
+    let deserialized = { ...row };
+    
     if (path === 'restaurants' || path === 'restaurant_profiles') {
         if (row.settings && typeof row.settings === 'object') {
             Object.keys(row.settings).forEach(key => {
@@ -328,6 +350,26 @@ function deserializeRow(path, row) {
             deserialized.cover = row.cover_url;
         }
     }
+
+    // Map category column to categoryId for products
+    if (path === 'products' || path === 'product') {
+        if (row.category !== undefined && deserialized.categoryId === undefined) {
+            deserialized.categoryId = row.category;
+        }
+    }
+
+    // Extract extra fields from 'description' metadata if present
+    if (row.description && typeof row.description === 'string' && row.description.includes('\n\n__METADATA__:')) {
+        const parts = row.description.split('\n\n__METADATA__:');
+        deserialized.description = parts[0];
+        try {
+            const extra = JSON.parse(parts[1]);
+            deserialized = { ...deserialized, ...extra };
+        } catch (e) {
+            console.error("Failed to parse metadata block:", e);
+        }
+    }
+
     return deserialized;
 }
 
@@ -436,6 +478,7 @@ export const getDocs = async (queryRef) => {
             });
         }
         let mergedItems = Array.from(mergedMap.values());
+        saveLocalCollection(queryRef.path, mergedItems);
 
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
@@ -496,6 +539,87 @@ export const getDocs = async (queryRef) => {
     }
 };
 
+// Active snapshot listeners for real-time reactivity
+const listeners = new Set();
+const activeSubscriptions = {};
+
+async function notifyListenersByPath(path) {
+    for (const listener of listeners) {
+        if (listener.ref.path === path || 
+            (path === 'restaurants' && listener.ref.path === 'restaurant_profiles') ||
+            (path === 'restaurant_profiles' && listener.ref.path === 'restaurants') ||
+            (path === 'clients' && listener.ref.path === 'customers') ||
+            (path === 'customers' && listener.ref.path === 'clients')) {
+            
+            try {
+                if (listener.ref.type === 'doc') {
+                    const snap = await getDoc(listener.ref);
+                    listener.callback(snap);
+                } else {
+                    const snap = await getDocs(listener.ref);
+                    listener.callback(snap);
+                }
+            } catch (err) {
+                console.error("Error notifying listener for path " + path + ":", err);
+            }
+        }
+    }
+}
+
+function subscribeToTableChanges(tableName, path) {
+    if (activeSubscriptions[tableName]) return;
+
+    console.log(`Subscribing to real-time changes for table: ${tableName}`);
+    
+    const channel = supabase
+        .channel(`public:${tableName}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: tableName
+            },
+            async (payload) => {
+                console.log(`Realtime change received for table ${tableName}:`, payload);
+                
+                const eventType = payload.eventType;
+                const newRow = payload.new;
+                const oldRow = payload.old;
+                
+                let items = getLocalCollection(path);
+                
+                if (eventType === 'INSERT') {
+                    const cleanRow = deserializeRow(path, newRow);
+                    const idx = items.findIndex(i => String(i.id) === String(cleanRow.id));
+                    if (idx >= 0) {
+                        items[idx] = cleanRow;
+                    } else {
+                        items.push(cleanRow);
+                    }
+                } else if (eventType === 'UPDATE') {
+                    const cleanRow = deserializeRow(path, newRow);
+                    const idx = items.findIndex(i => String(i.id) === String(cleanRow.id));
+                    if (idx >= 0) {
+                        items[idx] = { ...items[idx], ...cleanRow };
+                    } else {
+                        items.push(cleanRow);
+                    }
+                } else if (eventType === 'DELETE') {
+                    items = items.filter(i => String(i.id) !== String(oldRow.id));
+                }
+                
+                saveLocalCollection(path, items);
+                
+                // Trigger real-time visual update!
+                notifyListenersByPath(path);
+            }
+        )
+        .subscribe();
+        
+    activeSubscriptions[tableName] = channel;
+}
+
 export const setDoc = async (docRef, data, options = {}) => {
     const payload = { ...data, id: docRef.id };
     // Save to local storage fallback always
@@ -507,6 +631,9 @@ export const setDoc = async (docRef, data, options = {}) => {
         items.push(payload);
     }
     saveLocalCollection(docRef.path, items);
+
+    // Notify local listeners immediately for instant UI response!
+    notifyListenersByPath(docRef.path);
 
     try {
         const realPath = await getRealTableName(docRef.path);
@@ -523,6 +650,9 @@ export const updateDoc = async (docRef, data) => {
     if (idx >= 0) {
         items[idx] = { ...items[idx], ...data };
         saveLocalCollection(docRef.path, items);
+        
+        // Notify local listeners immediately for instant UI response!
+        notifyListenersByPath(docRef.path);
     }
     try {
         const realPath = await getRealTableName(docRef.path);
@@ -537,6 +667,10 @@ export const deleteDoc = async (docRef) => {
     let items = getLocalCollection(docRef.path);
     items = items.filter(i => String(i.id) !== String(docRef.id));
     saveLocalCollection(docRef.path, items);
+    
+    // Notify local listeners immediately for instant UI response!
+    notifyListenersByPath(docRef.path);
+
     try {
         const realPath = await getRealTableName(docRef.path);
         await supabase.from(realPath).delete().eq('id', docRef.id);
@@ -545,15 +679,26 @@ export const deleteDoc = async (docRef) => {
     }
 };
 
-// Simple onSnapshot mapping to Supabase Realtime
+// Real-time onSnapshot tracking utilizing Supabase channels
 export const onSnapshot = (ref, callback) => {
+    const listener = { ref, callback };
+    listeners.add(listener);
+    
+    // Initial fetch to load data immediately
     if (ref.type === 'doc') {
         getDoc(ref).then(callback);
-        return () => {};
     } else {
         getDocs(ref).then(callback);
-        return () => {};
     }
+    
+    // Subscribe to Postgres Realtime modifications
+    getRealTableName(ref.path).then(realTable => {
+        subscribeToTableChanges(realTable, ref.path);
+    });
+    
+    return () => {
+        listeners.delete(listener);
+    };
 };
 
 export const writeBatch = () => ({
