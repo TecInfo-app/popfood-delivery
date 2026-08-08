@@ -851,7 +851,7 @@ storeId: window.currentStoreId
           }
         }
 
-        alert("🎉 Cardápio importado com sucesso no Firebase!");
+        alert("🎉 Cardápio importado com sucesso no Supabase!");
         refreshManagementDatabases();
       } catch (err) {
         console.error("Erro importando cardápio: ", err);
@@ -965,7 +965,7 @@ storeId: window.currentStoreId
       const mail = document.getElementById('login-email').value.trim();
       const pass = document.getElementById('login-password').value.trim();
       try {
-        // First, authenticate with Firebase Auth to get permission to query Firestore
+        // First, authenticate with Supabase Auth to get permission to query database
         const userCredential = await signInWithEmailAndPassword(auth, mail, pass);
         const loggedUser = userCredential.user;
 

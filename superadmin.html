@@ -52,9 +52,9 @@
       </div>
 
       <div class="space-y-4 text-left">
-        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail do Firebase (Obrigatório para Editar):</label>
+        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail do Supabase / Admin (Obrigatório para Editar):</label>
         <input type="email" id="admin-email" placeholder="iranildo.tecnologia@outlook.com" class="w-full text-center p-3 text-sm font-bold border border-gray-250 rounded-xl focus:border-orange-500 focus:outline-none transition-all tracking-widest bg-gray-50 mb-2" />
-        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Código de Acesso / Senha Firebase:</label>
+        <label class="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Código de Acesso / Senha Supabase:</label>
         <input type="password" id="admin-passcode" placeholder="••••••••" class="w-full text-center p-3 text-lg font-bold border border-gray-250 rounded-xl focus:border-orange-500 focus:outline-none transition-all tracking-widest bg-gray-50" />
       </div>
 
@@ -187,7 +187,7 @@
     <section id="stores-visual-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <!-- Loaded dynamically -->
       <div id="shimmer-loading" class="col-span-full py-12 text-center text-gray-400">
-        <p class="text-sm">Buscando informações gerais das lojas no Firebase...</p>
+        <p class="text-sm">Buscando informações gerais das lojas no Supabase...</p>
       </div>
     </section>
 
@@ -522,7 +522,7 @@
         document.getElementById('real-dashboard-main').classList.remove('hidden');
         initDashboardData();
       } catch (err) {
-        window.customAlert("Erro ao logar no Firebase Authentication.\n" + err.message + "\n\nSeu painel exige um Login real para editar valores no Firestore devido às Regras de Segurança (allow write: if isSignedIn).");
+        window.customAlert("Erro ao logar no Supabase Auth.\n" + err.message + "\n\nSeu painel exige credenciais cadastradas ou autorizadas para editar valores no banco de dados.");
       }
     }
 
@@ -1285,14 +1285,14 @@
       };
 
       try {
-        // Create matching standard Firebase Auth user dynamically
+        // Create matching standard Supabase Auth user dynamically
         try {
           await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
         } catch (authErr) {
           if (authErr.code !== 'auth/email-already-in-use') {
             throw authErr;
           }
-          console.log("Firebase Auth account already exists, matching document directly.");
+          console.log("Supabase Auth account already exists, matching document directly.");
         }
 
         await setDoc(doc(db, COLLECTIONS.restaurantProfile, storeId), initialProfile);

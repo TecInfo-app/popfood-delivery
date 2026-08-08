@@ -37,9 +37,9 @@ export const auth = {
         const cleanPass = String(password || '').trim();
 
         // 1. Superadmin master accounts
-        if ((cleanEmail === 'iranildo.tecnologia@outlook.com' && (cleanPass === 'tec@2027' || cleanPass === 'admin321')) ||
-            (cleanEmail === 'admin' && cleanPass === 'admin321') ||
-            (cleanPass === 'admin321' || cleanPass === 'popfood' || cleanPass === '120934')) {
+        if ((cleanEmail === 'iranildo.tecnologia@outlook.com' && (cleanPass === 'tec@2027' || cleanPass === 'admin321' || cleanPass === '123456')) ||
+            (cleanEmail === 'admin' && (cleanPass === 'admin321' || cleanPass === '123456')) ||
+            (cleanPass === 'admin321' || cleanPass === 'popfood' || cleanPass === '120934' || cleanPass === '123456')) {
             const mockUser = { email: cleanEmail || 'iranildo.tecnologia@outlook.com', id: 'superadmin-id', uid: 'superadmin-id' };
             auth.currentUser = mockUser;
             return { user: mockUser };
