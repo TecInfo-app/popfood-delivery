@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 if (typeof window !== 'undefined') {
     window.customAlert = window.customAlert || ((msg) => alert(msg));
+    window.customConfirm = window.customConfirm || ((msg) => confirm(msg));
+    window.customPrompt = window.customPrompt || ((msg, def) => prompt(msg, def));
 }
 
 const getEnv = (key, fallback) => {
