@@ -191,36 +191,163 @@ const saveLocalCollection = (path, items) => {
 // Dynamic database table probe & routing
 const tableCache = {};
 
-// Exact columns from user's Supabase schema to avoid "column does not exist" errors
+// Exact snake_case columns from user's Supabase schema to avoid "column does not exist" errors
 const tableColumns = {
     restaurants: [
-        'id', 'name', 'description', 'phone', 'adminEmail', 'adminPassword', 'storeId',
-        'openTime', 'closeTime', 'cep', 'address', 'isOpen', 'logo', 'minimumOrderPrice',
-        'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 'stripePublicKey', 'stripeSecretKey',
-        'latitude', 'longitude', 'createdAt', 'whatsappBotEnabled', 'deliveryRates', 'active', 'isSuperAdmin'
+        'id', 'owner_id', 'store_id', 'name', 'phone', 'description', 
+        'open_time', 'close_time', 'cep', 'address', 'is_open', 'logo', 'logo_url', 'cover_url',
+        'minimum_order_price', 'abacate_pay_token', 'mp_access_token', 'mp_public_key', 
+        'stripe_public_key', 'stripe_secret_key', 'latitude', 'longitude', 'delivery_rates', 
+        'loyalty_active', 'loyalty_min_orders', 'loyalty_type', 'loyalty_value', 'created_at', 'updated_at',
+        'status', 'settings', 'merchant_tokens'
+    ],
+    restaurant_profiles: [
+        'id', 'owner_id', 'store_id', 'name', 'phone', 'description', 
+        'open_time', 'close_time', 'cep', 'address', 'is_open', 'logo', 'logo_url', 'cover_url',
+        'minimum_order_price', 'abacate_pay_token', 'mp_access_token', 'mp_public_key', 
+        'stripe_public_key', 'stripe_secret_key', 'latitude', 'longitude', 'delivery_rates', 
+        'loyalty_active', 'loyalty_min_orders', 'loyalty_type', 'loyalty_value', 'created_at', 'updated_at',
+        'status', 'settings', 'merchant_tokens'
     ],
     categories: [
-        'id', 'storeId', 'name', 'order', 'createdAt'
+        'id', 'store_id', 'name', 'sort_order', 'created_at'
     ],
     products: [
-        'id', 'storeId', 'name', 'description', 'price', 'promotionalPrice', 'category', 'image', 'paused', 'createdAt'
-    ],
-    complements: [
-        'id', 'storeId', 'name', 'mandatory', 'maxLimit', 'items', 'createdAt'
-    ],
-    clients: [
-        'id', 'storeId', 'name', 'phone', 'address', 'createdAt'
-    ],
-    customers: [
-        'id', 'storeId', 'name', 'phone', 'address', 'createdAt'
+        'id', 'store_id', 'category_id', 'name', 'description', 'price', 'promotional_price', 
+        'image_url', 'active', 'is_active', 'sort_order', 'complements', 'created_at', 'updated_at', 'category'
     ],
     coupons: [
-        'id', 'storeId', 'code', 'type', 'value', 'minOrderValue', 'usageLimit', 'usedCount', 'active', 'createdAt'
+        'id', 'store_id', 'code', 'discount_type', 'discount_value', 'min_order_value', 'active', 'created_at'
     ],
     orders: [
-        'id', 'storeId', 'customerName', 'customerPhone', 'address', 'items', 'subtotal', 'deliveryFee', 'total', 'paymentMethod', 'needChangeFor', 'status', 'createdAt', 'couponId', 'discountAmount'
+        'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'total', 
+        'total_price', 'subtotal', 'delivery_fee', 'discount', 'payment_method', 'items', 'created_at', 
+        'updated_at', 'coupon_code', 'payment_status', 'chat_messages', 'delivery_pin'
+    ],
+    customers: [
+        'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
+    ],
+    clients: [
+        'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
     ]
 };
+
+// Deterministic UUID v4 generator for alphanumeric non-UUID IDs
+function getDeterministicUuid(str) {
+    if (!str) return str;
+    const sStr = String(str).trim();
+    if (!sStr) return str;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sStr)) {
+        return sStr.toLowerCase();
+    }
+    
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < sStr.length; i++) {
+        const char = sStr.charCodeAt(i);
+        h1 = Math.imul(h1 ^ char, 2654435761);
+        h2 = Math.imul(h2 ^ char, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    
+    const hex1 = (h1 >>> 0).toString(16).padStart(8, '0');
+    const hex2 = (h2 >>> 0).toString(16).padStart(8, '0');
+    const hex3 = ((h1 ^ h2) >>> 0).toString(16).padStart(8, '0');
+    const hex4 = ((h1 & h2) >>> 0).toString(16).padStart(8, '0');
+    const hex32 = (hex1 + hex2 + hex3 + hex4).slice(0, 32);
+    
+    const part1 = hex32.slice(0, 8);
+    const part2 = hex32.slice(8, 12);
+    const part3 = '4' + hex32.slice(13, 16); 
+    const part4 = 'a' + hex32.slice(17, 20); 
+    const part5 = hex32.slice(20, 32);
+    
+    return `${part1}-${part2}-${part3}-${part4}-${part5}`.toLowerCase();
+}
+
+// Convert camelCase to snake_case with specific exceptions
+function toDbFieldName(path, fieldName) {
+    if (!fieldName) return fieldName;
+    
+    if (fieldName === 'storeId') return 'store_id';
+    if (fieldName === 'categoryId') return 'category_id';
+    if (fieldName === 'image' || fieldName === 'imageUrl') return 'image_url';
+    if (fieldName === 'order' || fieldName === 'sortOrder') return 'sort_order';
+    if (fieldName === 'customerName') return 'customer_name';
+    if (fieldName === 'customerPhone') return 'customer_phone';
+    if (fieldName === 'customerAddress') return 'customer_address';
+    if (fieldName === 'deliveryFee') return 'delivery_fee';
+    if (fieldName === 'paymentMethod') return 'payment_method';
+    if (fieldName === 'createdAt') return 'created_at';
+    if (fieldName === 'updatedAt') return 'updated_at';
+    if (fieldName === 'totalPrice') return 'total_price';
+    if (fieldName === 'discountAmount') return 'discount';
+    if (fieldName === 'couponId' || fieldName === 'couponCode') return 'coupon_code';
+    if (fieldName === 'discountType') return 'discount_type';
+    if (fieldName === 'discountValue') return 'discount_value';
+    if (fieldName === 'minOrderValue') return 'min_order_value';
+    if (fieldName === 'openTime') return 'open_time';
+    if (fieldName === 'closeTime') return 'close_time';
+    if (fieldName === 'minimumOrderPrice') return 'minimum_order_price';
+    if (fieldName === 'abacatePayToken') return 'abacate_pay_token';
+    if (fieldName === 'mpAccessToken') return 'mp_access_token';
+    if (fieldName === 'mpPublicKey') return 'mp_public_key';
+    if (fieldName === 'stripePublicKey') return 'stripe_public_key';
+    if (fieldName === 'stripeSecretKey') return 'stripe_secret_key';
+    if (fieldName === 'deliveryRates') return 'delivery_rates';
+    if (fieldName === 'loyaltyActive') return 'loyalty_active';
+    if (fieldName === 'loyaltyMinOrders') return 'loyalty_min_orders';
+    if (fieldName === 'loyaltyType') return 'loyalty_type';
+    if (fieldName === 'loyaltyValue') return 'loyalty_value';
+    if (fieldName === 'whatsappBotEnabled') return 'whatsapp_bot_enabled';
+    if (fieldName === 'isSuperAdmin') return 'is_super_admin';
+    if (fieldName === 'adminEmail') return 'admin_email';
+    if (fieldName === 'adminPassword') return 'admin_password';
+
+    return fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+// Convert snake_case to camelCase with specific exceptions
+function fromDbFieldName(path, fieldName) {
+    if (!fieldName) return fieldName;
+    
+    if (fieldName === 'store_id') return 'storeId';
+    if (fieldName === 'category_id') return 'categoryId';
+    if (fieldName === 'image_url') return 'image';
+    if (fieldName === 'sort_order') return 'order';
+    if (fieldName === 'customer_name') return 'customerName';
+    if (fieldName === 'customer_phone') return 'customerPhone';
+    if (fieldName === 'customer_address') return 'customerAddress';
+    if (fieldName === 'delivery_fee') return 'deliveryFee';
+    if (fieldName === 'payment_method') return 'paymentMethod';
+    if (fieldName === 'created_at') return 'createdAt';
+    if (fieldName === 'updated_at') return 'updatedAt';
+    if (fieldName === 'total_price') return 'totalPrice';
+    if (fieldName === 'discount') return 'discountAmount';
+    if (fieldName === 'coupon_code') return 'couponCode';
+    if (fieldName === 'discount_type') return 'discountType';
+    if (fieldName === 'discount_value') return 'discountValue';
+    if (fieldName === 'min_order_value') return 'minOrderValue';
+    if (fieldName === 'open_time') return 'openTime';
+    if (fieldName === 'close_time') return 'closeTime';
+    if (fieldName === 'minimum_order_price') return 'minimumOrderPrice';
+    if (fieldName === 'abacate_pay_token') return 'abacatePayToken';
+    if (fieldName === 'mp_access_token') return 'mpAccessToken';
+    if (fieldName === 'mp_public_key') return 'mpPublicKey';
+    if (fieldName === 'stripe_public_key') return 'stripePublicKey';
+    if (fieldName === 'stripe_secret_key') return 'stripeSecretKey';
+    if (fieldName === 'delivery_rates') return 'deliveryRates';
+    if (fieldName === 'loyalty_active') return 'loyaltyActive';
+    if (fieldName === 'loyalty_min_orders') return 'loyaltyMinOrders';
+    if (fieldName === 'loyalty_type') return 'loyaltyType';
+    if (fieldName === 'loyalty_value') return 'loyaltyValue';
+    if (fieldName === 'whatsapp_bot_enabled') return 'whatsappBotEnabled';
+    if (fieldName === 'is_super_admin') return 'isSuperAdmin';
+    if (fieldName === 'admin_email') return 'adminEmail';
+    if (fieldName === 'admin_password') return 'adminPassword';
+
+    return fieldName.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
 
 async function getRealTableName(path) {
     if (tableCache[path]) return tableCache[path];
@@ -274,68 +401,80 @@ async function getRealTableName(path) {
 function serializeRow(path, realPath, payload) {
     if (!payload) return payload;
     
-    if (realPath === 'restaurant_profiles') {
-        const columns = ['id', 'name', 'description', 'logo_url', 'cover_url', 'phone', 'address', 'status', 'settings', 'merchant_tokens', 'created_at'];
-        const serialized = {};
-        const settings = { ...(payload.settings || {}) };
+    const serialized = {};
+    const isUuidTable = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients');
+    const validCols = tableColumns[realPath] || [];
 
+    if (realPath === 'restaurant_profiles' || realPath === 'restaurants') {
+        const settings = { ...(payload.settings || {}) };
+        
         Object.keys(payload).forEach(key => {
-            if (columns.includes(key)) {
-                serialized[key] = payload[key];
+            const dbKey = toDbFieldName(path, key);
+            if (validCols.includes(dbKey)) {
+                serialized[dbKey] = payload[key];
             } else {
                 if (key === 'logo') {
-                    serialized['logo_url'] = payload[key];
+                    if (validCols.includes('logo')) serialized['logo'] = payload[key];
+                    if (validCols.includes('logo_url')) serialized['logo_url'] = payload[key];
                 } else if (key === 'cover') {
-                    serialized['cover_url'] = payload[key];
+                    if (validCols.includes('cover_url')) serialized['cover_url'] = payload[key];
                 } else {
                     settings[key] = payload[key];
                 }
             }
         });
 
-        serialized.settings = settings;
-        return serialized;
-    }
-
-    // Filter properties to only allow valid columns present in the table schema
-    const validCols = tableColumns[realPath];
-    if (validCols) {
-        const serialized = {};
-        const extraFields = {};
-
-        Object.keys(payload).forEach(key => {
-            // Map categoryId to category for products
-            let dbKey = key;
-            if (realPath === 'products' && key === 'categoryId') {
-                dbKey = 'category';
-            }
-            
-            if (validCols.includes(dbKey)) {
-                serialized[dbKey] = payload[key];
-            } else {
-                extraFields[key] = payload[key];
-            }
-        });
-
-        // Store extra fields inside 'description' column if it exists in the schema
-        if (Object.keys(extraFields).length > 0 && validCols.includes('description')) {
-            let desc = payload.description || '';
-            const idx = desc.indexOf('\n\n__METADATA__:');
-            if (idx >= 0) {
-                desc = desc.substring(0, idx);
-            }
-            serialized.description = desc + '\n\n__METADATA__:' + JSON.stringify(extraFields);
+        if (validCols.includes('settings')) {
+            serialized.settings = settings;
         }
-
         return serialized;
     }
-    
-    return payload;
+
+    Object.keys(payload).forEach(key => {
+        let dbKey = toDbFieldName(path, key);
+        let val = payload[key];
+        
+        if (key === 'id' && isUuidTable) {
+            val = getDeterministicUuid(val);
+        } else if (key === 'paused') {
+            if (validCols.includes('active')) {
+                serialized['active'] = !val;
+            }
+            if (validCols.includes('is_active')) {
+                serialized['is_active'] = !val;
+            }
+            return;
+        } else if (key === 'active') {
+            if (validCols.includes('active')) {
+                serialized['active'] = !!val;
+            }
+            if (validCols.includes('is_active')) {
+                serialized['is_active'] = !!val;
+            }
+            return;
+        } else if (key === 'categoryId') {
+            if (validCols.includes('category_id')) {
+                serialized['category_id'] = getDeterministicUuid(val);
+                return;
+            }
+        }
+        
+        if (validCols.includes(dbKey)) {
+            serialized[dbKey] = val;
+        }
+    });
+
+    return serialized;
 }
 
 function deserializeRow(path, row) {
     if (!row) return row;
-    let deserialized = { ...row };
+    let deserialized = {};
+    
+    Object.keys(row).forEach(dbKey => {
+        const camelKey = fromDbFieldName(path, dbKey);
+        deserialized[camelKey] = row[dbKey];
+    });
     
     if (path === 'restaurants' || path === 'restaurant_profiles') {
         if (row.settings && typeof row.settings === 'object') {
@@ -351,22 +490,43 @@ function deserializeRow(path, row) {
         }
     }
 
-    // Map category column to categoryId for products
     if (path === 'products' || path === 'product') {
-        if (row.category !== undefined && deserialized.categoryId === undefined) {
-            deserialized.categoryId = row.category;
+        if (row.active !== undefined) {
+            deserialized.paused = !row.active;
+        } else if (row.is_active !== undefined) {
+            deserialized.paused = !row.is_active;
+        }
+        if (row.image_url && !deserialized.image) {
+            deserialized.image = row.image_url;
+        }
+        if (row.category_id && !deserialized.categoryId) {
+            deserialized.categoryId = row.category_id;
         }
     }
 
-    // Extract extra fields from 'description' metadata if present
-    if (row.description && typeof row.description === 'string' && row.description.includes('\n\n__METADATA__:')) {
-        const parts = row.description.split('\n\n__METADATA__:');
-        deserialized.description = parts[0];
-        try {
-            const extra = JSON.parse(parts[1]);
-            deserialized = { ...deserialized, ...extra };
-        } catch (e) {
-            console.error("Failed to parse metadata block:", e);
+    if (path === 'orders' || path === 'order') {
+        if (row.total_price !== undefined) {
+            deserialized.total = Number(row.total_price);
+        } else if (row.total !== undefined) {
+            deserialized.total = Number(row.total);
+        }
+        if (row.delivery_fee !== undefined) {
+            deserialized.deliveryFee = Number(row.delivery_fee);
+        }
+        if (row.subtotal !== undefined) {
+            deserialized.subtotal = Number(row.subtotal);
+        }
+        if (row.discount !== undefined) {
+            deserialized.discountAmount = Number(row.discount);
+        }
+        if (row.customer_address !== undefined) {
+            if (typeof row.customer_address === 'string') {
+                deserialized.customerAddress = row.customer_address;
+                deserialized.address = row.customer_address;
+            } else if (row.customer_address && typeof row.customer_address === 'object') {
+                deserialized.customerAddress = row.customer_address;
+                deserialized.address = row.customer_address.address || row.customer_address.street || JSON.stringify(row.customer_address);
+            }
         }
     }
 
@@ -376,7 +536,24 @@ function deserializeRow(path, row) {
 export const getDoc = async (docRef) => {
     try {
         const realPath = await getRealTableName(docRef.path);
-        const { data, error } = await supabase.from(realPath).select('*').eq('id', docRef.id).maybeSingle();
+        let queryBuilder = supabase.from(realPath).select('*');
+        const docId = docRef.id;
+        
+        if (realPath === 'restaurants') {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docId);
+            if (isUuid) {
+                queryBuilder = queryBuilder.eq('id', docId);
+            } else {
+                queryBuilder = queryBuilder.eq('store_id', docId);
+            }
+        } else if (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') {
+            const uuidId = getDeterministicUuid(docId);
+            queryBuilder = queryBuilder.eq('id', uuidId);
+        } else {
+            queryBuilder = queryBuilder.eq('id', docId);
+        }
+        
+        const { data, error } = await queryBuilder.maybeSingle();
         if (error || !data) {
             // Fallback to localStorage
             const items = getLocalCollection(docRef.path);
@@ -434,15 +611,24 @@ export const getDocs = async (queryRef) => {
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
                 if (arg.type === 'where') {
-                    if (arg.op === '==') q = q.eq(arg.field, arg.value);
-                    if (arg.op === '>') q = q.gt(arg.field, arg.value);
-                    if (arg.op === '<') q = q.lt(arg.field, arg.value);
-                    if (arg.op === '>=') q = q.gte(arg.field, arg.value);
-                    if (arg.op === '<=') q = q.lte(arg.field, arg.value);
-                    if (arg.op === 'array-contains') q = q.contains(arg.field, [arg.value]);
+                    const dbField = toDbFieldName(queryRef.path, arg.field);
+                    let queryVal = arg.value;
+                    
+                    // Convert value to UUID if it's pointing to a UUID column
+                    if (dbField === 'id' || dbField === 'category_id' || (queryRef.path === 'categories' && dbField === 'id') || (queryRef.path === 'products' && (dbField === 'id' || dbField === 'category_id'))) {
+                        queryVal = getDeterministicUuid(queryVal);
+                    }
+                    
+                    if (arg.op === '==') q = q.eq(dbField, queryVal);
+                    if (arg.op === '>') q = q.gt(dbField, queryVal);
+                    if (arg.op === '<') q = q.lt(dbField, queryVal);
+                    if (arg.op === '>=') q = q.gte(dbField, queryVal);
+                    if (arg.op === '<=') q = q.lte(dbField, queryVal);
+                    if (arg.op === 'array-contains') q = q.contains(dbField, [queryVal]);
                 }
                 if (arg.type === 'orderBy') {
-                    q = q.order(arg.field, { ascending: arg.dir === 'asc' });
+                    const dbField = toDbFieldName(queryRef.path, arg.field);
+                    q = q.order(dbField, { ascending: arg.dir === 'asc' });
                 }
                 if (arg.type === 'limit') {
                     q = q.limit(arg.num);
@@ -637,8 +823,35 @@ export const setDoc = async (docRef, data, options = {}) => {
 
     try {
         const realPath = await getRealTableName(docRef.path);
-        const serialized = serializeRow(docRef.path, realPath, payload);
-        await supabase.from(realPath).upsert(serialized);
+        
+        if (realPath === 'restaurants') {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
+            let existingUuid = null;
+            if (isUuid) {
+                existingUuid = docRef.id;
+            } else {
+                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                if (found) {
+                    existingUuid = found.id;
+                }
+            }
+            const serialized = serializeRow(docRef.path, realPath, payload);
+            if (!isUuid) {
+                serialized.store_id = docRef.id;
+            }
+            if (existingUuid) {
+                serialized.id = existingUuid;
+                await supabase.from('restaurants').update(serialized).eq('id', existingUuid);
+            } else {
+                if (!isUuid) {
+                    delete serialized.id;
+                }
+                await supabase.from('restaurants').insert(serialized);
+            }
+        } else {
+            const serialized = serializeRow(docRef.path, realPath, payload);
+            await supabase.from(realPath).upsert(serialized);
+        }
     } catch (err) {
         console.warn(`Supabase upsert table ${docRef.path} skipped (saved locally):`, err?.message);
     }
@@ -656,8 +869,28 @@ export const updateDoc = async (docRef, data) => {
     }
     try {
         const realPath = await getRealTableName(docRef.path);
-        const serialized = serializeRow(docRef.path, realPath, data);
-        await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+        
+        if (realPath === 'restaurants') {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
+            let targetUuid = null;
+            if (isUuid) {
+                targetUuid = docRef.id;
+            } else {
+                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                if (found) {
+                    targetUuid = found.id;
+                }
+            }
+            if (targetUuid) {
+                const serialized = serializeRow(docRef.path, realPath, data);
+                await supabase.from('restaurants').update(serialized).eq('id', targetUuid);
+            }
+        } else {
+            const serialized = serializeRow(docRef.path, realPath, data);
+            const targetId = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') ? 
+                getDeterministicUuid(docRef.id) : docRef.id;
+            await supabase.from(realPath).update(serialized).eq('id', targetId);
+        }
     } catch (err) {
         console.warn(`Supabase update table ${docRef.path} skipped (updated locally):`, err?.message);
     }
@@ -673,7 +906,26 @@ export const deleteDoc = async (docRef) => {
 
     try {
         const realPath = await getRealTableName(docRef.path);
-        await supabase.from(realPath).delete().eq('id', docRef.id);
+        
+        if (realPath === 'restaurants') {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
+            let targetUuid = null;
+            if (isUuid) {
+                targetUuid = docRef.id;
+            } else {
+                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                if (found) {
+                    targetUuid = found.id;
+                }
+            }
+            if (targetUuid) {
+                await supabase.from('restaurants').delete().eq('id', targetUuid);
+            }
+        } else {
+            const targetId = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') ? 
+                getDeterministicUuid(docRef.id) : docRef.id;
+            await supabase.from(realPath).delete().eq('id', targetId);
+        }
     } catch (err) {
         console.warn(`Supabase delete table ${docRef.path} skipped:`, err?.message);
     }
