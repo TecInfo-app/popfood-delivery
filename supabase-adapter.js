@@ -75,13 +75,17 @@ export const auth = {
             }
         } catch (err) {}
 
-        // 4. Check Supabase restaurants table directly
+        // 4. Check Supabase restaurant_profiles / restaurants table directly
         try {
-            const { data: stores, error } = await supabase.from('restaurants').select('*');
-            if (!error && Array.isArray(stores) && stores.length > 0) {
+            let result = await supabase.from('restaurant_profiles').select('*');
+            if (result.error || !result.data || result.data.length === 0) {
+                result = await supabase.from('restaurants').select('*');
+            }
+            const stores = result.data;
+            if (!result.error && Array.isArray(stores) && stores.length > 0) {
                 const found = stores.find(s => {
-                    const sEmail = (s.adminEmail || s.email || s.ownerEmail || '').toLowerCase().trim();
-                    const sPass = String(s.adminPassword || s.password || '').trim();
+                    const sEmail = (s.adminEmail || s.email || s.ownerEmail || s.settings?.adminEmail || s.settings?.email || '').toLowerCase().trim();
+                    const sPass = String(s.adminPassword || s.password || s.settings?.adminPassword || s.settings?.password || '').trim();
                     return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass === '123456' || cleanPass.length >= 4);
                 });
                 if (found) {
@@ -184,9 +188,153 @@ const saveLocalCollection = (path, items) => {
     } catch (e) {}
 };
 
+// Dynamic database table probe & routing
+const tableCache = {};
+
+// Exact columns from user's Supabase schema to avoid "column does not exist" errors
+const tableColumns = {
+    restaurants: [
+        'id', 'name', 'description', 'phone', 'adminEmail', 'adminPassword', 'storeId',
+        'openTime', 'closeTime', 'cep', 'address', 'isOpen', 'logo', 'minimumOrderPrice',
+        'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 'stripePublicKey', 'stripeSecretKey',
+        'latitude', 'longitude', 'createdAt', 'whatsappBotEnabled', 'deliveryRates', 'active', 'isSuperAdmin'
+    ],
+    categories: [
+        'id', 'storeId', 'name', 'order', 'createdAt'
+    ],
+    products: [
+        'id', 'storeId', 'name', 'description', 'price', 'promotionalPrice', 'category', 'image', 'paused', 'createdAt'
+    ],
+    complements: [
+        'id', 'storeId', 'name', 'mandatory', 'maxLimit', 'items', 'createdAt'
+    ],
+    clients: [
+        'id', 'storeId', 'name', 'phone', 'address', 'createdAt'
+    ],
+    customers: [
+        'id', 'storeId', 'name', 'phone', 'address', 'createdAt'
+    ],
+    coupons: [
+        'id', 'storeId', 'code', 'type', 'value', 'minOrderValue', 'usageLimit', 'usedCount', 'active', 'createdAt'
+    ],
+    orders: [
+        'id', 'storeId', 'customerName', 'customerPhone', 'address', 'items', 'subtotal', 'deliveryFee', 'total', 'paymentMethod', 'needChangeFor', 'status', 'createdAt', 'couponId', 'discountAmount'
+    ]
+};
+
+async function getRealTableName(path) {
+    if (tableCache[path]) return tableCache[path];
+
+    // Determine alternative names
+    if (path === 'restaurants' || path === 'restaurant_profiles') {
+        try {
+            const { error: err2 } = await supabase.from('restaurants').select('id').limit(1);
+            if (!err2 || !err2.message?.includes('does not exist')) {
+                tableCache['restaurants'] = 'restaurants';
+                tableCache['restaurant_profiles'] = 'restaurants';
+                return 'restaurants';
+            }
+        } catch (e) {}
+        try {
+            const { error: err1 } = await supabase.from('restaurant_profiles').select('id').limit(1);
+            if (!err1 || !err1.message?.includes('does not exist')) {
+                tableCache['restaurants'] = 'restaurant_profiles';
+                tableCache['restaurant_profiles'] = 'restaurant_profiles';
+                return 'restaurant_profiles';
+            }
+        } catch (e) {}
+        tableCache[path] = 'restaurants';
+        return 'restaurants';
+    } else if (path === 'clients' || path === 'customers') {
+        try {
+            const { error: err2 } = await supabase.from('clients').select('id').limit(1);
+            if (!err2 || !err2.message?.includes('does not exist')) {
+                tableCache['clients'] = 'clients';
+                tableCache['customers'] = 'clients';
+                return 'clients';
+            }
+        } catch (e) {}
+        try {
+            const { error: err1 } = await supabase.from('customers').select('id').limit(1);
+            if (!err1 || !err1.message?.includes('does not exist')) {
+                tableCache['clients'] = 'customers';
+                tableCache['customers'] = 'customers';
+                return 'customers';
+            }
+        } catch (e) {}
+        tableCache[path] = 'clients';
+        return 'clients';
+    }
+
+    tableCache[path] = path;
+    return path;
+}
+
+// Map camelCase app properties safely to table schemas
+function serializeRow(path, realPath, payload) {
+    if (!payload) return payload;
+    
+    if (realPath === 'restaurant_profiles') {
+        const columns = ['id', 'name', 'description', 'logo_url', 'cover_url', 'phone', 'address', 'status', 'settings', 'merchant_tokens', 'created_at'];
+        const serialized = {};
+        const settings = { ...(payload.settings || {}) };
+
+        Object.keys(payload).forEach(key => {
+            if (columns.includes(key)) {
+                serialized[key] = payload[key];
+            } else {
+                if (key === 'logo') {
+                    serialized['logo_url'] = payload[key];
+                } else if (key === 'cover') {
+                    serialized['cover_url'] = payload[key];
+                } else {
+                    settings[key] = payload[key];
+                }
+            }
+        });
+
+        serialized.settings = settings;
+        return serialized;
+    }
+
+    // Filter properties to only allow valid columns present in the table schema
+    const validCols = tableColumns[realPath];
+    if (validCols) {
+        const serialized = {};
+        validCols.forEach(col => {
+            if (payload[col] !== undefined) {
+                serialized[col] = payload[col];
+            }
+        });
+        return serialized;
+    }
+    
+    return payload;
+}
+
+function deserializeRow(path, row) {
+    if (!row) return row;
+    const deserialized = { ...row };
+    if (path === 'restaurants' || path === 'restaurant_profiles') {
+        if (row.settings && typeof row.settings === 'object') {
+            Object.keys(row.settings).forEach(key => {
+                deserialized[key] = row.settings[key];
+            });
+        }
+        if (row.logo_url && !deserialized.logo) {
+            deserialized.logo = row.logo_url;
+        }
+        if (row.cover_url && !deserialized.cover) {
+            deserialized.cover = row.cover_url;
+        }
+    }
+    return deserialized;
+}
+
 export const getDoc = async (docRef) => {
     try {
-        const { data, error } = await supabase.from(docRef.path).select('*').eq('id', docRef.id).maybeSingle();
+        const realPath = await getRealTableName(docRef.path);
+        const { data, error } = await supabase.from(realPath).select('*').eq('id', docRef.id).maybeSingle();
         if (error || !data) {
             // Fallback to localStorage
             const items = getLocalCollection(docRef.path);
@@ -199,7 +347,7 @@ export const getDoc = async (docRef) => {
                 };
             }
             // If it's the main restaurant, return default test store profile
-            if (docRef.path === 'restaurants' && docRef.id === 'main') {
+            if ((docRef.path === 'restaurants' || docRef.path === 'restaurant_profiles') && docRef.id === 'main') {
                 return {
                     exists: () => true,
                     data: () => ({
@@ -220,9 +368,10 @@ export const getDoc = async (docRef) => {
                 id: docRef.id
             };
         }
+        const cleanData = deserializeRow(docRef.path, data);
         return {
-            exists: () => !!data,
-            data: () => data || null,
+            exists: () => !!cleanData,
+            data: () => cleanData || null,
             id: docRef.id
         };
     } catch (e) {
@@ -230,7 +379,7 @@ export const getDoc = async (docRef) => {
         const found = items.find(i => String(i.id) === String(docRef.id));
         return {
             exists: () => !!found,
-            data: () => found || (docRef.path === 'restaurants' && docRef.id === 'main' ? { id: 'main', name: 'PopFood Cia do Chopp', adminEmail: 'iranildo.tecnologia@outlook.com' } : null),
+            data: () => found || ((docRef.path === 'restaurants' || docRef.path === 'restaurant_profiles') && docRef.id === 'main' ? { id: 'main', name: 'PopFood Cia do Chopp', adminEmail: 'iranildo.tecnologia@outlook.com' } : null),
             id: docRef.id
         };
     }
@@ -238,7 +387,8 @@ export const getDoc = async (docRef) => {
 
 export const getDocs = async (queryRef) => {
     try {
-        let q = supabase.from(queryRef.path).select('*');
+        const realPath = await getRealTableName(queryRef.path);
+        let q = supabase.from(realPath).select('*');
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
                 if (arg.type === 'where') {
@@ -263,7 +413,7 @@ export const getDocs = async (queryRef) => {
         }
         
         let items = getLocalCollection(queryRef.path);
-        if (queryRef.path === 'restaurants' && items.length === 0) {
+        if ((queryRef.path === 'restaurants' || queryRef.path === 'restaurant_profiles') && items.length === 0) {
             items = [{
                 id: 'main',
                 name: 'PopFood Cia do Chopp',
@@ -274,13 +424,16 @@ export const getDocs = async (queryRef) => {
                 whatsappBotEnabled: true,
                 createdAt: new Date().toISOString()
             }];
-            saveLocalCollection('restaurants', items);
+            saveLocalCollection(queryRef.path, items);
         }
 
         const mergedMap = new Map();
         items.forEach(i => mergedMap.set(String(i.id), i));
         if (data && Array.isArray(data)) {
-            data.forEach(s => mergedMap.set(String(s.id), { ...(mergedMap.get(String(s.id)) || {}), ...s }));
+            data.forEach(s => {
+                const cleanS = deserializeRow(queryRef.path, s);
+                mergedMap.set(String(cleanS.id), { ...(mergedMap.get(String(cleanS.id)) || {}), ...cleanS });
+            });
         }
         let mergedItems = Array.from(mergedMap.values());
 
@@ -306,7 +459,7 @@ export const getDocs = async (queryRef) => {
     } catch (e) {
         // Fallback to localStorage
         let items = getLocalCollection(queryRef.path);
-        if (queryRef.path === 'restaurants' && items.length === 0) {
+        if ((queryRef.path === 'restaurants' || queryRef.path === 'restaurant_profiles') && items.length === 0) {
             items = [{
                 id: 'main',
                 name: 'PopFood Cia do Chopp',
@@ -317,7 +470,7 @@ export const getDocs = async (queryRef) => {
                 whatsappBotEnabled: true,
                 createdAt: new Date().toISOString()
             }];
-            saveLocalCollection('restaurants', items);
+            saveLocalCollection(queryRef.path, items);
         }
 
         // Apply query filters on local items
@@ -356,7 +509,9 @@ export const setDoc = async (docRef, data, options = {}) => {
     saveLocalCollection(docRef.path, items);
 
     try {
-        await supabase.from(docRef.path).upsert(payload);
+        const realPath = await getRealTableName(docRef.path);
+        const serialized = serializeRow(docRef.path, realPath, payload);
+        await supabase.from(realPath).upsert(serialized);
     } catch (err) {
         console.warn(`Supabase upsert table ${docRef.path} skipped (saved locally):`, err?.message);
     }
@@ -370,7 +525,9 @@ export const updateDoc = async (docRef, data) => {
         saveLocalCollection(docRef.path, items);
     }
     try {
-        await supabase.from(docRef.path).update(data).eq('id', docRef.id);
+        const realPath = await getRealTableName(docRef.path);
+        const serialized = serializeRow(docRef.path, realPath, data);
+        await supabase.from(realPath).update(serialized).eq('id', docRef.id);
     } catch (err) {
         console.warn(`Supabase update table ${docRef.path} skipped (updated locally):`, err?.message);
     }
@@ -381,7 +538,8 @@ export const deleteDoc = async (docRef) => {
     items = items.filter(i => String(i.id) !== String(docRef.id));
     saveLocalCollection(docRef.path, items);
     try {
-        await supabase.from(docRef.path).delete().eq('id', docRef.id);
+        const realPath = await getRealTableName(docRef.path);
+        await supabase.from(realPath).delete().eq('id', docRef.id);
     } catch (err) {
         console.warn(`Supabase delete table ${docRef.path} skipped:`, err?.message);
     }
