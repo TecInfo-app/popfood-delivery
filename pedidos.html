@@ -1242,7 +1242,7 @@ window.copyStoreLink = function() {
       window.fcmMessaging = messaging;
 
       if ('serviceWorker' in navigator) {
-        Promise.resolve()
+        navigator.serviceWorker.ready
           .then(function(registration) {
             console.log('Registration successful, scope is:', (registration?.scope || '/'));
             registration.update().catch(err => console.log('Error updating registration:', err));

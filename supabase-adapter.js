@@ -243,6 +243,28 @@ function getDeterministicUuid(str) {
         return sStr.toLowerCase();
     }
     
+    // Check if already our custom encoded UUID (starts with version 7 and variant a)
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-a[0-9a-f]{3}-[0-9a-f]{12}$/i.test(sStr)) {
+        return sStr.toLowerCase();
+    }
+
+    // If length is <= 15 and is simple alphanumeric/simple ascii, encode it reversibly!
+    if (sStr.length <= 15 && /^[\w-]+$/.test(sStr)) {
+        let hex = '';
+        for (let i = 0; i < sStr.length; i++) {
+            hex += sStr.charCodeAt(i).toString(16).padStart(2, '0');
+        }
+        hex = hex.padStart(30, '0');
+        
+        const part1 = hex.slice(0, 8);
+        const part2 = hex.slice(8, 12);
+        const part3 = '7' + hex.slice(12, 15);
+        const part4 = 'a' + hex.slice(15, 18);
+        const part5 = hex.slice(18, 30);
+        
+        return `${part1}-${part2}-${part3}-${part4}-${part5}`.toLowerCase();
+    }
+    
     let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
     for (let i = 0; i < sStr.length; i++) {
         const char = sStr.charCodeAt(i);
@@ -265,6 +287,32 @@ function getDeterministicUuid(str) {
     const part5 = hex32.slice(20, 32);
     
     return `${part1}-${part2}-${part3}-${part4}-${part5}`.toLowerCase();
+}
+
+// Decodes a custom-encoded reversible UUID back to its original ASCII string
+function tryDecodeUuid(uuid) {
+    if (!uuid) return uuid;
+    const clean = String(uuid).trim().toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-a[0-9a-f]{3}-[0-9a-f]{12}$/.test(clean)) {
+        return uuid;
+    }
+    
+    const hexWithMarkers = clean.replace(/-/g, '');
+    const hex = hexWithMarkers.slice(0, 12) + hexWithMarkers.slice(13, 16) + hexWithMarkers.slice(17);
+    
+    let decoded = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        const code = parseInt(hex.slice(i, i + 2), 16);
+        if (code !== 0) {
+            decoded += String.fromCharCode(code);
+        }
+    }
+    return decoded || uuid;
+}
+
+const isUuidTable = true; // Helper variable or logic, we can define a function or inline checks below.
+function checkIsUuidTable(realPath) {
+    return (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients' || realPath === 'orders');
 }
 
 // Convert camelCase to snake_case with specific exceptions
@@ -404,7 +452,7 @@ function serializeRow(path, realPath, payload) {
     if (!payload) return payload;
     
     const serialized = {};
-    const isUuidTable = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients');
+    const isUuidTable = checkIsUuidTable(realPath);
     const validCols = tableColumns[realPath] || [];
 
     if (realPath === 'restaurant_profiles' || realPath === 'restaurants') {
@@ -475,7 +523,11 @@ function deserializeRow(path, row) {
     
     Object.keys(row).forEach(dbKey => {
         const camelKey = fromDbFieldName(path, dbKey);
-        deserialized[camelKey] = row[dbKey];
+        let val = row[dbKey];
+        if (camelKey === 'id') {
+            val = tryDecodeUuid(val);
+        }
+        deserialized[camelKey] = val;
     });
     
     if (path === 'restaurants' || path === 'restaurant_profiles') {
@@ -502,7 +554,7 @@ function deserializeRow(path, row) {
             deserialized.image = row.image_url;
         }
         if (row.category_id && !deserialized.categoryId) {
-            deserialized.categoryId = row.category_id;
+            deserialized.categoryId = tryDecodeUuid(row.category_id);
         }
     }
 
@@ -541,14 +593,14 @@ export const getDoc = async (docRef) => {
         let queryBuilder = supabase.from(realPath).select('*');
         const docId = docRef.id;
         
-        if (realPath === 'restaurants') {
+        if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docId);
             if (isUuid) {
                 queryBuilder = queryBuilder.eq('id', docId);
             } else {
                 queryBuilder = queryBuilder.eq('store_id', docId);
             }
-        } else if (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') {
+        } else if (checkIsUuidTable(realPath)) {
             const uuidId = getDeterministicUuid(docId);
             queryBuilder = queryBuilder.eq('id', uuidId);
         } else {
@@ -617,7 +669,9 @@ export const getDocs = async (queryRef) => {
                     let queryVal = arg.value;
                     
                     // Convert value to UUID if it's pointing to a UUID column
-                    if (dbField === 'id' || dbField === 'category_id' || (queryRef.path === 'categories' && dbField === 'id') || (queryRef.path === 'products' && (dbField === 'id' || dbField === 'category_id'))) {
+                    if (dbField === 'id' && checkIsUuidTable(realPath)) {
+                        queryVal = getDeterministicUuid(queryVal);
+                    } else if (dbField === 'category_id' && (realPath === 'products' || realPath === 'product')) {
                         queryVal = getDeterministicUuid(queryVal);
                     }
                     
@@ -826,13 +880,13 @@ export const setDoc = async (docRef, data, options = {}) => {
     try {
         const realPath = await getRealTableName(docRef.path);
         
-        if (realPath === 'restaurants') {
+        if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
             let existingUuid = null;
             if (isUuid) {
                 existingUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
                 if (found) {
                     existingUuid = found.id;
                 }
@@ -843,15 +897,18 @@ export const setDoc = async (docRef, data, options = {}) => {
             }
             if (existingUuid) {
                 serialized.id = existingUuid;
-                await supabase.from('restaurants').update(serialized).eq('id', existingUuid);
+                await supabase.from(realPath).update(serialized).eq('id', existingUuid);
             } else {
                 if (!isUuid) {
                     delete serialized.id;
                 }
-                await supabase.from('restaurants').insert(serialized);
+                await supabase.from(realPath).insert(serialized);
             }
         } else {
             const serialized = serializeRow(docRef.path, realPath, payload);
+            if (checkIsUuidTable(realPath)) {
+                serialized.id = getDeterministicUuid(docRef.id);
+            }
             await supabase.from(realPath).upsert(serialized);
         }
     } catch (err) {
@@ -872,25 +929,24 @@ export const updateDoc = async (docRef, data) => {
     try {
         const realPath = await getRealTableName(docRef.path);
         
-        if (realPath === 'restaurants') {
+        if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
             let targetUuid = null;
             if (isUuid) {
                 targetUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
                 if (found) {
                     targetUuid = found.id;
                 }
             }
             if (targetUuid) {
                 const serialized = serializeRow(docRef.path, realPath, data);
-                await supabase.from('restaurants').update(serialized).eq('id', targetUuid);
+                await supabase.from(realPath).update(serialized).eq('id', targetUuid);
             }
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
-            const targetId = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') ? 
-                getDeterministicUuid(docRef.id) : docRef.id;
+            const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
             await supabase.from(realPath).update(serialized).eq('id', targetId);
         }
     } catch (err) {
@@ -909,23 +965,22 @@ export const deleteDoc = async (docRef) => {
     try {
         const realPath = await getRealTableName(docRef.path);
         
-        if (realPath === 'restaurants') {
+        if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
             let targetUuid = null;
             if (isUuid) {
                 targetUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from('restaurants').select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
                 if (found) {
                     targetUuid = found.id;
                 }
             }
             if (targetUuid) {
-                await supabase.from('restaurants').delete().eq('id', targetUuid);
+                await supabase.from(realPath).delete().eq('id', targetUuid);
             }
         } else {
-            const targetId = (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients') ? 
-                getDeterministicUuid(docRef.id) : docRef.id;
+            const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
             await supabase.from(realPath).delete().eq('id', targetId);
         }
     } catch (err) {

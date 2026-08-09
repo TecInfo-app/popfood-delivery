@@ -2031,7 +2031,7 @@
       } from './supabase-adapter.js';
 
       if ('serviceWorker' in navigator) {
-        Promise.resolve()
+        navigator.serviceWorker.ready
           .then(function(registration) {
             console.log('Cliente Registration successful, scope is:', (registration?.scope || '/'));
             registration.update().catch(err => console.log('Error updating registration:', err));
