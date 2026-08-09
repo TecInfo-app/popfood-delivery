@@ -1,0 +1,14 @@
+--- supabase-adapter.js
++++ supabase-adapter.js
+@@ -194,6 +194,9 @@
+ 
+ // Convert camelCase to snake_case with specific exceptions
+ function toDbFieldName(path, fieldName) {
+     if (!fieldName) return fieldName;
++    
++    // If it is the restaurants or restaurant_profiles table, preserve camelCase
++    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') {
++        return fieldName;
++    }
+     
+     // Explicit exceptions based on the schema mapping from the user code (if any)

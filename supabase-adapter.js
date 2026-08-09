@@ -196,20 +196,20 @@ const tableCache = {};
 // Exact snake_case columns from user's Supabase schema to avoid "column does not exist" errors
 const tableColumns = {
     restaurants: [
-        'id', 'owner_id', 'store_id', 'name', 'phone', 'description', 
-        'open_time', 'close_time', 'cep', 'address', 'is_open', 'logo', 'logo_url', 'cover_url',
-        'minimum_order_price', 'abacate_pay_token', 'mp_access_token', 'mp_public_key', 
-        'stripe_public_key', 'stripe_secret_key', 'latitude', 'longitude', 'delivery_rates', 
-        'loyalty_active', 'loyalty_min_orders', 'loyalty_type', 'loyalty_value', 'created_at', 'updated_at',
-        'status', 'settings', 'merchant_tokens'
+        'id', 'ownerId', 'storeId', 'name', 'phone', 'description', 
+        'openTime', 'closeTime', 'cep', 'address', 'isOpen', 'logo', 'logoUrl', 'coverUrl',
+        'minimumOrderPrice', 'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 
+        'stripePublicKey', 'stripeSecretKey', 'latitude', 'longitude', 'deliveryRates', 
+        'loyaltyActive', 'loyaltyMinOrders', 'loyaltyType', 'loyaltyValue', 'createdAt', 'updatedAt',
+        'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
     ],
     restaurant_profiles: [
-        'id', 'owner_id', 'store_id', 'name', 'phone', 'description', 
-        'open_time', 'close_time', 'cep', 'address', 'is_open', 'logo', 'logo_url', 'cover_url',
-        'minimum_order_price', 'abacate_pay_token', 'mp_access_token', 'mp_public_key', 
-        'stripe_public_key', 'stripe_secret_key', 'latitude', 'longitude', 'delivery_rates', 
-        'loyalty_active', 'loyalty_min_orders', 'loyalty_type', 'loyalty_value', 'created_at', 'updated_at',
-        'status', 'settings', 'merchant_tokens'
+        'id', 'ownerId', 'storeId', 'name', 'phone', 'description', 
+        'openTime', 'closeTime', 'cep', 'address', 'isOpen', 'logo', 'logoUrl', 'coverUrl',
+        'minimumOrderPrice', 'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 
+        'stripePublicKey', 'stripeSecretKey', 'latitude', 'longitude', 'deliveryRates', 
+        'loyaltyActive', 'loyaltyMinOrders', 'loyaltyType', 'loyaltyValue', 'createdAt', 'updatedAt',
+        'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
     ],
     categories: [
         'id', 'store_id', 'name', 'sort_order', 'created_at'
@@ -224,7 +224,7 @@ const tableColumns = {
     orders: [
         'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'total', 
         'total_price', 'subtotal', 'delivery_fee', 'discount', 'payment_method', 'items', 'created_at', 
-        'updated_at', 'coupon_code', 'payment_status', 'chat_messages', 'delivery_pin'
+        'updated_at'
     ],
     customers: [
         'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
@@ -318,6 +318,7 @@ function checkIsUuidTable(realPath) {
 // Convert camelCase to snake_case with specific exceptions
 function toDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
+    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') return fieldName;
     
     if (fieldName === 'storeId') return 'store_id';
     if (fieldName === 'categoryId') return 'category_id';
@@ -360,6 +361,7 @@ function toDbFieldName(path, fieldName) {
 // Convert snake_case to camelCase with specific exceptions
 function fromDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
+    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') return fieldName;
     
     if (fieldName === 'store_id') return 'storeId';
     if (fieldName === 'category_id') return 'categoryId';
@@ -514,6 +516,30 @@ function serializeRow(path, realPath, payload) {
         }
     });
 
+    // Hack: Pack missing columns into customer_address JSONB for 'orders'
+    if (realPath === 'orders' || path === 'orders' || path === 'COLLECTIONS.orders') {
+        const extraKeys = ['chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 'paymentStatus', 'payment_status'];
+        const extraData = {};
+        let hasExtra = false;
+        
+        extraKeys.forEach(k => {
+            if (payload[k] !== undefined) {
+                let niceKey = k.replace(/_([a-z])/g, g => g[1].toUpperCase());
+                extraData[niceKey] = payload[k];
+                hasExtra = true;
+                delete serialized[toDbFieldName(path, k)]; // Remove from root to avoid 400 Bad Request
+            }
+        });
+        
+        if (hasExtra) {
+            serialized.customer_address = serialized.customer_address || payload.customerAddress || payload.customer_address || {};
+            if (typeof serialized.customer_address === 'object') {
+                serialized.customer_address = { ...serialized.customer_address };
+                serialized.customer_address._meta = { ...(serialized.customer_address._meta || {}), ...extraData };
+            }
+        }
+    }
+
     return serialized;
 }
 
@@ -558,11 +584,15 @@ function deserializeRow(path, row) {
         }
     }
 
-    if (path === 'orders' || path === 'order') {
+    if (path === 'orders' || path === 'order' || path === 'COLLECTIONS.orders') {
         if (row.total_price !== undefined) {
             deserialized.total = Number(row.total_price);
         } else if (row.total !== undefined) {
             deserialized.total = Number(row.total);
+        }
+        // Unpack from customer_address hack
+        if (row.customer_address && typeof row.customer_address === 'object' && row.customer_address._meta) {
+            Object.assign(deserialized, row.customer_address._meta);
         }
         if (row.delivery_fee !== undefined) {
             deserialized.deliveryFee = Number(row.delivery_fee);
@@ -578,8 +608,10 @@ function deserializeRow(path, row) {
                 deserialized.customerAddress = row.customer_address;
                 deserialized.address = row.customer_address;
             } else if (row.customer_address && typeof row.customer_address === 'object') {
-                deserialized.customerAddress = row.customer_address;
-                deserialized.address = row.customer_address.address || row.customer_address.street || JSON.stringify(row.customer_address);
+                const cleanAddr = { ...row.customer_address };
+                delete cleanAddr._meta;
+                deserialized.customerAddress = cleanAddr;
+                deserialized.address = cleanAddr.address || cleanAddr.street || JSON.stringify(cleanAddr);
             }
         }
     }
@@ -1023,3 +1055,11 @@ export const onMessage = () => {};
 export const messaging = {};
 export const app = {};
 export const VAPID_KEY = '';
+
+// Add cross-tab sync for local development
+window.addEventListener('storage', (e) => {
+    if (e.key && e.key.startsWith('popfood_fb_')) {
+        const path = e.key.replace('popfood_fb_', '');
+        notifyListenersByPath(path);
+    }
+});
