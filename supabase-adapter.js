@@ -212,7 +212,7 @@ const tableColumns = {
         'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
     ],
     categories: [
-        'id', 'store_id', 'name', 'sort_order', 'created_at'
+        'id', 'store_id', 'storeId', 'name', 'order', 'sort_order', 'created_at', 'createdAt'
     ],
     products: [
         'id', 'store_id', 'category_id', 'name', 'description', 'price', 'promotional_price', 
@@ -222,15 +222,14 @@ const tableColumns = {
         'id', 'store_id', 'code', 'discount_type', 'discount_value', 'min_order_value', 'active', 'created_at', 'expires_at'
     ],
     orders: [
-        'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'total', 
-        'total_price', 'subtotal', 'delivery_fee', 'discount', 'payment_method', 'items', 'created_at', 
-        'updated_at'
+        'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'payment_method', 
+        'payment_status', 'total', 'items', 'delivery_fee', 'coupon_code', 'created_at'
     ],
     customers: [
         'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
     ],
     clients: [
-        'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
+        'id', 'store_id', 'storeId', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'createdAt', 'address'
     ]
 };
 
@@ -318,9 +317,24 @@ function checkIsUuidTable(realPath) {
 // Convert camelCase to snake_case with specific exceptions
 function toDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
+    const cleanPath = (path || '').replace('COLLECTIONS.', '');
+    
+    if (cleanPath === 'orders' || cleanPath === 'order') {
+        if (fieldName === 'storeId' || fieldName === 'store_id') return 'store_id';
+        if (fieldName === 'customer.phone' || fieldName === 'customerPhone' || fieldName === 'customer_phone' || fieldName === 'phone') return 'customer_phone';
+        if (fieldName === 'customer.name' || fieldName === 'customerName' || fieldName === 'customer_name' || fieldName === 'name') return 'customer_name';
+        if (fieldName === 'customer.address' || fieldName === 'customerAddress' || fieldName === 'customer_address' || fieldName === 'address') return 'customer_address';
+        if (fieldName === 'deliveryFee' || fieldName === 'delivery_fee') return 'delivery_fee';
+        if (fieldName === 'paymentMethod' || fieldName === 'payment_method') return 'payment_method';
+        if (fieldName === 'paymentStatus' || fieldName === 'payment_status') return 'payment_status';
+        if (fieldName === 'couponCode' || fieldName === 'cupomCode' || fieldName === 'coupon_code') return 'coupon_code';
+        if (fieldName === 'createdAt' || fieldName === 'created_at') return 'created_at';
+        if (fieldName === 'totalPrice' || fieldName === 'total') return 'total';
+        return fieldName;
+    }
+
     const camelTables = ['restaurants', 'restaurant_profiles', 'clients', 'categories', 'complements'];
-    const p = (path || '').replace('COLLECTIONS.', '');
-    const isCamel = camelTables.includes(p);
+    const isCamel = camelTables.includes(cleanPath);
     
     if (isCamel) {
         if (fieldName === 'store_id') return 'storeId';
@@ -366,6 +380,62 @@ function toDbFieldName(path, fieldName) {
     if (fieldName === 'adminPassword') return 'admin_password';
 
     return fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+// In-memory query filter evaluator with support for phone formatting and nested fields
+function matchesQueryFilter(item, field, op, value) {
+    if (!item) return false;
+    let itemVal = undefined;
+    
+    // Support nested fields like 'customer.phone'
+    if (field && field.includes('.')) {
+        const parts = field.split('.');
+        let curr = item;
+        for (const p of parts) {
+            if (curr && typeof curr === 'object') {
+                curr = curr[p];
+            } else {
+                curr = undefined;
+                break;
+            }
+        }
+        itemVal = curr;
+    }
+    
+    // Support camelCase / snake_case aliases
+    if (itemVal === undefined) {
+        if (field === 'customer.phone' || field === 'customerPhone' || field === 'customer_phone' || field === 'phone') {
+            itemVal = item.customerPhone || item.customer_phone || item.customer?.phone || item.phone;
+        } else if (field === 'customer.name' || field === 'customerName' || field === 'customer_name' || field === 'name') {
+            itemVal = item.customerName || item.customer_name || item.customer?.name || item.name;
+        } else if (field === 'storeId' || field === 'store_id') {
+            itemVal = item.storeId || item.store_id;
+        } else if (field === 'categoryId' || field === 'category_id') {
+            itemVal = item.categoryId || item.category_id;
+        } else {
+            itemVal = item[field];
+        }
+    }
+    
+    // If comparing phone numbers, sanitize non-digits
+    if (field === 'customer.phone' || field === 'customerPhone' || field === 'customer_phone' || field === 'phone') {
+        const cleanItemPhone = String(itemVal || '').replace(/\D/g, '');
+        const cleanQueryPhone = String(value || '').replace(/\D/g, '');
+        if (cleanItemPhone && cleanQueryPhone) {
+            if (op === '==') return cleanItemPhone === cleanQueryPhone || cleanItemPhone.endsWith(cleanQueryPhone) || cleanQueryPhone.endsWith(cleanItemPhone);
+        }
+    }
+    
+    if (op === '==') {
+        return String(itemVal) === String(value) || itemVal === value;
+    }
+    if (op === '>') return itemVal > value;
+    if (op === '<') return itemVal < value;
+    if (op === '>=') return itemVal >= value;
+    if (op === '<=') return itemVal <= value;
+    if (op === 'array-contains') return Array.isArray(itemVal) && itemVal.includes(value);
+    
+    return true;
 }
 
 // Convert snake_case to camelCase with specific exceptions
@@ -574,9 +644,28 @@ function serializeRow(path, realPath, payload) {
         }
     }
 
-    // Hack: Pack missing columns into customer_address JSONB for 'orders'
+    // Handle 'orders' packing: pack customer details, subtotal, discount, loyalty metadata into columns
     if (realPath === 'orders' || path === 'orders' || path === 'COLLECTIONS.orders') {
-        const extraKeys = ['chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 'paymentStatus', 'payment_status'];
+        if (payload.customer) {
+            if (!serialized.customer_name && payload.customer.name) serialized.customer_name = payload.customer.name;
+            if (!serialized.customer_phone && payload.customer.phone) serialized.customer_phone = payload.customer.phone;
+            if (!serialized.customer_address && payload.customer.address) serialized.customer_address = payload.customer.address;
+        }
+        if (payload.customerPhone && !serialized.customer_phone) serialized.customer_phone = payload.customerPhone;
+        if (payload.customerName && !serialized.customer_name) serialized.customer_name = payload.customerName;
+        if (payload.customerAddress && !serialized.customer_address) serialized.customer_address = payload.customerAddress;
+
+        if (payload.totalPrice !== undefined && serialized.total === undefined) {
+            serialized.total = Number(payload.totalPrice) || 0;
+        }
+
+        const extraKeys = [
+            'chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 
+            'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 
+            'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 
+            'subtotal', 'discount', 'discountAmount', 'descontoFidelidade', 
+            'fidelidadeAtivo', 'observacao', 'changeFor', 'trocoPara', 'customer'
+        ];
         const extraData = {};
         let hasExtra = false;
         
@@ -585,15 +674,23 @@ function serializeRow(path, realPath, payload) {
                 let niceKey = k.replace(/_([a-z])/g, g => g[1].toUpperCase());
                 extraData[niceKey] = payload[k];
                 hasExtra = true;
-                delete serialized[toDbFieldName(path, k)]; // Remove from root to avoid 400 Bad Request
+                const dbK = toDbFieldName(path, k);
+                if (!validCols.includes(dbK)) {
+                    delete serialized[dbK]; // Remove from root to avoid 400 Bad Request
+                }
             }
         });
         
         if (hasExtra) {
-            serialized.customer_address = serialized.customer_address || payload.customerAddress || payload.customer_address || {};
-            if (typeof serialized.customer_address === 'object') {
-                serialized.customer_address = { ...serialized.customer_address };
-                serialized.customer_address._meta = { ...(serialized.customer_address._meta || {}), ...extraData };
+            let addrObj = serialized.customer_address || payload.customerAddress || payload.customer_address || {};
+            if (typeof addrObj === 'string') {
+                addrObj = { address: addrObj };
+            }
+            if (typeof addrObj === 'object') {
+                serialized.customer_address = { 
+                    ...addrObj, 
+                    _meta: { ...(addrObj._meta || {}), ...extraData } 
+                };
             }
         }
     }
@@ -645,9 +742,12 @@ function deserializeRow(path, row) {
     if (path === 'orders' || path === 'order' || path === 'COLLECTIONS.orders') {
         if (row.total_price !== undefined) {
             deserialized.total = Number(row.total_price);
+            deserialized.totalPrice = Number(row.total_price);
         } else if (row.total !== undefined) {
             deserialized.total = Number(row.total);
+            deserialized.totalPrice = Number(row.total);
         }
+        
         // Unpack from customer_address hack
         if (row.customer_address && typeof row.customer_address === 'object' && row.customer_address._meta) {
             Object.assign(deserialized, row.customer_address._meta);
@@ -660,6 +760,13 @@ function deserializeRow(path, row) {
         }
         if (row.discount !== undefined) {
             deserialized.discountAmount = Number(row.discount);
+            deserialized.discount = Number(row.discount);
+        }
+        if (row.customer_phone !== undefined) {
+            deserialized.customerPhone = row.customer_phone;
+        }
+        if (row.customer_name !== undefined) {
+            deserialized.customerName = row.customer_name;
         }
         if (row.customer_address !== undefined) {
             if (typeof row.customer_address === 'string') {
@@ -671,6 +778,14 @@ function deserializeRow(path, row) {
                 deserialized.customerAddress = cleanAddr;
                 deserialized.address = cleanAddr.address || cleanAddr.street || JSON.stringify(cleanAddr);
             }
+        }
+        // Build nested customer object if not present
+        if (!deserialized.customer) {
+            deserialized.customer = {
+                name: deserialized.customerName || row.customer_name || '',
+                phone: deserialized.customerPhone || row.customer_phone || '',
+                address: deserialized.customerAddress || row.customer_address || ''
+            };
         }
     }
 
@@ -793,6 +908,11 @@ export const getDocs = async (queryRef) => {
                         queryVal = getDeterministicUuid(queryVal);
                     }
                     
+                    // If querying customer_phone in orders, clean non-digits if needed
+                    if (dbField === 'customer_phone' && typeof queryVal === 'string') {
+                        queryVal = queryVal.replace(/\D/g, '');
+                    }
+
                     if (arg.op === '==') q = q.eq(dbField, queryVal);
                     if (arg.op === '>') q = q.gt(dbField, queryVal);
                     if (arg.op === '<') q = q.lt(dbField, queryVal);
@@ -843,9 +963,7 @@ export const getDocs = async (queryRef) => {
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
                 if (arg.type === 'where') {
-                    if (arg.op === '==') {
-                        mergedItems = mergedItems.filter(i => i[arg.field] === arg.value);
-                    }
+                    mergedItems = mergedItems.filter(item => matchesQueryFilter(item, arg.field, arg.op, arg.value));
                 }
             });
         }
@@ -880,9 +998,7 @@ export const getDocs = async (queryRef) => {
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
                 if (arg.type === 'where') {
-                    if (arg.op === '==') {
-                        items = items.filter(i => i[arg.field] === arg.value);
-                    }
+                    items = items.filter(item => matchesQueryFilter(item, arg.field, arg.op, arg.value));
                 }
             });
         }
