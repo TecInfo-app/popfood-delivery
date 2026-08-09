@@ -6663,12 +6663,11 @@
       };
 
       window.checkFirstOrderCoupon = async function() {
-        // Prevent showing if already viewed in this session or user already logged in with past orders
+        // Prevent showing if already viewed in this session
         if (sessionStorage.getItem("popfood_first_order_modal_shown")) return;
         
         const cachedPhone = localStorage.getItem("popfood_last_phone") || "";
         if (cachedPhone) {
-          // Verify if they have orders
           try {
             const ordersSnap = await getDocs(
               query(
@@ -6686,7 +6685,6 @@
         }
 
         try {
-          const now = new Date();
           const couponsSnap = await getDocs(
             query(
               collection(db, COLLECTIONS.coupons),
@@ -6697,8 +6695,7 @@
           let firstOrderCoupon = null;
           couponsSnap.forEach((docSnap) => {
             const cData = docSnap.data();
-            const limit = new Date(cData.expiry);
-            if (cData.active && cData.firstOrderOnly && limit >= now) {
+            if (cData.active !== false && cData.firstOrderOnly && !isCouponExpired(cData)) {
               firstOrderCoupon = cData;
             }
           });
@@ -6708,14 +6705,15 @@
             const modal = document.getElementById("first-order-modal");
             const inner = document.getElementById("first-order-modal-inner");
             
-            modal.classList.remove("hidden");
-            // small delay for transition
-            setTimeout(() => {
-              modal.classList.remove("opacity-0");
-              modal.classList.add("opacity-100");
-              inner.classList.remove("scale-90");
-              inner.classList.add("scale-100");
-            }, 50);
+            if (modal && inner) {
+              modal.classList.remove("hidden");
+              setTimeout(() => {
+                modal.classList.remove("opacity-0");
+                modal.classList.add("opacity-100");
+                inner.classList.remove("scale-90");
+                inner.classList.add("scale-100");
+              }, 50);
+            }
             
             sessionStorage.setItem("popfood_first_order_modal_shown", "true");
           }
@@ -6723,6 +6721,26 @@
           console.error("Erro ao carregar cupom de primeiro pedido: ", e);
         }
       };
+
+      // Helper function to check if a coupon is expired
+      function isCouponExpired(coupon) {
+        if (!coupon) return true;
+        const expiry = coupon.expiry || coupon.expiresAt || coupon.expires_at;
+        if (!expiry || String(expiry).trim() === "" || expiry === "null" || expiry === "undefined") {
+          return false;
+        }
+        
+        let limit;
+        if (typeof expiry === "string" && /^\d{4}-\d{2}-\d{2}$/.test(expiry.trim())) {
+          const parts = expiry.trim().split("-");
+          limit = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 23, 59, 59, 999);
+        } else {
+          limit = new Date(expiry);
+        }
+        
+        if (isNaN(limit.getTime())) return false;
+        return limit.getTime() < Date.now();
+      }
 
       window.closePreRegisterGpsModal = function() {
         const modal = document.getElementById("pre-register-gps-modal");
@@ -7008,26 +7026,27 @@
       }
 
       window.applyDiscountCoupon = async function () {
-        const codeInput = document
-          .getElementById("coupon-code-field")
-          .value.trim()
-          .toUpperCase();
+        const inputEl = document.getElementById("coupon-code-field");
+        const codeInput = (inputEl ? inputEl.value : "").trim().toUpperCase();
         const msg = document.getElementById("coupon-msg");
 
         if (!codeInput) {
           appliedDiscountCouponIsManual = false;
           appliedDiscountCoupon = null;
-          if (msg) msg.classList.add("hidden");
+          if (msg) {
+            msg.textContent = "";
+            msg.classList.add("hidden");
+          }
           calculateReceiptTotals();
           showToast("Cupom manual removido.");
           return;
         }
 
-        msg.classList.remove(
-          "hidden",
-          "text-brand-danger",
-          "text-brand-secondary",
-        );
+        if (msg) {
+          msg.classList.remove("hidden", "text-brand-danger", "text-emerald-600", "text-brand-secondary");
+          msg.textContent = "Validando cupom...";
+          msg.classList.remove("hidden");
+        }
 
         try {
           const couponsSnap = await getDocs(
@@ -7037,80 +7056,120 @@
             ),
           );
           let matchCoupon = null;
+          storeCouponsList = [];
 
           couponsSnap.forEach((docSnap) => {
             const cData = docSnap.data();
-            if (cData.code.toUpperCase() === codeInput && cData.active) {
-              matchCoupon = { id: docSnap.id, ...cData };
+            const fullCoupon = { id: docSnap.id, ...cData };
+            storeCouponsList.push(fullCoupon);
+            if (cData.code && cData.code.toUpperCase().trim() === codeInput && cData.active !== false) {
+              matchCoupon = fullCoupon;
             }
           });
 
           if (!matchCoupon) {
-            msg.textContent = "❌ Cupom inválido, inativo ou inexistente.";
-            msg.classList.add("text-brand-danger");
+            if (msg) {
+              msg.textContent = "❌ Cupom inválido, inativo ou inexistente.";
+              msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+              msg.classList.remove("hidden");
+            }
             appliedDiscountCoupon = null;
             appliedDiscountCouponIsManual = false;
-          } else {
-            // Verify Minimum Purchase restriction
-            const minVal = parseFloat(matchCoupon.minValue || 0);
-            const subtotal = shoppingCart.reduce((sum, item) => {
-              return sum + item.totalItemPrice * item.quantity;
-            }, 0);
-            if (subtotal < minVal) {
-              msg.textContent = `❌ Este cupom exige um valor mínimo de compra de R$ ${minVal.toFixed(2).replace(".", ",")}.`;
-              msg.classList.add("text-brand-danger");
+            calculateReceiptTotals();
+            return;
+          }
+
+          // 1. Verify expiry Date
+          if (isCouponExpired(matchCoupon)) {
+            const expStr = matchCoupon.expiry ? new Date(matchCoupon.expiry).toLocaleDateString("pt-BR") : "";
+            if (msg) {
+              msg.textContent = `❌ Cupom expirado${expStr ? ' em ' + expStr : ''}.`;
+              msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+              msg.classList.remove("hidden");
+            }
+            appliedDiscountCoupon = null;
+            appliedDiscountCouponIsManual = false;
+            calculateReceiptTotals();
+            return;
+          }
+
+          // 2. Verify Minimum Purchase restriction
+          const minVal = parseFloat(matchCoupon.minValue || matchCoupon.minOrderValue || matchCoupon.min_order_value || 0);
+          const subtotal = shoppingCart.reduce((sum, item) => sum + item.totalItemPrice * item.quantity, 0);
+          if (subtotal < minVal) {
+            if (msg) {
+              msg.textContent = `❌ Este cupom exige um valor mínimo de compra de R$ ${minVal.toFixed(2).replace(".", ",")}. (Seu carrinho: R$ ${subtotal.toFixed(2).replace(".", ",")})`;
+              msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+              msg.classList.remove("hidden");
+            }
+            appliedDiscountCoupon = null;
+            appliedDiscountCouponIsManual = false;
+            calculateReceiptTotals();
+            return;
+          }
+
+          // 3. Verify First Order only constraint
+          if (matchCoupon.firstOrderOnly) {
+            const phoneInput = (
+              (document.getElementById("cust-phone") || {}).value ||
+              localStorage.getItem("popfood_last_phone") ||
+              ""
+            ).trim().replace(/\D/g, "");
+
+            if (!phoneInput) {
+              if (msg) {
+                msg.textContent = "❌ Informe seu WhatsApp (na etapa de identificação) para validar o cupom de Primeiro Pedido.";
+                msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+                msg.classList.remove("hidden");
+              }
               appliedDiscountCoupon = null;
               appliedDiscountCouponIsManual = false;
               calculateReceiptTotals();
               return;
             }
 
-            // Verify First Order only constraint
-            if (matchCoupon.firstOrderOnly) {
-              const phoneInput = document.getElementById("cust-phone").value.trim().replace(/\D/g, "");
-              if (!phoneInput) {
-                 msg.textContent = "❌ Informe seu WhatsApp (Cadastro) para usar este cupom de Primeiro Pedido.";
-                 msg.classList.add("text-brand-danger");
-                 appliedDiscountCoupon = null;
-                 appliedDiscountCouponIsManual = false;
-                 calculateReceiptTotals();
-                 return;
+            const ordersSnap = await getDocs(
+              query(
+                collection(db, COLLECTIONS.orders),
+                where("customerPhone", "==", phoneInput),
+                where("storeId", "==", window.currentStoreId),
+              ),
+            );
+            if (!ordersSnap.empty) {
+              if (msg) {
+                msg.textContent = "❌ Este cupom é exclusivo para o seu primeiro pedido.";
+                msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+                msg.classList.remove("hidden");
               }
-              const ordersSnap = await getDocs(
-                query(
-                  collection(db, COLLECTIONS.orders),
-                  where("customerPhone", "==", phoneInput),
-                  where("storeId", "==", window.currentStoreId),
-                ),
-              );
-              if (!ordersSnap.empty) {
-                 msg.textContent = "❌ Este cupom é válido apenas para o seu primeiro pedido.";
-                 msg.classList.add("text-brand-danger");
-                 appliedDiscountCoupon = null;
-                 appliedDiscountCouponIsManual = false;
-                 calculateReceiptTotals();
-                 return;
-              }
-            }
-
-            // Verify expiry Date
-            const now = new Date();
-            const limit = new Date(matchCoupon.expiry);
-
-            if (limit < now) {
-              msg.textContent = `❌ Cupom expirado em ${limit.toLocaleDateString("pt-BR")}`;
-              msg.classList.add("text-brand-danger");
               appliedDiscountCoupon = null;
               appliedDiscountCouponIsManual = false;
-            } else {
-              msg.textContent = `✅ Cupom "${matchCoupon.code}" aplicado com sucesso!`;
-              msg.classList.add("text-brand-secondary");
-              appliedDiscountCoupon = matchCoupon;
-              appliedDiscountCouponIsManual = true;
+              calculateReceiptTotals();
+              return;
             }
           }
+
+          // All good!
+          appliedDiscountCoupon = matchCoupon;
+          appliedDiscountCouponIsManual = true;
+
+          const isPercent = (matchCoupon.type === "percentual" || matchCoupon.discountType === "percentual" || matchCoupon.discount_type === "percentual");
+          const discText = isPercent
+            ? `${matchCoupon.value}%`
+            : `R$ ${parseFloat(matchCoupon.value || 0).toFixed(2).replace(".", ",")}`;
+
+          if (msg) {
+            msg.textContent = `✅ Cupom "${matchCoupon.code}" aplicado com sucesso! (${discText} de desconto)`;
+            msg.className = "text-xs font-semibold px-2 py-1 select-none text-emerald-600 block";
+            msg.classList.remove("hidden");
+          }
+          showToast(`Cupom "${matchCoupon.code}" aplicado! 🎉`);
         } catch (err) {
           console.error("Erro ao resgatar cupons: ", err);
+          if (msg) {
+            msg.textContent = "❌ Erro ao validar cupom.";
+            msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-danger block";
+            msg.classList.remove("hidden");
+          }
           appliedDiscountCouponIsManual = false;
         }
 
@@ -7783,20 +7842,20 @@
         if (!appliedDiscountCouponIsManual) {
           let bestAutoCoupon = null;
           let bestDiscountAmount = 0;
-          const now = new Date();
 
           storeCouponsList.forEach((coupon) => {
-            if (coupon.active && coupon.automatic) {
-              const limit = new Date(coupon.expiry);
-              if (limit >= now) {
+            if (coupon.active !== false && coupon.automatic) {
+              if (!isCouponExpired(coupon)) {
                 // Check minimum purchase restriction
-                const minVal = parseFloat(coupon.minValue || 0);
+                const minVal = parseFloat(coupon.minValue || coupon.minOrderValue || coupon.min_order_value || 0);
                 if (subtotal >= minVal) {
                   let discountVal = 0;
-                  if (coupon.type === "percentual") {
-                    discountVal = subtotal * (coupon.value / 100);
+                  const isPercent = (coupon.type === "percentual" || coupon.discountType === "percentual" || coupon.discount_type === "percentual");
+                  const cVal = parseFloat(coupon.value || coupon.discountValue || coupon.discount_value || 0);
+                  if (isPercent) {
+                    discountVal = subtotal * (cVal / 100);
                   } else {
-                    discountVal = coupon.value;
+                    discountVal = cVal;
                   }
                   
                   if (discountVal > bestDiscountAmount) {
@@ -7819,8 +7878,11 @@
         const msg = document.getElementById("coupon-msg");
         if (msg) {
           if (appliedDiscountCoupon && !appliedDiscountCouponIsManual) {
-            msg.textContent = `⚡ Desconto automático "${appliedDiscountCoupon.code}" aplicado!`;
-            msg.className = "text-xs font-semibold px-2 py-1 select-none text-brand-secondary block";
+            const isPercent = (appliedDiscountCoupon.type === "percentual" || appliedDiscountCoupon.discountType === "percentual" || appliedDiscountCoupon.discount_type === "percentual");
+            const cVal = parseFloat(appliedDiscountCoupon.value || appliedDiscountCoupon.discountValue || appliedDiscountCoupon.discount_value || 0);
+            const discDesc = isPercent ? `${cVal}%` : `R$ ${cVal.toFixed(2).replace(".", ",")}`;
+            msg.textContent = `⚡ Desconto automático "${appliedDiscountCoupon.code}" (${discDesc}) aplicado!`;
+            msg.className = "text-xs font-semibold px-2 py-1 select-none text-emerald-600 block";
             msg.classList.remove("hidden");
           } else if (!appliedDiscountCoupon && !appliedDiscountCouponIsManual) {
             msg.classList.add("hidden");
@@ -7832,20 +7894,22 @@
         const discPanel = document.getElementById("panel-desconto");
 
         if (appliedDiscountCoupon) {
-          if (appliedDiscountCoupon.type === "percentual") {
-            discount = subtotal * (appliedDiscountCoupon.value / 100);
+          const isPercent = (appliedDiscountCoupon.type === "percentual" || appliedDiscountCoupon.discountType === "percentual" || appliedDiscountCoupon.discount_type === "percentual");
+          const cVal = parseFloat(appliedDiscountCoupon.value || appliedDiscountCoupon.discountValue || appliedDiscountCoupon.discount_value || 0);
+          if (isPercent) {
+            discount = subtotal * (cVal / 100);
           } else {
-            discount = appliedDiscountCoupon.value;
+            discount = cVal;
           }
-          discount = Math.min(subtotal, discount); // Cannot exceed order value
+          discount = Math.min(subtotal, Math.max(0, discount)); // Cannot exceed order value
 
-          discPanel.classList.remove("h-0");
-          discPanel.classList.add("py-0.5");
+          discPanel.classList.remove("h-0", "hidden");
+          discPanel.classList.add("py-0.5", "flex");
           (document.getElementById("lbl-desconto") || {}).textContent =
             `- R$ ${discount.toFixed(2).replace(".", ",")}`;
         } else {
-          discPanel.classList.add("h-0");
-          discPanel.classList.remove("py-0.5");
+          discPanel.classList.add("h-0", "hidden");
+          discPanel.classList.remove("py-0.5", "flex");
         }
 
         // Recalculate automatic loyalty discount
@@ -7978,11 +8042,10 @@
         );
         let discVal = 0;
         if (appliedDiscountCoupon) {
-          discVal =
-            appliedDiscountCoupon.type === "percentual"
-              ? subtotal * (appliedDiscountCoupon.value / 100)
-              : appliedDiscountCoupon.value;
-          discVal = Math.min(subtotal, discVal);
+          const isPercent = (appliedDiscountCoupon.type === "percentual" || appliedDiscountCoupon.discountType === "percentual" || appliedDiscountCoupon.discount_type === "percentual");
+          const cVal = parseFloat(appliedDiscountCoupon.value || appliedDiscountCoupon.discountValue || appliedDiscountCoupon.discount_value || 0);
+          discVal = isPercent ? subtotal * (cVal / 100) : cVal;
+          discVal = Math.min(subtotal, Math.max(0, discVal));
         }
 
         let loyaltyDisc = 0;
@@ -8278,11 +8341,10 @@
           );
           let discount = 0;
           if (appliedDiscountCoupon) {
-            discount =
-              appliedDiscountCoupon.type === "percentual"
-                ? subtotal * (appliedDiscountCoupon.value / 100)
-                : appliedDiscountCoupon.value;
-            discount = Math.min(subtotal, discount);
+            const isPercent = (appliedDiscountCoupon.type === "percentual" || appliedDiscountCoupon.discountType === "percentual" || appliedDiscountCoupon.discount_type === "percentual");
+            const cVal = parseFloat(appliedDiscountCoupon.value || appliedDiscountCoupon.discountValue || appliedDiscountCoupon.discount_value || 0);
+            discount = isPercent ? subtotal * (cVal / 100) : cVal;
+            discount = Math.min(subtotal, Math.max(0, discount));
           }
           let loyaltyDisc = 0;
           if (

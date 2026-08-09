@@ -2711,12 +2711,12 @@ window.copyStoreLink = function() {
           const card = document.createElement('div');
           card.className = "bg-gray-50 p-3.5 border border-gray-150 rounded-2xl flex flex-col justify-between items-start gap-3 shadow-xs";
           
-          const discountStr = coupon.type === "percentual" ? `${coupon.value}% de desconto` : `R$ ${coupon.value.toFixed(2)} de desconto`;
-          const validityDate = new Date(coupon.expiry).toLocaleDateString('pt-BR');
+          const discountStr = coupon.type === "percentual" ? `${coupon.value}% de desconto` : `R$ ${parseFloat(coupon.value || 0).toFixed(2).replace('.', ',')} de desconto`;
+          const validityDate = coupon.expiry ? new Date(coupon.expiry).toLocaleDateString('pt-BR') : 'Sem expiração';
           const isAtvPill = coupon.active ? 'bg-green-150 text-brand-secondary font-bold' : 'bg-red-150 text-brand-danger font-bold';
           const isFirstOrderPill = coupon.firstOrderOnly ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-150 text-purple-700 font-bold ml-1">1º Pedido</span>' : '';
           const isAutomaticPill = coupon.automatic ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-blue-150 text-blue-700 font-bold ml-1">⚡ Automático</span>' : '';
-          const minValStr = coupon.minValue ? `<span class="text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-bold ml-1">Min: R$ ${parseFloat(coupon.minValue).toFixed(2)}</span>` : '';
+          const minValStr = coupon.minValue ? `<span class="text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-bold ml-1">Mín: R$ ${parseFloat(coupon.minValue).toFixed(2).replace('.', ',')}</span>` : '';
 
           card.innerHTML = `
             <div class="space-y-1.5 w-full">
@@ -2759,7 +2759,7 @@ window.copyStoreLink = function() {
           (document.getElementById('coupon-form-type') || {}).value = itemObj.type;
           (document.getElementById('coupon-form-value') || {}).value = itemObj.value;
           (document.getElementById('coupon-form-min-value') || {}).value = itemObj.minValue !== undefined ? itemObj.minValue : '';
-          (document.getElementById('coupon-form-expiry') || {}).value = itemObj.expiry;
+          (document.getElementById('coupon-form-expiry') || {}).value = itemObj.expiry ? itemObj.expiry.substring(0, 10) : '';
           (document.getElementById('coupon-form-active') || {}).checked = !!itemObj.active;
           (document.getElementById('coupon-form-first-order') || {}).checked = !!itemObj.firstOrderOnly;
           (document.getElementById('coupon-form-automatic') || {}).checked = !!itemObj.automatic;

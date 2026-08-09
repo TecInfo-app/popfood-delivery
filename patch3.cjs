@@ -1,6 +1,7 @@
 const fs = require('fs');
 let code = fs.readFileSync('supabase-adapter.js', 'utf8');
-
-code = code.replace(/function fromDbFieldName\(path, fieldName\) {\n    if \(!fieldName\) return fieldName;/, `function fromDbFieldName(path, fieldName) {\n    if (!fieldName) return fieldName;\n    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') return fieldName;`);
-
+code = code.replace(
+  /return \(realPath === 'categories' \|\| realPath === 'products' \|\| realPath === 'coupons' \|\| realPath === 'customers' \|\| realPath === 'clients' \|\| realPath === 'orders'\);/,
+  "return (realPath === 'products' || realPath === 'coupons' || realPath === 'customers');"
+);
 fs.writeFileSync('supabase-adapter.js', code);

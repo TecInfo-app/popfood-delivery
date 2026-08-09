@@ -219,7 +219,7 @@ const tableColumns = {
         'image_url', 'active', 'is_active', 'sort_order', 'complements', 'created_at', 'updated_at', 'category'
     ],
     coupons: [
-        'id', 'store_id', 'code', 'discount_type', 'discount_value', 'min_order_value', 'active', 'created_at'
+        'id', 'store_id', 'code', 'discount_type', 'discount_value', 'min_order_value', 'active', 'created_at', 'expires_at'
     ],
     orders: [
         'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'total', 
@@ -312,13 +312,22 @@ function tryDecodeUuid(uuid) {
 
 const isUuidTable = true; // Helper variable or logic, we can define a function or inline checks below.
 function checkIsUuidTable(realPath) {
-    return (realPath === 'categories' || realPath === 'products' || realPath === 'coupons' || realPath === 'customers' || realPath === 'clients' || realPath === 'orders');
+    return (realPath === 'products' || realPath === 'coupons' || realPath === 'customers');
 }
 
 // Convert camelCase to snake_case with specific exceptions
 function toDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
-    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') return fieldName;
+    const camelTables = ['restaurants', 'restaurant_profiles', 'clients', 'categories', 'complements'];
+    const p = (path || '').replace('COLLECTIONS.', '');
+    const isCamel = camelTables.includes(p);
+    
+    if (isCamel) {
+        if (fieldName === 'store_id') return 'storeId';
+        if (fieldName === 'created_at') return 'createdAt';
+        if (fieldName === 'updated_at') return 'updatedAt';
+        return fieldName; // These tables use camelCase
+    }
     
     if (fieldName === 'storeId') return 'store_id';
     if (fieldName === 'categoryId') return 'category_id';
@@ -334,9 +343,10 @@ function toDbFieldName(path, fieldName) {
     if (fieldName === 'totalPrice') return 'total_price';
     if (fieldName === 'discountAmount') return 'discount';
     if (fieldName === 'couponId' || fieldName === 'couponCode') return 'coupon_code';
-    if (fieldName === 'discountType') return 'discount_type';
-    if (fieldName === 'discountValue') return 'discount_value';
-    if (fieldName === 'minOrderValue') return 'min_order_value';
+    if (fieldName === 'discountType' || fieldName === 'type') return 'discount_type';
+    if (fieldName === 'discountValue' || fieldName === 'value') return 'discount_value';
+    if (fieldName === 'minOrderValue' || fieldName === 'minValue') return 'min_order_value';
+    if (fieldName === 'expiry' || fieldName === 'expiresAt') return 'expires_at';
     if (fieldName === 'openTime') return 'open_time';
     if (fieldName === 'closeTime') return 'close_time';
     if (fieldName === 'minimumOrderPrice') return 'minimum_order_price';
@@ -377,9 +387,10 @@ function fromDbFieldName(path, fieldName) {
     if (fieldName === 'total_price') return 'totalPrice';
     if (fieldName === 'discount') return 'discountAmount';
     if (fieldName === 'coupon_code') return 'couponCode';
-    if (fieldName === 'discount_type') return 'discountType';
-    if (fieldName === 'discount_value') return 'discountValue';
-    if (fieldName === 'min_order_value') return 'minOrderValue';
+    if (fieldName === 'discount_type') return 'type';
+    if (fieldName === 'discount_value') return 'value';
+    if (fieldName === 'min_order_value') return 'minValue';
+    if (fieldName === 'expires_at') return 'expiry';
     if (fieldName === 'open_time') return 'openTime';
     if (fieldName === 'close_time') return 'closeTime';
     if (fieldName === 'minimum_order_price') return 'minimumOrderPrice';
@@ -409,9 +420,14 @@ async function getRealTableName(path) {
         try {
             const { error: err2 } = await supabase.from('restaurants').select('id').limit(1);
             if (!err2 || !err2.message?.includes('does not exist')) {
-                tableCache['restaurants'] = 'restaurants';
-                tableCache['restaurant_profiles'] = 'restaurants';
-                return 'restaurants';
+                // If BOTH exist, prioritize restaurant_profiles for 'restaurantProfile' collection
+                if (path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurantProfiles' || path === 'COLLECTIONS.restaurantProfile') {
+                    tableCache[path] = 'restaurant_profiles';
+                    return 'restaurant_profiles';
+                }
+                tableCache['restaurants'] = 'restaurant_profiles';
+                tableCache['restaurant_profiles'] = 'restaurant_profiles';
+                return 'restaurant_profiles';
             }
         } catch (e) {}
         try {
@@ -516,6 +532,48 @@ function serializeRow(path, realPath, payload) {
         }
     });
 
+    
+    // Handle 'coupons' table formatting and flag packing
+    if (realPath === 'coupons' || path === 'coupons' || path === 'COLLECTIONS.coupons') {
+        let typeVal = String(payload.type || payload.discountType || payload.discount_type || 'percentual');
+        typeVal = typeVal.replace(/_FIRSTORDER/g, '').replace(/_AUTOMATIC/g, '').trim() || 'percentual';
+        if (payload.firstOrderOnly) typeVal += '_FIRSTORDER';
+        if (payload.automatic) typeVal += '_AUTOMATIC';
+        serialized['discount_type'] = typeVal;
+
+        const rawExpiry = payload.expiry || payload.expiresAt || payload.expires_at;
+        if (!rawExpiry || String(rawExpiry).trim() === '' || rawExpiry === 'null') {
+            serialized['expires_at'] = null;
+        } else {
+            const expDate = new Date(rawExpiry);
+            if (isNaN(expDate.getTime())) {
+                serialized['expires_at'] = null;
+            } else {
+                if (typeof rawExpiry === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawExpiry.trim())) {
+                    serialized['expires_at'] = `${rawExpiry.trim()}T23:59:59.999Z`;
+                } else {
+                    serialized['expires_at'] = expDate.toISOString();
+                }
+            }
+        }
+
+        if (payload.value !== undefined || payload.discountValue !== undefined) {
+            serialized['discount_value'] = Number(payload.value !== undefined ? payload.value : payload.discountValue) || 0;
+        }
+        if (payload.minValue !== undefined || payload.minOrderValue !== undefined) {
+            serialized['min_order_value'] = Number(payload.minValue !== undefined ? payload.minValue : payload.minOrderValue) || 0;
+        }
+        if (payload.code) {
+            serialized['code'] = String(payload.code).toUpperCase().trim();
+        }
+        if (payload.active !== undefined) {
+            serialized['active'] = !!payload.active;
+        }
+        if (payload.storeId || payload.store_id) {
+            serialized['store_id'] = payload.storeId || payload.store_id;
+        }
+    }
+
     // Hack: Pack missing columns into customer_address JSONB for 'orders'
     if (realPath === 'orders' || path === 'orders' || path === 'COLLECTIONS.orders') {
         const extraKeys = ['chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 'paymentStatus', 'payment_status'];
@@ -614,6 +672,34 @@ function deserializeRow(path, row) {
                 deserialized.address = cleanAddr.address || cleanAddr.street || JSON.stringify(cleanAddr);
             }
         }
+    }
+
+    if (path === 'coupons' || path === 'COLLECTIONS.coupons' || path === 'coupon') {
+        const rawType = String(row.discount_type || row.type || 'percentual');
+        deserialized.firstOrderOnly = rawType.includes('_FIRSTORDER');
+        deserialized.automatic = rawType.includes('_AUTOMATIC');
+        const cleanType = rawType.replace(/_FIRSTORDER/g, '').replace(/_AUTOMATIC/g, '').trim() || 'percentual';
+        deserialized.type = cleanType;
+        deserialized.discountType = cleanType;
+        deserialized.discount_type = cleanType;
+
+        const val = Number(row.discount_value !== undefined ? row.discount_value : (row.value !== undefined ? row.value : 0));
+        deserialized.value = val;
+        deserialized.discountValue = val;
+        deserialized.discount_value = val;
+
+        const minVal = Number(row.min_order_value !== undefined ? row.min_order_value : (row.minValue !== undefined ? row.minValue : 0));
+        deserialized.minValue = minVal;
+        deserialized.minOrderValue = minVal;
+        deserialized.min_order_value = minVal;
+
+        deserialized.expiry = row.expires_at || row.expiry || null;
+        deserialized.expiresAt = deserialized.expiry;
+        deserialized.expires_at = deserialized.expiry;
+
+        deserialized.active = row.active !== undefined ? !!row.active : true;
+        deserialized.code = (row.code || '').toUpperCase().trim();
+        deserialized.storeId = row.store_id || row.storeId;
     }
 
     return deserialized;

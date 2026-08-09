@@ -1,0 +1,22 @@
+import { config } from 'dotenv';
+config();
+import { setDoc, doc, collection } from './supabase-adapter.js';
+
+async function test() {
+    const payload = {
+        code: "VALE20",
+        discountType: "percentual",
+        discountValue: 20,
+        minOrderValue: 0,
+        active: true,
+        storeId: "cia-do-chopp",
+        firstOrderOnly: true
+    };
+    try {
+        await setDoc(doc(null, 'coupons', "VALE20-ID"), payload);
+        console.log("Success");
+    } catch(e) {
+        console.error("Failed:", e);
+    }
+}
+test();
