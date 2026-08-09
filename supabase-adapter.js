@@ -204,12 +204,7 @@ const tableColumns = {
         'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
     ],
     restaurant_profiles: [
-        'id', 'ownerId', 'storeId', 'name', 'phone', 'description', 
-        'openTime', 'closeTime', 'cep', 'address', 'isOpen', 'logo', 'logoUrl', 'coverUrl',
-        'minimumOrderPrice', 'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 
-        'stripePublicKey', 'stripeSecretKey', 'latitude', 'longitude', 'deliveryRates', 
-        'loyaltyActive', 'loyaltyMinOrders', 'loyaltyType', 'loyaltyValue', 'createdAt', 'updatedAt',
-        'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
+        'id', 'name', 'description', 'logo_url', 'cover_url', 'phone', 'address', 'status', 'settings', 'merchant_tokens', 'created_at'
     ],
     categories: [
         'id', 'store_id', 'storeId', 'name', 'order', 'sort_order', 'created_at', 'createdAt'
@@ -318,6 +313,15 @@ function checkIsUuidTable(realPath) {
 function toDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
     const cleanPath = (path || '').replace('COLLECTIONS.', '');
+    
+    if (cleanPath === 'restaurants' || cleanPath === 'restaurant_profiles') {
+        if (fieldName === 'storeId' || fieldName === 'store_id') return 'id';
+        if (fieldName === 'logo' || fieldName === 'logoUrl') return 'logo_url';
+        if (fieldName === 'cover' || fieldName === 'coverUrl') return 'cover_url';
+        if (fieldName === 'merchantTokens') return 'merchant_tokens';
+        if (fieldName === 'createdAt' || fieldName === 'created_at') return 'created_at';
+        return fieldName;
+    }
     
     if (cleanPath === 'orders' || cleanPath === 'order') {
         if (fieldName === 'storeId' || fieldName === 'store_id') return 'store_id';
@@ -441,7 +445,13 @@ function matchesQueryFilter(item, field, op, value) {
 // Convert snake_case to camelCase with specific exceptions
 function fromDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
-    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') return fieldName;
+    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') {
+        if (fieldName === 'logo_url') return 'logo';
+        if (fieldName === 'cover_url') return 'cover';
+        if (fieldName === 'merchant_tokens') return 'merchantTokens';
+        if (fieldName === 'created_at') return 'createdAt';
+        return fieldName;
+    }
     
     if (fieldName === 'store_id') return 'storeId';
     if (fieldName === 'category_id') return 'categoryId';
@@ -828,7 +838,7 @@ export const getDoc = async (docRef) => {
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docId);
-            if (isUuid) {
+            if (isUuid || realPath === 'restaurant_profiles') {
                 queryBuilder = queryBuilder.eq('id', docId);
             } else {
                 queryBuilder = queryBuilder.eq('storeId', docId);
@@ -1117,7 +1127,7 @@ export const setDoc = async (docRef, data, options = {}) => {
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
             let existingUuid = null;
-            if (isUuid) {
+            if (isUuid || realPath === 'restaurant_profiles') {
                 existingUuid = docRef.id;
             } else {
                 const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
@@ -1126,14 +1136,14 @@ export const setDoc = async (docRef, data, options = {}) => {
                 }
             }
             const serialized = serializeRow(docRef.path, realPath, payload);
-            if (!isUuid) {
+            if (!isUuid && realPath !== 'restaurant_profiles') {
                 serialized.storeId = docRef.id;
             }
             if (existingUuid) {
                 serialized.id = existingUuid;
                 await supabase.from(realPath).update(serialized).eq('id', existingUuid);
             } else {
-                if (!isUuid) {
+                if (!isUuid && realPath !== 'restaurant_profiles') {
                     delete serialized.id;
                 }
                 await supabase.from(realPath).insert(serialized);
@@ -1166,7 +1176,7 @@ export const updateDoc = async (docRef, data) => {
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
             let targetUuid = null;
-            if (isUuid) {
+            if (isUuid || realPath === 'restaurant_profiles') {
                 targetUuid = docRef.id;
             } else {
                 const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
