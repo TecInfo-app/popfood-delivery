@@ -630,7 +630,7 @@ export const getDoc = async (docRef) => {
             if (isUuid) {
                 queryBuilder = queryBuilder.eq('id', docId);
             } else {
-                queryBuilder = queryBuilder.eq('store_id', docId);
+                queryBuilder = queryBuilder.eq('storeId', docId);
             }
         } else if (checkIsUuidTable(realPath)) {
             const uuidId = getDeterministicUuid(docId);
@@ -918,14 +918,14 @@ export const setDoc = async (docRef, data, options = {}) => {
             if (isUuid) {
                 existingUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
                 if (found) {
                     existingUuid = found.id;
                 }
             }
             const serialized = serializeRow(docRef.path, realPath, payload);
             if (!isUuid) {
-                serialized.store_id = docRef.id;
+                serialized.storeId = docRef.id;
             }
             if (existingUuid) {
                 serialized.id = existingUuid;
@@ -967,7 +967,7 @@ export const updateDoc = async (docRef, data) => {
             if (isUuid) {
                 targetUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
                 if (found) {
                     targetUuid = found.id;
                 }
@@ -1003,7 +1003,7 @@ export const deleteDoc = async (docRef) => {
             if (isUuid) {
                 targetUuid = docRef.id;
             } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('store_id', docRef.id).maybeSingle();
+                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
                 if (found) {
                     targetUuid = found.id;
                 }

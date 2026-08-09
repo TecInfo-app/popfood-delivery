@@ -1,0 +1,487 @@
+{
+  "orders": {
+    "required": [
+      "id",
+      "customer_name",
+      "customer_phone",
+      "status",
+      "total",
+      "items"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "store_id": {
+        "description": "Note:\nThis is a Foreign Key to `restaurant_profiles.id`.<fk table='restaurant_profiles' column='id'/>",
+        "format": "text",
+        "type": "string"
+      },
+      "customer_name": {
+        "format": "text",
+        "type": "string"
+      },
+      "customer_phone": {
+        "format": "text",
+        "type": "string"
+      },
+      "customer_address": {
+        "format": "text",
+        "type": "string"
+      },
+      "status": {
+        "default": "Aguardando",
+        "format": "text",
+        "type": "string"
+      },
+      "payment_method": {
+        "format": "text",
+        "type": "string"
+      },
+      "payment_status": {
+        "format": "text",
+        "type": "string"
+      },
+      "total": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "items": {
+        "format": "jsonb"
+      },
+      "delivery_fee": {
+        "default": 0,
+        "format": "numeric",
+        "type": "number"
+      },
+      "coupon_code": {
+        "format": "text",
+        "type": "string"
+      },
+      "created_at": {
+        "default": "timezone('utc'::text, now())",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "customers": {
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "default": "gen_random_uuid()",
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "uuid",
+        "type": "string"
+      },
+      "store_id": {
+        "description": "Note:\nThis is a Foreign Key to `restaurant_profiles.id`.<fk table='restaurant_profiles' column='id'/>",
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "phone": {
+        "format": "text",
+        "type": "string"
+      },
+      "email": {
+        "format": "text",
+        "type": "string"
+      },
+      "total_orders": {
+        "default": 0,
+        "format": "int32",
+        "type": "integer"
+      },
+      "ltv": {
+        "default": 0,
+        "format": "numeric",
+        "type": "number"
+      },
+      "created_at": {
+        "default": "timezone('utc'::text, now())",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "complements": {
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "storeId": {
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "mandatory": {
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "maxLimit": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "items": {
+        "format": "jsonb"
+      },
+      "createdAt": {
+        "format": "text",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "restaurants": {
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "description": {
+        "format": "text",
+        "type": "string"
+      },
+      "phone": {
+        "format": "text",
+        "type": "string"
+      },
+      "adminEmail": {
+        "format": "text",
+        "type": "string"
+      },
+      "adminPassword": {
+        "format": "text",
+        "type": "string"
+      },
+      "storeId": {
+        "format": "text",
+        "type": "string"
+      },
+      "openTime": {
+        "format": "text",
+        "type": "string"
+      },
+      "closeTime": {
+        "format": "text",
+        "type": "string"
+      },
+      "cep": {
+        "format": "text",
+        "type": "string"
+      },
+      "address": {
+        "format": "text",
+        "type": "string"
+      },
+      "isOpen": {
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "logo": {
+        "format": "text",
+        "type": "string"
+      },
+      "minimumOrderPrice": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "abacatePayToken": {
+        "format": "text",
+        "type": "string"
+      },
+      "mpAccessToken": {
+        "format": "text",
+        "type": "string"
+      },
+      "mpPublicKey": {
+        "format": "text",
+        "type": "string"
+      },
+      "stripePublicKey": {
+        "format": "text",
+        "type": "string"
+      },
+      "stripeSecretKey": {
+        "format": "text",
+        "type": "string"
+      },
+      "latitude": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "longitude": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "createdAt": {
+        "format": "text",
+        "type": "string"
+      },
+      "whatsappBotEnabled": {
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "deliveryRates": {
+        "format": "jsonb"
+      },
+      "active": {
+        "default": true,
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "isSuperAdmin": {
+        "default": false,
+        "format": "boolean",
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "products": {
+    "required": [
+      "id",
+      "name",
+      "price"
+    ],
+    "properties": {
+      "id": {
+        "default": "gen_random_uuid()",
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "uuid",
+        "type": "string"
+      },
+      "store_id": {
+        "description": "Note:\nThis is a Foreign Key to `restaurant_profiles.id`.<fk table='restaurant_profiles' column='id'/>",
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "description": {
+        "format": "text",
+        "type": "string"
+      },
+      "price": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "category": {
+        "format": "text",
+        "type": "string"
+      },
+      "image_url": {
+        "format": "text",
+        "type": "string"
+      },
+      "is_active": {
+        "default": true,
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "created_at": {
+        "default": "timezone('utc'::text, now())",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "clients": {
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "storeId": {
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "phone": {
+        "format": "text",
+        "type": "string"
+      },
+      "address": {
+        "format": "text",
+        "type": "string"
+      },
+      "createdAt": {
+        "format": "text",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "coupons": {
+    "required": [
+      "id",
+      "code",
+      "discount_type",
+      "discount_value"
+    ],
+    "properties": {
+      "id": {
+        "default": "gen_random_uuid()",
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "uuid",
+        "type": "string"
+      },
+      "store_id": {
+        "description": "Note:\nThis is a Foreign Key to `restaurant_profiles.id`.<fk table='restaurant_profiles' column='id'/>",
+        "format": "text",
+        "type": "string"
+      },
+      "code": {
+        "format": "text",
+        "type": "string"
+      },
+      "discount_type": {
+        "format": "text",
+        "type": "string"
+      },
+      "discount_value": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "min_order_value": {
+        "default": 0,
+        "format": "numeric",
+        "type": "number"
+      },
+      "active": {
+        "default": true,
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "expires_at": {
+        "format": "timestamp with time zone",
+        "type": "string"
+      },
+      "created_at": {
+        "default": "timezone('utc'::text, now())",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "restaurant_profiles": {
+    "required": [
+      "id",
+      "name"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "description": {
+        "format": "text",
+        "type": "string"
+      },
+      "logo_url": {
+        "format": "text",
+        "type": "string"
+      },
+      "cover_url": {
+        "format": "text",
+        "type": "string"
+      },
+      "phone": {
+        "format": "text",
+        "type": "string"
+      },
+      "address": {
+        "format": "text",
+        "type": "string"
+      },
+      "status": {
+        "default": "aberto",
+        "format": "text",
+        "type": "string"
+      },
+      "settings": {
+        "format": "jsonb"
+      },
+      "merchant_tokens": {
+        "format": "jsonb"
+      },
+      "created_at": {
+        "default": "timezone('utc'::text, now())",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "categories": {
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "text",
+        "type": "string"
+      },
+      "storeId": {
+        "format": "text",
+        "type": "string"
+      },
+      "name": {
+        "format": "text",
+        "type": "string"
+      },
+      "order": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "createdAt": {
+        "format": "text",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}
