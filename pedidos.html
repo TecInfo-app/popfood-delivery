@@ -2872,20 +2872,20 @@ window.copyStoreLink = function() {
             ${compText}
             ${notesText}
           </div>
-          <span class="font-semibold text-gray-700">R$ ${(item.totalItemPrice * item.quantity).toFixed(2).replace(".", ",")}</span>
+          <span class="font-semibold text-gray-700">R$ ${((item.totalItemPrice || item.price || 0) * item.quantity).toFixed(2).replace(".", ",")}</span>
         `;
           container.appendChild(row);
         });
 
         // Populate values receipt summaries
         (document.getElementById("modal-subtotal") || {}).textContent =
-          `R$ ${order.subtotal.toFixed(2).replace(".", ",")}`;
+          `R$ ${(order.subtotal || 0).toFixed(2).replace(".", ",")}`;
         (document.getElementById("modal-desconto") || {}).textContent =
           `- R$ ${(order.desconto || 0).toFixed(2).replace(".", ",")}`;
         (document.getElementById("modal-taxa") || {}).textContent =
-          `R$ ${order.deliveryFee.toFixed(2).replace(".", ",")}`;
+          `R$ ${(order.deliveryFee || 0).toFixed(2).replace(".", ",")}`;
         (document.getElementById("modal-total") || {}).textContent =
-          `R$ ${order.total.toFixed(2).replace(".", ",")}`;
+          `R$ ${(order.total || 0).toFixed(2).replace(".", ",")}`;
 
         // Configured event listeners with actions trigger buttons on details popup
         const btnPre = document.getElementById("btn-action-preparar");

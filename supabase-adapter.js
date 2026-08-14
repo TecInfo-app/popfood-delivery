@@ -39,9 +39,9 @@ export const auth = {
         const cleanPass = String(password || '').trim();
 
         // 1. Superadmin master accounts
-        if ((cleanEmail === 'iranildo.tecnologia@outlook.com' && (cleanPass === 'tec@2027' || cleanPass === 'admin321' || cleanPass === '123456')) ||
-            (cleanEmail === 'admin' && (cleanPass === 'admin321' || cleanPass === '123456')) ||
-            (cleanPass === 'admin321' || cleanPass === 'popfood' || cleanPass === '120934' || cleanPass === '123456')) {
+        const isSuperAdminEmail = cleanEmail === 'iranildo.tecnologia@outlook.com' || cleanEmail === 'admin';
+        const isSuperAdminPassword = cleanPass === 'tec@2027' || cleanPass === 'admin321' || cleanPass === 'popfood' || cleanPass === '120934' || cleanPass === '123456';
+        if (isSuperAdminEmail && isSuperAdminPassword) {
             const mockUser = { email: cleanEmail || 'iranildo.tecnologia@outlook.com', id: 'superadmin-id', uid: 'superadmin-id' };
             auth.currentUser = mockUser;
             return { user: mockUser };
@@ -546,7 +546,7 @@ async function getRealTableName(path) {
 }
 
 // Map camelCase app properties safely to table schemas
-function serializeRow(path, realPath, payload) {
+function serializeRow(path, realPath, payload, existingSettings = {}) {
     if (!payload) return payload;
     
     const serialized = {};
@@ -554,7 +554,7 @@ function serializeRow(path, realPath, payload) {
     const validCols = tableColumns[realPath] || [];
 
     if (realPath === 'restaurant_profiles' || realPath === 'restaurants') {
-        const settings = { ...(payload.settings || {}) };
+        const settings = { ...existingSettings, ...(payload.settings || {}) };
         
         Object.keys(payload).forEach(key => {
             const dbKey = toDbFieldName(path, key);
@@ -758,10 +758,23 @@ function deserializeRow(path, row) {
             deserialized.totalPrice = Number(row.total);
         }
         
-        // Unpack from customer_address hack
-        if (row.customer_address && typeof row.customer_address === 'object' && row.customer_address._meta) {
-            Object.assign(deserialized, row.customer_address._meta);
+        let parsedAddr = row.customer_address;
+        if (typeof row.customer_address === 'string' && row.customer_address.trim().startsWith('{')) {
+            try {
+                parsedAddr = JSON.parse(row.customer_address);
+            } catch (e) {
+                // Ignore parsing error
+            }
         }
+
+        // Unpack from customer_address hack
+        if (parsedAddr && typeof parsedAddr === 'object') {
+            const meta = parsedAddr._meta || parsedAddr._META;
+            if (meta) {
+                Object.assign(deserialized, meta);
+            }
+        }
+
         if (row.delivery_fee !== undefined) {
             deserialized.deliveryFee = Number(row.delivery_fee);
         }
@@ -778,24 +791,54 @@ function deserializeRow(path, row) {
         if (row.customer_name !== undefined) {
             deserialized.customerName = row.customer_name;
         }
-        if (row.customer_address !== undefined) {
-            if (typeof row.customer_address === 'string') {
-                deserialized.customerAddress = row.customer_address;
-                deserialized.address = row.customer_address;
-            } else if (row.customer_address && typeof row.customer_address === 'object') {
-                const cleanAddr = { ...row.customer_address };
+
+        if (parsedAddr !== undefined) {
+            if (typeof parsedAddr === 'string') {
+                deserialized.customerAddress = parsedAddr;
+                deserialized.address = parsedAddr;
+            } else if (parsedAddr && typeof parsedAddr === 'object') {
+                const cleanAddr = { ...parsedAddr };
                 delete cleanAddr._meta;
+                delete cleanAddr._META;
                 deserialized.customerAddress = cleanAddr;
-                deserialized.address = cleanAddr.address || cleanAddr.street || JSON.stringify(cleanAddr);
+                
+                const addressVal = cleanAddr.address || cleanAddr.ADDRESS || cleanAddr.street || cleanAddr.STREET || '';
+                const numberVal = cleanAddr.number || cleanAddr.NUMBER || cleanAddr.numero || cleanAddr.NUMERO || '';
+                const complementVal = cleanAddr.complement || cleanAddr.COMPLEMENT || cleanAddr.complemento || cleanAddr.COMPLEMENTO || '';
+                const referenceVal = cleanAddr.reference || cleanAddr.REFERENCE || cleanAddr.referencia || cleanAddr.REFERENCIA || '';
+                const neighborhoodVal = cleanAddr.neighborhood || cleanAddr.NEIGHBORHOOD || cleanAddr.bairro || cleanAddr.BAIRRO || '';
+                const cityVal = cleanAddr.city || cleanAddr.CITY || cleanAddr.cidade || cleanAddr.CIDADE || '';
+                const typeVal = cleanAddr.type || cleanAddr.TYPE || '';
+
+                let addrStr = addressVal;
+                if (numberVal) addrStr += `, Nº ${numberVal}`;
+                if (neighborhoodVal) addrStr += ` - ${neighborhoodVal}`;
+                if (cityVal) addrStr += `, ${cityVal}`;
+                if (complementVal) addrStr += ` (${complementVal})`;
+                if (referenceVal) addrStr += ` [Ref: ${referenceVal}]`;
+
+                if (!addrStr.trim()) {
+                    if (typeVal === "pickup" || cleanAddr.address === "Retirada no Restaurante" || cleanAddr.address === "Retirada no Local") {
+                        addrStr = "Retirada no Restaurante";
+                    } else {
+                        addrStr = JSON.stringify(cleanAddr);
+                    }
+                }
+                deserialized.address = addrStr;
             }
         }
+
         // Build nested customer object if not present
         if (!deserialized.customer) {
             deserialized.customer = {
                 name: deserialized.customerName || row.customer_name || '',
                 phone: deserialized.customerPhone || row.customer_phone || '',
-                address: deserialized.customerAddress || row.customer_address || ''
+                address: deserialized.address || deserialized.customerAddress || row.customer_address || ''
             };
+        } else if (deserialized.customer && typeof deserialized.customer === 'object') {
+            if (typeof deserialized.customer.address === 'object' || !deserialized.customer.address) {
+                deserialized.customer.address = deserialized.address || '';
+            }
         }
     }
 
@@ -1135,7 +1178,21 @@ export const setDoc = async (docRef, data, options = {}) => {
                     existingUuid = found.id;
                 }
             }
-            const serialized = serializeRow(docRef.path, realPath, payload);
+
+            let existingSettings = {};
+            try {
+                const targetId = existingUuid || docRef.id;
+                const { data: foundRow } = await supabase.from(realPath).select('settings').eq('id', targetId).maybeSingle();
+                if (foundRow && foundRow.settings) {
+                    existingSettings = typeof foundRow.settings === 'string'
+                        ? JSON.parse(foundRow.settings)
+                        : foundRow.settings;
+                }
+            } catch (e) {
+                console.warn("Could not load existing settings for setDoc:", e);
+            }
+
+            const serialized = serializeRow(docRef.path, realPath, payload, existingSettings);
             if (!isUuid && realPath !== 'restaurant_profiles') {
                 serialized.storeId = docRef.id;
             }
@@ -1184,8 +1241,22 @@ export const updateDoc = async (docRef, data) => {
                     targetUuid = found.id;
                 }
             }
+
+            let existingSettings = {};
+            try {
+                const targetId = targetUuid || docRef.id;
+                const { data: foundRow } = await supabase.from(realPath).select('settings').eq('id', targetId).maybeSingle();
+                if (foundRow && foundRow.settings) {
+                    existingSettings = typeof foundRow.settings === 'string'
+                        ? JSON.parse(foundRow.settings)
+                        : foundRow.settings;
+                }
+            } catch (e) {
+                console.warn("Could not load existing settings for updateDoc:", e);
+            }
+
             if (targetUuid) {
-                const serialized = serializeRow(docRef.path, realPath, data);
+                const serialized = serializeRow(docRef.path, realPath, data, existingSettings);
                 await supabase.from(realPath).update(serialized).eq('id', targetUuid);
             }
         } else {
