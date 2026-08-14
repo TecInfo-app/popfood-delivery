@@ -316,7 +316,7 @@
       }
     };
 
-    // Substring / Last-4-character search algorithm on Firestore orders collection
+    // Substring / Last-4-character search algorithm on banco de dados orders collection
     window.searchOrderByLast4Digits = async function() {
       const searchBox = document.getElementById('order-search-input');
       const queryValue = searchBox.value.trim().toUpperCase();
@@ -393,7 +393,7 @@
 
       } catch (err) {
         console.error("Error executing orders query lookup:", err);
-        alert("Erro no Firestore ao efetuar busca: " + err.message);
+        alert("Erro no banco de dados ao efetuar busca: " + err.message);
       }
     }
 
@@ -819,7 +819,7 @@
               await updateDoc(docRef, dbPayload);
             }
           } catch (err) {
-            console.error("Error writing GPS geolocation data to Firestore:", err);
+            console.error("Error writing GPS geolocation data to banco de dados:", err);
           }
         },
         (error) => {

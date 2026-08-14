@@ -975,7 +975,7 @@ storeId: window.currentStoreId
         let matchedStoreDoc = null;
         let matchedStoreId = null;
 
-        // 1. Check if urlStoreId from URL matches an existing store in Firestore
+        // 1. Check if urlStoreId from URL matches an existing store in banco de dados
         if (urlStoreId) {
           try {
             const urlSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, urlStoreId));
@@ -1557,7 +1557,7 @@ storeId: window.currentStoreId
         } else {
           // Fallback if not loaded
           if (file.size > 950 * 1024) {
-            alert("🔒 Atenção: O arquivo da imagem excede os limites de segurança da plataforma: Máximo 950KB compatível com Firestore!");
+            alert("🔒 Atenção: O arquivo da imagem excede os limites de segurança da plataforma: Máximo 950KB compatível com banco de dados!");
             fileInput.value = '';
             return;
           }
@@ -1682,7 +1682,7 @@ storeId: window.currentStoreId
 storeId: window.currentStoreId
 };
 
-        // Write new product to Firestore
+        // Write new product to banco de dados
         await setDoc(doc(db, COLLECTIONS.products, newPrdId), clonedPrd);
 
         // Fetch source complements document to duplicate

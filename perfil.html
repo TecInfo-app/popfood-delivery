@@ -1237,11 +1237,11 @@ window.copyStoreLink = function() {
             updateWhatsappUI({ status: 'disconnected', connected: false });
           }
         }, (e) => {
-          console.warn("Firestore listener denied or failed. Falling back to HTTP Polling...", e);
+          console.warn("banco de dados listener denied or failed. Falling back to HTTP Polling...", e);
           startWhatsappHttpPolling();
         });
       } catch (err) {
-        console.warn("Firestore initialization error. Falling back to HTTP Polling...", err);
+        console.warn("banco de dados initialization error. Falling back to HTTP Polling...", err);
         startWhatsappHttpPolling();
       }
     };
@@ -1253,7 +1253,7 @@ window.copyStoreLink = function() {
       document.getElementById('whatsapp-connected-container').classList.add('hidden');
       document.getElementById('whatsapp-disconnected-container').classList.add('hidden');
       
-      let firestoreWorked = false;
+      let dbWorked = false;
       try {
         const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
         await setDoc(docRef, {
@@ -1262,14 +1262,14 @@ window.copyStoreLink = function() {
           updatedAt: new Date().toISOString()
         }, { merge: true });
         
-        firestoreWorked = true;
+        dbWorked = true;
         window.checkWhatsappStatus();
       } catch (e) {
-        console.warn("Firestore generate trigger blocked. Using secure HTTP API fallback...", e);
+        console.warn("banco de dados generate trigger blocked. Using secure HTTP API fallback...", e);
       }
 
-      // If Firestore failed, trigger via HTTP endpoint
-      if (!firestoreWorked) {
+      // If banco de dados failed, trigger via HTTP endpoint
+      if (!dbWorked) {
         try {
           const res = await fetch(getApiUrl(`/api/whatsapp/qr?storeId=${window.currentStoreId}`));
           if (!res.ok) {
@@ -1310,7 +1310,7 @@ window.copyStoreLink = function() {
         }, { merge: true });
         window.checkWhatsappStatus();
       } catch (e) {
-        console.warn("Firestore reset trigger failed", e);
+        console.warn("banco de dados reset trigger failed", e);
       }
     };
 
@@ -1318,19 +1318,19 @@ window.copyStoreLink = function() {
       if (!window.currentStoreId) return;
       if (!confirm("Tem certeza que deseja desconectar o WhatsApp?")) return;
       
-      let firestoreWorked = false;
+      let dbWorked = false;
       try {
         const docRef = doc(db, "whatsapp_sessions", window.currentStoreId);
         await setDoc(docRef, {
           action: "logout",
           updatedAt: new Date().toISOString()
         }, { merge: true });
-        firestoreWorked = true;
+        dbWorked = true;
       } catch (e) {
-        console.warn("Firestore logout trigger blocked. Using secure HTTP API fallback...", e);
+        console.warn("banco de dados logout trigger blocked. Using secure HTTP API fallback...", e);
       }
 
-      if (!firestoreWorked) {
+      if (!dbWorked) {
         try {
           const res = await fetch(getApiUrl(`/api/whatsapp/logout`), {
             method: 'POST',
@@ -1715,7 +1715,7 @@ window.copyStoreLink = function() {
              }
           }
         }, (error) => {
-          console.error("Firestore onSnapshot error on profile listener: ", error);
+          console.error("banco de dados onSnapshot error on profile listener: ", error);
         });
 
         const snap = await getDoc(ref);
@@ -3284,7 +3284,7 @@ window.copyStoreLink = function() {
         }
       }
 
-      // Save campaign history to firestore (nested under restaurant profile to bypass permission restrictions)
+      // Save campaign history to banco de dados (nested under restaurant profile to bypass permission restrictions)
       try {
         const campaignData = {
           storeId: window.currentStoreId,

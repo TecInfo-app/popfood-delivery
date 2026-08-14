@@ -894,7 +894,7 @@
       return false;
     }
 
-    // Launch instant Firestore listener monitoring the latest order written by customer
+    // Launch instant banco de dados listener monitoring the latest order written by customer
     function startOnSnapshotOrderTracker(phone, orderIdInput = null) {
       document.getElementById('tracker-login-panel').classList.add('hidden');
       document.getElementById('tracker-active-panel').classList.remove('hidden');
@@ -1195,7 +1195,7 @@
         order.deliveryPin = generatedPin;
         const docRef = doc(db, COLLECTIONS.orders, order.id);
         updateDoc(docRef, { deliveryPin: generatedPin }).catch(err => {
-          console.warn("Error auto-generating PIN back to Firestore:", err);
+          console.warn("Error auto-generating PIN back to banco de dados:", err);
         });
       }
 

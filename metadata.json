@@ -1,6 +1,6 @@
 {
   "name": "COPIA POPFOOD-SUPABASE",
-  "description": "Sistema completo de delivery integrado com Firestore contendo cardápio de clientes, painel de pedidos em tempo real, gestão de produtos, complementos, CRM, relatórios de vendas e cupons.",
+  "description": "Sistema completo de delivery integrado com banco de dados contendo cardápio de clientes, painel de pedidos em tempo real, gestão de produtos, complementos, CRM, relatórios de vendas e cupons.",
   "requestFramePermissions": [
     "geolocation"
   ],

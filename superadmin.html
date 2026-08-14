@@ -554,7 +554,7 @@
       window.location.reload();
     }
 
-    // Load metrics and multi-tenant profiles list natively from Firestore
+    // Load metrics and multi-tenant profiles list natively from banco de dados
     async function initDashboardData() {
       try {
         // 1. Load Stores List
@@ -763,7 +763,7 @@
       }
     }
 
-    // Direct Aberto/Fechado switcher natively updating on Firestore
+    // Direct Aberto/Fechado switcher natively updating on banco de dados
     window.toggleStoreStatusDirectly = async function(storeId) {
       const match = loadedStores.find(s => s.id === storeId);
       if (!match) return;

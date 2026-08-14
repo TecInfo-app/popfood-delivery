@@ -2010,7 +2010,7 @@
       class="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col gap-2 z-[9999] pointer-events-none w-11/12 max-w-sm"
     ></div>
 
-    <!-- JAVASCRIPT LOGIC WITH FIRESTORE SDK -->
+    <!-- JAVASCRIPT LOGIC WITH Supabase SDK -->
     <script type="module">
       import {
         db,
@@ -2516,7 +2516,7 @@
                 { merge: true },
               );
             } catch (dbErr) {
-              console.error("Erro atualizando pedido Asaas no Firestore:", dbErr);
+              console.error("Erro atualizando pedido Asaas no banco de dados:", dbErr);
             }
           }
 
@@ -2734,11 +2734,11 @@
                 { merge: true },
               );
               console.log(
-                `[Payment Bridge] Pedido ${orderId} aprovado e sincronizado no Firestore diretamente do navegador.`,
+                `[Payment Bridge] Pedido ${orderId} aprovado e sincronizado no banco de dados diretamente do navegador.`,
               );
             } catch (dbErr) {
               console.error(
-                "[Payment Bridge] Falha ao atualizar pedido aprovado no Firestore:",
+                "[Payment Bridge] Falha ao atualizar pedido aprovado no banco de dados:",
                 dbErr,
               );
             }
@@ -2979,7 +2979,7 @@
                 if (res.ok) {
                   const data = await res.json();
                   if (data.isPaid) {
-                    // Atualiza status do pedido no Firestore para Pendente se ainda não estiver
+                    // Atualiza status do pedido no banco de dados para Pendente se ainda não estiver
                     try {
                       await setDoc(
                         doc(db, COLLECTIONS.orders, orderId),
@@ -4801,7 +4801,7 @@
         }
       };
 
-      // Fill complements details modal dynamically by reading Firestore complements map
+      // Fill complements details modal dynamically by reading banco de dados complements map
       async function openProductModal(prod, isEditingUniqueId = null) {
         window.editingCartItemUniqueId = isEditingUniqueId;
         currentSelectedProduct = prod;
@@ -8211,7 +8211,7 @@
               clearInterval(window.pixTimerInterval);
               pixCheckInterval = null;
 
-              // Atualiza status do pedido no Firestore para Pendente
+              // Atualiza status do pedido no banco de dados para Pendente
               try {
                 await setDoc(
                   doc(db, COLLECTIONS.orders, orderId),
@@ -8251,7 +8251,7 @@
           pixCheckInterval = null;
           const modal = document.getElementById("modal-pix-online");
           if (modal) modal.classList.add("hidden");
-          // Marca pedido como cancelado no Firestore
+          // Marca pedido como cancelado no banco de dados
           try {
             await setDoc(
               doc(db, COLLECTIONS.orders, orderId),
@@ -8275,7 +8275,7 @@
         checkStatus();
       };
 
-      // Compile transactional details and save documents inside Firestore collections
+      // Compile transactional details and save documents inside banco de dados collections
       window.commitOrder = async function () {
         if (!checkIfStoreIsOpen()) {
           showToast(
@@ -8510,7 +8510,7 @@
                 }
                 showToast("✅ Pagamento em cartão aprovado com sucesso!");
               } else if (paymentResponse.method === "checkout") {
-                // Flag to redirect after order is saved to firestore
+                // Flag to redirect after order is saved to banco de dados
                 window.pendingCheckoutUrl = paymentResponse.url;
                 window.pendingPaymentId = paymentResponse.paymentId;
               }
@@ -8681,7 +8681,7 @@
             ...(window.currentFcmToken ? { fcmToken: window.currentFcmToken } : {}),
           };
 
-          // Write Order directly into Firestore collections
+          // Write Order directly into banco de dados collections
           const orderRef = doc(db, COLLECTIONS.orders, orderId);
           await setDoc(orderRef, orderDocument);
 

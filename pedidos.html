@@ -1666,7 +1666,7 @@ window.copyStoreLink = function() {
             console.warn("Could not retrieve profile metadata: ", err);
           }
 
-          // Boot firestore snapshots listeners
+          // Boot banco de dados snapshots listeners
           startRealtimeOrdersPipeline();
         });
       };
@@ -2065,7 +2065,7 @@ window.copyStoreLink = function() {
           autoPrintSetting ? "🖨️ Impressão Auto: ON" : "🖨️ Impressão Auto: OFF";
       };
 
-      // Connect real-time snap on Firestore database orders
+      // Connect real-time snap on banco de dados database orders
       function startRealtimeOrdersPipeline() {
         const q = query(
           collection(db, COLLECTIONS.orders),
@@ -2084,7 +2084,7 @@ window.copyStoreLink = function() {
               incomingOrders.push(orderData);
             });
 
-            // Sort orders in memory to prevent requiring Firestore composite indexes
+            // Sort orders in memory to prevent requiring banco de dados composite indexes
             incomingOrders.sort((a, b) => {
               const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
               const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;

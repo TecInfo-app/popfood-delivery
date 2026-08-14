@@ -1,6 +1,6 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
-// Removed firebase/firestore
+// Removed firebase/banco de dados
 import { createClient } from '@supabase/supabase-js';
 import pino from 'pino';
 import fs from 'fs';
@@ -39,7 +39,7 @@ async function getRestaurantProfileWithCache(storeId: string): Promise<any | nul
     return cached.profile;
   }
 
-  console.log(`[Cache Miss] Fetching profile from Firestore for store ${storeId}`);
+  console.log(`[Cache Miss] Fetching profile from banco de dados for store ${storeId}`);
   const { data: profile, error } = await db.from('restaurants').select('*').eq('store_id', storeId).single();
   if (error || !profile) return null;
   profileCache.set(storeId, {
@@ -57,7 +57,7 @@ async function getStoreCouponsWithCache(storeId: string): Promise<any[]> {
     return cached.coupons;
   }
 
-  console.log(`[Cache Miss] Fetching coupons from Firestore for store ${storeId}`);
+  console.log(`[Cache Miss] Fetching coupons from banco de dados for store ${storeId}`);
   const { data: couponsData, error } = await db.from('coupons').select('*').eq('store_id', storeId).eq('active', true);
   const coupons: any[] = couponsData || [];
 
@@ -77,7 +77,7 @@ async function getStoreOrdersWithCache(storeId: string): Promise<any[]> {
     return cached.orders;
   }
 
-  console.log(`[Cache Miss] Fetching orders from Firestore for store ${storeId}`);
+  console.log(`[Cache Miss] Fetching orders from banco de dados for store ${storeId}`);
   const { data: ordersData, error } = await db.from('orders').select('*').eq('store_id', storeId);
   const orders: any[] = ordersData || [];
 
@@ -101,7 +101,7 @@ function clearAuthDirectory(storeId) {
   }
 }
 
-async function updateWhatsappDocInFirestore(storeId: string, data: any) {
+async function updateWhatsappDocInDb(storeId: string, data: any) {
   if (!db) return;
   // Stubbed for Supabase
 }
@@ -115,7 +115,7 @@ export function listenToWhatsappActions() {
   }
   
   // actionsListenerUnsubscribe = supabase realtime channel...
-  console.log("Listening to real-time WhatsApp actions on Firestore.");
+  console.log("Listening to real-time WhatsApp actions on banco de dados.");
 }
 
 async function restoreSavedSessions() {
@@ -139,8 +139,8 @@ async function restoreSavedSessions() {
   }
 }
 
-export function initWhatsappBot(firestoreDb) {
-  db = firestoreDb;
+export function initWhatsappBot(dbInstance) {
+  db = dbInstance;
   // Start listening to real-time actions
   listenToWhatsappActions();
   // Restore any existing connected sessions on server boot
@@ -195,7 +195,7 @@ export async function stopWhatsappSession(storeId) {
   // Clear directory just in case Baileys logout didn't fully delete it
   clearAuthDirectory(storeId);
 
-  await updateWhatsappDocInFirestore(storeId, {
+  await updateWhatsappDocInDb(storeId, {
     connected: false,
     qr: null,
     status: 'disconnected'
@@ -219,8 +219,8 @@ async function startWhatsappSession(storeId) {
     } catch (e) {}
   }
 
-  // Set initial status to connecting in Firestore
-  await updateWhatsappDocInFirestore(storeId, {
+  // Set initial status to connecting in banco de dados
+  await updateWhatsappDocInDb(storeId, {
     connected: false,
     qr: null,
     status: 'connecting'
@@ -275,7 +275,7 @@ async function startWhatsappSession(storeId) {
       
       if (qr) {
         sessionState.qr = await QRCode.toDataURL(qr);
-        await updateWhatsappDocInFirestore(storeId, {
+        await updateWhatsappDocInDb(storeId, {
           connected: false,
           qr: sessionState.qr,
           status: 'qr_ready'
@@ -329,7 +329,7 @@ async function startWhatsappSession(storeId) {
           console.log(`[WhatsApp] Session permanently closed (isLoggedOut: ${isLoggedOut}, isQrTimeout: ${isQrTimeout}) for store ${storeId}. Clearing auth directory.`);
           sessions.delete(storeId);
           clearAuthDirectory(storeId);
-          await updateWhatsappDocInFirestore(storeId, {
+          await updateWhatsappDocInDb(storeId, {
             connected: false,
             qr: null,
             status: 'disconnected'
@@ -337,7 +337,7 @@ async function startWhatsappSession(storeId) {
         } else {
           // It's a temporary connection drop (network drop, socket timeout, 503 stream error, etc). Reconnect automatically!
           console.log(`[WhatsApp] Temporary disconnect (code: ${statusCode}) for store ${storeId}. Auto-reconnecting in 3s...`);
-          await updateWhatsappDocInFirestore(storeId, {
+          await updateWhatsappDocInDb(storeId, {
             connected: false,
             qr: null,
             status: 'connecting'
@@ -353,7 +353,7 @@ async function startWhatsappSession(storeId) {
       } else if (connection === 'open') {
         sessionState.connected = true;
         sessionState.qr = null;
-        await updateWhatsappDocInFirestore(storeId, {
+        await updateWhatsappDocInDb(storeId, {
           connected: true,
           qr: null,
           status: 'connected'
@@ -735,7 +735,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
     return;
   }
 
-  // Fetch store profile (using cache to reduce Firestore reads)
+  // Fetch store profile (using cache to reduce banco de dados reads)
   const profile = await getRestaurantProfileWithCache(storeId);
   if (!profile) return;
 
@@ -906,7 +906,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
     return;
   }
 
-  // 3. Cardápio atualizado (Envia o link do cardápio online com fotos ao invés da lista de texto, reduzindo drasticamente as leituras do Firestore)
+  // 3. Cardápio atualizado (Envia o link do cardápio online com fotos ao invés da lista de texto, reduzindo drasticamente as leituras do banco de dados)
   if (lowerText === '1' || lowerText.includes('cardapio') || lowerText.includes('cardápio') || lowerText.includes('produtos') || lowerText.includes('catalogo') || lowerText.includes('catálogo')) {
     const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
     const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;

@@ -6,10 +6,9 @@ import { createServer as createViteServer } from "vite";
 import Stripe from 'stripe';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { createClient } from '@supabase/supabase-js';
-const db: any = {};
-const doc: any = () => {};
-const getDoc: any = () => ({ exists: () => false, data: () => ({}) });
-const updateDoc: any = () => {};
+
+// Database is Supabase
+
 import dotenv from 'dotenv';
 dotenv.config();
 import { initWhatsappBot, getWhatsappQr, getWhatsappStatus, stopWhatsappSession } from './whatsapp-bot.js';
@@ -75,7 +74,7 @@ async function startServer() {
         return res.status(400).json({ error: "Store ID é necessário." });
       }
 
-      // Fetch Uber Direct config from Firestore
+      // Fetch Uber Direct config from banco de dados
       const { data: storeData, error } = await supabase.from('restaurants').select('uber_direct_config').eq('store_id', storeId).single();
       
       if (error || !storeData) {
@@ -137,7 +136,7 @@ async function startServer() {
         return res.status(400).json({ error: "Store ID e Delivery ID são necessários." });
       }
 
-      // Fetch Uber Direct config from Firestore
+      // Fetch Uber Direct config from banco de dados
       const { data: storeData, error } = await supabase.from('restaurants').select('uber_direct_config').eq('store_id', storeId).single();
       
       if (error || !storeData) {
@@ -197,15 +196,21 @@ async function startServer() {
       const projectId = "";
       const apiKey = "";
       const safeStoreId = storeId || "main";
-      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/restaurantProfile/${safeStoreId}?key=${apiKey}`;
       
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Falha ao buscar perfil do restaurante (Status: ${response.status})`);
+      // Replace banco de dados fetch with Supabase fetch
+      let fields: any = {};
+      const { data: pData, error: pErr } = await supabase.from('restaurant_profiles').select('*').eq('id', safeStoreId).single();
+      if (!pErr && pData) {
+        Object.keys(pData).forEach(k => { fields[k] = { stringValue: pData[k] }; });
+      } else {
+        const { data: pData2, error: pErr2 } = await supabase.from('restaurants').select('*').eq('id', safeStoreId).single();
+        if (!pErr2 && pData2) {
+          Object.keys(pData2).forEach(k => { fields[k] = { stringValue: pData2[k] }; });
+        } else {
+          throw new Error('Falha ao buscar perfil do restaurante (Supabase)');
+        }
       }
-      
-      const docData = await response.json();
-      const fields = docData.fields || {};
+
       
       const mpAccessToken = fields.mpAccessToken?.stringValue;
       const stripeSecretKey = fields.stripeSecretKey?.stringValue;
@@ -501,17 +506,17 @@ async function startServer() {
       const projectId = "";
       const apiKey = "";
 
-      // If paymentId is missing but orderId is present, try to find the paymentId in Firestore
+      // If paymentId is missing but orderId is present, try to find the paymentId in banco de dados
       if (!paymentId && orderId) {
         try {
-          const orderUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/orders/${orderId}?key=${apiKey}`;
-          const orderRes = await fetch(orderUrl);
-          if (orderRes.ok) {
-            const orderDoc = await orderRes.json();
-            paymentId = orderDoc.fields?.paymentId?.stringValue;
+          
+          const { data: orderData, error: orderErr } = await supabase.from('orders').select('payment_id').eq('id', orderId).single();
+          if (!orderErr && orderData) {
+            paymentId = orderData.payment_id;
           }
+
         } catch (err) {
-          console.error("Erro ao buscar paymentId no Firestore:", err);
+          console.error("Erro ao buscar paymentId no banco de dados:", err);
         }
       }
 
@@ -519,15 +524,21 @@ async function startServer() {
         return res.status(400).json({ error: "Parâmetro paymentId é obrigatório ou não pôde ser encontrado." });
       }
 
-      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/restaurantProfile/${safeStoreId}?key=${apiKey}`;
       
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Falha ao buscar perfil do restaurante (Status: ${response.status})`);
+      // Replace banco de dados fetch with Supabase fetch
+      let fields: any = {};
+      const { data: pData, error: pErr } = await supabase.from('restaurant_profiles').select('*').eq('id', safeStoreId).single();
+      if (!pErr && pData) {
+        Object.keys(pData).forEach(k => { fields[k] = { stringValue: pData[k] }; });
+      } else {
+        const { data: pData2, error: pErr2 } = await supabase.from('restaurants').select('*').eq('id', safeStoreId).single();
+        if (!pErr2 && pData2) {
+          Object.keys(pData2).forEach(k => { fields[k] = { stringValue: pData2[k] }; });
+        } else {
+          throw new Error('Falha ao buscar perfil do restaurante (Supabase)');
+        }
       }
-      
-      const docData = await response.json();
-      const fields = docData.fields || {};
+
       const abacatePayToken = fields.abacatePayToken?.stringValue;
       const asaasApiKey = fields.asaasApiKey?.stringValue;
       const asaasEnv = fields.asaasEnv?.stringValue || 'production';
@@ -609,30 +620,31 @@ async function startServer() {
         return res.status(400).json({ error: "Nenhum provedor de pagamento configurado para esta loja." });
       }
 
-      // If paid, update the order in Firestore directly
+      // If paid, update the order in banco de dados directly
       if (isPaid && orderId) {
         try {
-          const orderDocRef = doc(db, "orders", orderId as string);
-          const orderSnap = await getDoc(orderDocRef);
-          if (orderSnap.exists()) {
-            const orderData = orderSnap.data();
+          
+          const { data: orderData, error: orderFetchErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
+          if (!orderFetchErr && orderData) {
+
             // Somente altera status para Pendente e envia push se estiver em AguardandoPagamento
             if (orderData.status === "AguardandoPagamento") {
-              await updateDoc(orderDocRef, {
+              await supabase.from('orders').update({
                 status: "Pendente",
                 paymentApproved: true,
                 isPaid: true,
                 paymentStatus: "Aprovado"
-              });
+              }).eq('id', orderId);
               console.log(`Pedido ${orderId} atualizado de AguardandoPagamento para Pendente.`);
 
               // Enviar Push Notification de Novo Pedido para os tokens do lojista
               try {
                 // /* removed dbAdmin */
-                const profileDoc = { exists: () => false, data: () => ({}) };
-                if (profileDoc.exists) {
-                  const profileData = profileDoc.data();
-                  const merchantTokens = (profileData as any)?.merchantTokens || [];
+                
+                const { data: profileData, error: profileErr } = await supabase.from('restaurant_profiles').select('merchantTokens, merchant_tokens').eq('id', safeStoreId).single();
+                if (!profileErr && profileData) {
+
+                  const merchantTokens = (profileData as any)?.merchantTokens || (profileData as any)?.merchant_tokens || [];
                   if (merchantTokens.length > 0) {
                     const title = "🚨 Novo Pedido Recebido (Pago)!";
                     const formattedTotal = Number(orderData.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -665,16 +677,16 @@ async function startServer() {
               }
             } else {
               // Se já estiver em outro status (ex: Pendente, Preparando), apenas atualiza os flags de pagamento
-              await updateDoc(orderDocRef, {
+              await supabase.from('orders').update({
                 paymentApproved: true,
                 isPaid: true,
                 paymentStatus: "Aprovado"
-              });
+              }).eq('id', orderId);
               console.log(`Pedido ${orderId} já estava com status ${orderData.status}. Flags de pagamento atualizados.`);
             }
           }
         } catch (dbErr: any) {
-          console.error(`Falha ao atualizar documento do pedido no Firestore:`, dbErr);
+          console.error(`Falha ao atualizar documento do pedido no banco de dados:`, dbErr);
         }
       }
 
