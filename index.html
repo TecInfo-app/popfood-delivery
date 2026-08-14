@@ -1448,11 +1448,25 @@ storeId: window.currentStoreId
 
       // Listen to Products
       onSnapshot(query(collection(db, COLLECTIONS.products), where("storeId", "==", window.currentStoreId)), (prodSnap) => {
+        let savedOrders = {};
+        try {
+          savedOrders = window.currentRestaurantProfile?.settings?.productOrders ||
+                        window.currentRestaurantProfile?.productOrders ||
+                        JSON.parse(localStorage.getItem(`popfood_product_orders_${window.currentStoreId}`) || '{}');
+        } catch (e) {}
+
         activeProducts = [];
         prodSnap.forEach(snap => {
-          activeProducts.push({ id: snap.id, ...snap.data() });
+          const pData = snap.data();
+          const pId = String(snap.id);
+          const assignedOrder = (pData.order !== undefined && pData.order !== null)
+            ? Number(pData.order)
+            : (savedOrders[pId] !== undefined ? Number(savedOrders[pId]) : 9999);
+
+          activeProducts.push({ id: snap.id, ...pData, order: assignedOrder });
         });
 
+        activeProducts.sort((a, b) => (Number(a.order ?? 9999) - Number(b.order ?? 9999)));
         triggerProductsSearchFilter();
       });
 
@@ -2009,7 +2023,7 @@ storeId: window.currentStoreId
 
       // Group products by category (activeCategories is already sorted by "order")
       activeCategories.forEach(cat => {
-        const catProducts = matching.filter(p => p.categoryId === cat.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+        const catProducts = matching.filter(p => p.categoryId === cat.id).sort((a, b) => (Number(a.order ?? 9999) - Number(b.order ?? 9999)));
         if (catProducts.length > 0) {
           // Create category section container
           const catSection = document.createElement('div');
@@ -2175,34 +2189,72 @@ storeId: window.currentStoreId
     }
 
     window.moveProductSorting = async function(prdId, dir) {
-      const prd = activeProducts.find(p => p.id === prdId);
+      const prd = activeProducts.find(p => String(p.id) === String(prdId));
       if (!prd) return;
-      const catProducts = activeProducts.filter(p => p.categoryId === prd.categoryId).sort((a, b) => (a.order || 0) - (b.order || 0));
-      const idx = catProducts.findIndex(p => p.id === prdId);
-      if (idx === 0 && dir === -1) return;
-      if (idx === catProducts.length - 1 && dir === 1) return;
-      
-      const targetIdx = idx + dir;
-      const other = catProducts[targetIdx];
-      
-      const tempOrder = prd.order || 0;
-      prd.order = other.order || 0;
-      other.order = tempOrder;
-      
-      // Se a ordem for igual, usa o índice para forçar a troca
-      if (prd.order === other.order) {
-        prd.order = targetIdx;
-        other.order = idx;
+
+      const catProducts = activeProducts
+        .filter(p => p.categoryId === prd.categoryId)
+        .sort((a, b) => (Number(a.order ?? 9999) - Number(b.order ?? 9999)));
+
+      // Normalize all orders in this category to clean sequential integers
+      catProducts.forEach((p, idx) => {
+        p.order = idx;
+      });
+
+      const currentIdx = catProducts.findIndex(p => String(p.id) === String(prdId));
+      if (currentIdx < 0) return;
+      if (currentIdx === 0 && dir === -1) return;
+      if (currentIdx === catProducts.length - 1 && dir === 1) return;
+
+      const targetIdx = currentIdx + dir;
+      const [movedItem] = catProducts.splice(currentIdx, 1);
+      catProducts.splice(targetIdx, 0, movedItem);
+
+      // Re-assign explicit sequential order
+      catProducts.forEach((p, idx) => {
+        p.order = idx;
+      });
+
+      // Update in activeProducts in memory
+      catProducts.forEach(p => {
+        const existing = activeProducts.find(ap => String(ap.id) === String(p.id));
+        if (existing) existing.order = p.order;
+      });
+
+      // Re-sort and render immediately for instant feedback
+      activeProducts.sort((a, b) => (Number(a.order ?? 9999) - Number(b.order ?? 9999)));
+      triggerProductsSearchFilter();
+
+      // Update productOrders map in restaurant profile settings and localStorage
+      let savedOrders = {};
+      try {
+        savedOrders = JSON.parse(localStorage.getItem(`popfood_product_orders_${window.currentStoreId}`) || '{}');
+      } catch (e) {}
+
+      catProducts.forEach(p => {
+        savedOrders[String(p.id)] = p.order;
+      });
+      localStorage.setItem(`popfood_product_orders_${window.currentStoreId}`, JSON.stringify(savedOrders));
+
+      if (window.currentRestaurantProfile) {
+        if (!window.currentRestaurantProfile.settings) window.currentRestaurantProfile.settings = {};
+        window.currentRestaurantProfile.settings.productOrders = savedOrders;
+        window.currentRestaurantProfile.productOrders = savedOrders;
       }
 
-      // Re-sort and re-render immediately
-      activeProducts.sort((a, b) => (a.order || 0) - (b.order || 0));
-      triggerProductsSearchFilter();
-      
+      // Persist to database in background
       try {
-        await updateDoc(doc(db, COLLECTIONS.products, prd.id), { order: prd.order });
-        await updateDoc(doc(db, COLLECTIONS.products, other.id), { order: other.order });
-        refreshManagementDatabases();
+        for (const item of catProducts) {
+          await updateDoc(doc(db, COLLECTIONS.products, item.id), { order: item.order });
+        }
+        const profileDocRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const currentSettings = window.currentRestaurantProfile?.settings || {};
+        await updateDoc(profileDocRef, {
+          settings: {
+            ...currentSettings,
+            productOrders: savedOrders
+          }
+        });
       } catch (err) {
         console.error("Erro ao reordenar produtos: ", err);
       }

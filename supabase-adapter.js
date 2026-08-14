@@ -237,7 +237,7 @@ const tableColumns = {
         'id', 'storeId', 'name', 'order', 'createdAt'
     ],
     products: [
-        'id', 'store_id', 'name', 'description', 'price', 'category', 'image_url', 'is_active', 'created_at'
+        'id', 'store_id', 'name', 'description', 'price', 'category', 'image_url', 'is_active', 'created_at', 'order', 'sort_order', 'order_index'
     ],
     complements: [
         'id', 'storeId', 'name', 'mandatory', 'maxLimit', 'items', 'createdAt'
@@ -652,6 +652,16 @@ function serializeRow(path, realPath, payload, existingSettings = {}) {
     });
 
     
+    // Handle 'products' table ordering and field packing
+    if (realPath === 'products' || path === 'products' || path === 'COLLECTIONS.products') {
+        if (payload.order !== undefined && payload.order !== null) {
+            const numOrder = Number(payload.order);
+            if (validCols.includes('sort_order')) serialized['sort_order'] = numOrder;
+            if (validCols.includes('order')) serialized['order'] = numOrder;
+            if (validCols.includes('order_index')) serialized['order_index'] = numOrder;
+        }
+    }
+
     // Handle 'coupons' table formatting and flag packing
     if (realPath === 'coupons' || path === 'coupons' || path === 'COLLECTIONS.coupons') {
         let typeVal = String(payload.type || payload.discountType || payload.discount_type || 'percentual');
@@ -797,6 +807,13 @@ function deserializeRow(path, row) {
         }
         if (!deserialized.storeId && row.store_id) {
             deserialized.storeId = row.store_id;
+        }
+        if (row.sort_order !== undefined && row.sort_order !== null) {
+            deserialized.order = Number(row.sort_order);
+        } else if (row.order !== undefined && row.order !== null) {
+            deserialized.order = Number(row.order);
+        } else if (row.order_index !== undefined && row.order_index !== null) {
+            deserialized.order = Number(row.order_index);
         }
     }
 

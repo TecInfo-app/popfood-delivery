@@ -4232,11 +4232,24 @@
           where("storeId", "==", window.currentStoreId),
         );
         onSnapshot(productsRef, (productsSnap) => {
+          let savedOrders = {};
+          try {
+            savedOrders = restaurantProfile?.settings?.productOrders ||
+                          restaurantProfile?.productOrders ||
+                          JSON.parse(localStorage.getItem(`popfood_product_orders_${window.currentStoreId}`) || '{}');
+          } catch (e) {}
+
           productsList = [];
           productsSnap.forEach((docSnap) => {
-            productsList.push({ id: docSnap.id, ...docSnap.data() });
+            const pData = docSnap.data();
+            const pId = String(docSnap.id);
+            const assignedOrder = (pData.order !== undefined && pData.order !== null)
+              ? Number(pData.order)
+              : (savedOrders[pId] !== undefined ? Number(savedOrders[pId]) : 9999);
+
+            productsList.push({ id: docSnap.id, ...pData, order: assignedOrder });
           });
-          productsList.sort((a, b) => (a.order || 0) - (b.order || 0));
+          productsList.sort((a, b) => (Number(a.order ?? 9999) - Number(b.order ?? 9999)));
           renderCatalogItems(); // Refresh catalog UI
         });
       }
@@ -5425,6 +5438,8 @@
         
         toggleProductModal(false);
 
+        showToast(isEditing ? "Item atualizado no carrinho!" : "Item adicionado à sua sacola!", false);
+
         if (isEditing) {
           setTimeout(() => {
             toggleCartModal(true);
@@ -6110,9 +6125,15 @@
       }
 
       // Update the Floating Bottom Cart Bar UI
+      let floatingBarHideTimer = null;
       function updateFloatingCartBar() {
         const bar = document.getElementById("floating-cart-bar");
         if (!bar) return;
+
+        if (floatingBarHideTimer) {
+          clearTimeout(floatingBarHideTimer);
+          floatingBarHideTimer = null;
+        }
 
         const totalQty = shoppingCart.reduce(
           (acc, current) => acc + current.quantity,
@@ -6122,11 +6143,12 @@
         if (totalQty === 0) {
           bar.classList.remove("translate-y-0", "opacity-100");
           bar.classList.add("translate-y-10", "opacity-0");
-          setTimeout(() => {
+          floatingBarHideTimer = setTimeout(() => {
             const currentQty = shoppingCart.reduce((acc, curr) => acc + curr.quantity, 0);
             if (currentQty === 0) {
               bar.classList.add("hidden");
             }
+            floatingBarHideTimer = null;
           }, 300);
           return;
         }
@@ -6267,6 +6289,18 @@
         localStorage.removeItem("popfood_cart");
         refreshCartOverview();
       };
+
+      // Synchronize cart across browser tabs / windows automatically
+      window.addEventListener("storage", (event) => {
+        if (event.key === "popfood_cart") {
+          try {
+            shoppingCart = JSON.parse(event.newValue) || [];
+            refreshCartOverview();
+          } catch (e) {
+            console.warn("Erro ao sincronizar carrinho entre abas:", e);
+          }
+        }
+      });
 
       // Auto complete lookup using ViaCEP api
       window.consultCEP = async function () {
