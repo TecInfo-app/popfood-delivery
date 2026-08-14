@@ -1471,7 +1471,47 @@ storeId: window.currentStoreId
       triggerProductsSearchFilter();
     }
 
-    // Category CRUD list builder
+    // Category CRUD list builder with image support
+    window.triggerCategoryImageUpload = function(catId) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          let base64;
+          if (window.optimizeAndConvertToBase64) {
+            base64 = await window.optimizeAndConvertToBase64(file, 950);
+          } else {
+            const reader = new FileReader();
+            base64 = await new Promise((resolve) => {
+              reader.onload = (ev) => resolve(ev.target.result);
+              reader.readAsDataURL(file);
+            });
+          }
+          await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: base64 });
+          refreshManagementDatabases();
+        } catch (err) {
+          console.error("Error uploading category image: ", err);
+          alert("Erro ao enviar a imagem da categoria.");
+        }
+      };
+      input.click();
+    };
+
+    window.removeCategoryImage = async function(catId) {
+      const confirmState = await window.customConfirm("Deseja realmente remover a foto desta categoria?");
+      if (!confirmState) return;
+      try {
+        await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: null });
+        refreshManagementDatabases();
+      } catch (err) {
+        console.error("Error removing category image: ", err);
+        alert("Erro ao remover a imagem.");
+      }
+    };
+
     function renderCategoriesManager() {
       const container = document.getElementById('categories-sort-list');
       if (!container) return;
@@ -1481,14 +1521,30 @@ storeId: window.currentStoreId
 
       activeCategories.forEach((cat, idx) => {
         const item = document.createElement('div');
-        item.className = "bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between shadow-2xs";
+        item.className = "bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-3 shadow-2xs";
         
+        const catImgUrl = cat.image || '';
+        const imgHtml = catImgUrl 
+          ? `<div class="relative w-12 h-12 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 group">
+               <img src="${catImgUrl}" class="w-full h-full object-cover">
+               <button onclick="removeCategoryImage('${cat.id}')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[9px] font-bold flex items-center justify-center transition-opacity cursor-pointer">Remover</button>
+             </div>`
+          : `<div onclick="triggerCategoryImageUpload('${cat.id}')" class="w-12 h-12 rounded-full bg-gray-150 hover:bg-gray-200 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 cursor-pointer select-none" title="Adicionar Foto">
+               📷
+             </div>`;
+
         item.innerHTML = `
-          <div class="flex-grow pr-4">
-            <span class="text-xs font-bold text-gray-800 block capitalize">${cat.name}</span>
-            <span class="block text-[9px] text-gray-400 font-semibold font-mono">Ordem: ${cat.order || 0}</span>
+          ${imgHtml}
+          <div class="flex-grow pr-2 min-w-0">
+            <span class="text-xs font-bold text-gray-800 block capitalize truncate">${cat.name}</span>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="block text-[9px] text-gray-400 font-semibold font-mono">Ordem: ${cat.order || 0}</span>
+              ${catImgUrl 
+                ? `<button onclick="triggerCategoryImageUpload('${cat.id}')" class="text-[9px] text-brand-primary font-bold hover:underline cursor-pointer">Alterar Foto</button>` 
+                : `<button onclick="triggerCategoryImageUpload('${cat.id}')" class="text-[9px] text-gray-500 font-bold hover:underline cursor-pointer">Adicionar Foto</button>`}
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 flex-shrink-0">
+          <div class="flex items-center gap-1 flex-shrink-0">
             <button onclick="moveCategorySorting(${idx}, -1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer">▲</button>
             <button onclick="moveCategorySorting(${idx}, 1)" class="w-7 h-7 bg-white text-gray-650 hover:text-brand-primary text-xs font-semibold rounded-md border border-gray-100 flex items-center justify-center cursor-pointer">▼</button>
             <button onclick="deleteCategoryAction('${cat.id}')" class="w-7 h-7 bg-red-100 text-brand-danger hover:bg-red-200 text-xs font-bold rounded-md flex items-center justify-center cursor-pointer">✕</button>

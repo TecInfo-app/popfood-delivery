@@ -311,16 +311,25 @@
       <!-- Category selector button -->
       <section
         id="category-selector-section"
-        class="mb-2 sticky top-[72px] bg-brand-light/95 z-30 backdrop-blur-sm transition-all duration-200 py-1"
+        class="mb-3 sticky top-[72px] bg-brand-light/95 z-30 backdrop-blur-sm transition-all duration-200 py-2 border-b border-stone-200/60"
       >
-        <button
-          onclick="toggleCategoryDrawer(true)"
-          class="flex items-center justify-center text-stone-700 hover:bg-stone-200/50 p-2 rounded-xl cursor-pointer transition-colors w-[44px] h-[44px] shrink-0"
-        >
-          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"></path>
-          </svg>
-        </button>
+        <div class="flex items-center gap-3 px-4">
+          <!-- Sidebar drawer button -->
+          <button
+            onclick="toggleCategoryDrawer(true)"
+            class="flex items-center justify-center text-stone-700 hover:bg-stone-200/50 p-2 rounded-xl cursor-pointer transition-colors w-11 h-11 shrink-0 border border-stone-200 bg-white shadow-2xs"
+            title="Ver Todas"
+          >
+            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          
+          <!-- Category Circles Carrousel -->
+          <div id="category-circles-container" class="flex-grow flex items-center gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-1 select-none">
+            <!-- Dynamically populated circles with photos -->
+          </div>
+        </div>
       </section>
 
       <!-- Menu horizontal list by Categories -->
@@ -4238,28 +4247,115 @@
 
       // Setup Category selection tabs/pills
       function renderCategoryFilterTabs() {
+        // Render drawer sidebar tabs
         const container = document.getElementById("categories-tabs-drawer");
-        if (!container) return;
-        container.innerHTML = "";
+        if (container) {
+          container.innerHTML = "";
 
-        // All options
-        const allBtn = document.createElement("button");
-        allBtn.className = `w-full text-left px-5 py-3.5 text-sm font-bold rounded-xl border transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${activeCategory === "all" ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-orange-950/10" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"}`;
-        allBtn.innerHTML = `<div class="flex items-center justify-between"><span>Destaques</span> ${activeCategory === 'all' ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}</div>`;
-        allBtn.onclick = () => {
-          selectCategoryGroup("all");
-        };
-        container.appendChild(allBtn);
-
-        categoriesList.forEach((cat) => {
-          const btn = document.createElement("button");
-          btn.className = `w-full text-left px-5 py-3.5 text-sm font-bold rounded-xl border transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${activeCategory === cat.id ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-orange-950/10" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"}`;
-          btn.innerHTML = `<div class="flex items-center justify-between"><span>${cat.name}</span> ${activeCategory === cat.id ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}</div>`;
-          btn.onclick = () => {
-            selectCategoryGroup(cat.id);
+          // All option (Destaques)
+          const allBtn = document.createElement("button");
+          allBtn.className = `w-full text-left px-5 py-3.5 text-sm font-bold rounded-xl border transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${activeCategory === "all" ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-orange-950/10" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"}`;
+          allBtn.innerHTML = `<div class="flex items-center justify-between"><span>Destaques</span> ${activeCategory === 'all' ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}</div>`;
+          allBtn.onclick = () => {
+            selectCategoryGroup("all");
           };
-          container.appendChild(btn);
-        });
+          container.appendChild(allBtn);
+
+          categoriesList.forEach((cat) => {
+            const btn = document.createElement("button");
+            btn.className = `w-full text-left px-5 py-3.5 text-sm font-bold rounded-xl border transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${activeCategory === cat.id ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-orange-950/10" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"}`;
+            btn.innerHTML = `<div class="flex items-center justify-between"><span>${cat.name}</span> ${activeCategory === cat.id ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}</div>`;
+            btn.onclick = () => {
+              selectCategoryGroup(cat.id);
+            };
+            container.appendChild(btn);
+          });
+        }
+
+        // Render circular slider circles
+        const circlesContainer = document.getElementById("category-circles-container");
+        if (circlesContainer) {
+          circlesContainer.innerHTML = "";
+
+          // Render 'Destaques' ('all') circle
+          const allCircle = document.createElement("div");
+          allCircle.className = "flex flex-col items-center gap-1.5 cursor-pointer shrink-0 group select-none transition-transform active:scale-95";
+          allCircle.onclick = () => selectCategoryGroup("all");
+
+          const allActive = activeCategory === "all";
+          const allBorderClass = allActive 
+            ? "border-[3px] border-brand-primary scale-105 shadow-md shadow-orange-500/20" 
+            : "border-[1.5px] border-stone-200/80 group-hover:border-stone-300";
+          
+          allCircle.innerHTML = `
+            <div class="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-tr from-orange-50 to-orange-100 flex items-center justify-center transition-all duration-200 ${allBorderClass}">
+              <span class="text-xl">⭐</span>
+            </div>
+            <span class="text-[10px] font-bold text-center leading-tight truncate w-16 transition-colors duration-200 ${allActive ? "text-brand-primary font-black" : "text-stone-500 group-hover:text-stone-700"}">
+              Destaques
+            </span>
+          `;
+          circlesContainer.appendChild(allCircle);
+
+          // Render rest of categories
+          categoriesList.forEach((cat) => {
+            const circle = document.createElement("div");
+            circle.className = "flex flex-col items-center gap-1.5 cursor-pointer shrink-0 group select-none transition-transform active:scale-95";
+            circle.onclick = () => selectCategoryGroup(cat.id);
+
+            const active = activeCategory === cat.id;
+            const borderClass = active 
+              ? "border-[3px] border-brand-primary scale-105 shadow-md shadow-orange-500/20" 
+              : "border-[1.5px] border-stone-200/80 group-hover:border-stone-300";
+
+            let innerImgHtml = '';
+            if (cat.image) {
+              innerImgHtml = `<img src="${cat.image}" class="w-full h-full object-cover">`;
+            } else {
+              // Derive a nice emoji or fallback symbol
+              let emoji = "🍽️";
+              const nameLower = cat.name.toLowerCase();
+              if (nameLower.includes("bebida") || nameLower.includes("suco") || nameLower.includes("cerva") || nameLower.includes("refrigerante") || nameLower.includes("chopp") || nameLower.includes("cerveja") || nameLower.includes("refris") || nameLower.includes("refrigerantes")) {
+                emoji = "🥤";
+              } else if (nameLower.includes("hamburguer") || nameLower.includes("burger") || nameLower.includes("artesanais") || nameLower.includes("artesanal") || nameLower.includes("smash") || nameLower.includes("lanche")) {
+                emoji = "🍔";
+              } else if (nameLower.includes("pizza")) {
+                emoji = "🍕";
+              } else if (nameLower.includes("sobremesa") || nameLower.includes("doce") || nameLower.includes("sorvete") || nameLower.includes("pudim") || nameLower.includes("chocolate") || nameLower.includes("acai") || nameLower.includes("açaí")) {
+                emoji = "🍮";
+              } else if (nameLower.includes("entrada") || nameLower.includes("porca") || nameLower.includes("fritas") || nameLower.includes("petisco") || nameLower.includes("porções") || nameLower.includes("porção")) {
+                emoji = "🍟";
+              } else if (nameLower.includes("combo") || nameLower.includes("promocao") || nameLower.includes("oferta") || nameLower.includes("promoção") || nameLower.includes("promocões") || nameLower.includes("promoções")) {
+                emoji = "📦";
+              } else if (nameLower.includes("carne") || nameLower.includes("churrasco") || nameLower.includes("grelhado") || nameLower.includes("bife") || nameLower.includes("chapa")) {
+                emoji = "🥩";
+              } else if (nameLower.includes("massa") || nameLower.includes("macarrao") || nameLower.includes("pasta") || nameLower.includes("lasanha")) {
+                emoji = "🍝";
+              } else if (nameLower.includes("salada") || nameLower.includes("saudavel") || nameLower.includes("fit") || nameLower.includes("fitness")) {
+                emoji = "🥗";
+              } else if (nameLower.includes("pastel")) {
+                emoji = "🥟";
+              } else if (nameLower.includes("espeto") || nameLower.includes("espetinho")) {
+                emoji = "🍢";
+              } else if (nameLower.includes("suco") || nameLower.includes("natural")) {
+                emoji = "🍹";
+              } else if (nameLower.includes("vinho") || nameLower.includes("adega") || nameLower.includes("drink")) {
+                emoji = "🍷";
+              }
+              innerImgHtml = `<span class="text-xl">${emoji}</span>`;
+            }
+
+            circle.innerHTML = `
+              <div class="w-14 h-14 rounded-full overflow-hidden bg-white flex items-center justify-center transition-all duration-200 ${borderClass}">
+                ${innerImgHtml}
+              </div>
+              <span class="text-[10px] font-bold text-center leading-tight truncate w-16 transition-colors duration-200 ${active ? "text-brand-primary font-black" : "text-stone-500 group-hover:text-stone-700"}">
+                ${cat.name}
+              </span>
+            `;
+            circlesContainer.appendChild(circle);
+          });
+        }
       }
 
       window.selectCategoryGroup = function (catId) {
