@@ -218,6 +218,17 @@
           <p class="text-[9px] text-gray-400 mt-0.5">Chave da SUA conta AbacatePay. Usada para gerar a cobrança Pix automática das mensalidades de todas as lojas.</p>
         </div>
 
+        <div class="space-y-1 pt-2 border-t border-gray-100">
+          <label class="block text-[10px] uppercase font-bold text-gray-400">🔑 Código de Convite Geral (Novas Lojas)</label>
+          <div class="flex gap-2">
+            <input type="text" id="global-invite-code" placeholder="Ex: CIA2026" class="w-full p-2.5 text-xs font-mono font-bold border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none uppercase tracking-wider" />
+            <button type="button" onclick="generateSuperAdminInviteCode()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap">
+              Gerar 🎲
+            </button>
+          </div>
+          <p class="text-[9px] text-gray-400 mt-0.5">Código secreto global exigido para cadastrar novos estabelecimentos no ecossistema.</p>
+        </div>
+
         <div class="pt-4 flex gap-3 shrink-0">
           <button type="button" onclick="toggleGlobalSettingsModal(false)" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 rounded-xl text-xs font-semibold cursor-pointer transition-all font-display">Cancelar</button>
           <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all cursor-pointer font-display">Salvar</button>
@@ -1012,14 +1023,29 @@
       }
     }
 
+    window.generateSuperAdminInviteCode = function() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let rand = '';
+      for (let i = 0; i < 4; i++) {
+        rand += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const newCode = 'CIA' + rand;
+      const el = document.getElementById('global-invite-code');
+      if (el) el.value = newCode;
+    };
+
     window.toggleGlobalSettingsModal = async function(show) {
       document.getElementById('global-settings-modal').classList.toggle('hidden', !show);
       if(show) {
         try {
           const snap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'));
           if(snap.exists()) {
-            (document.getElementById('global-admin-whatsapp') || {}).value = snap.data().adminWhatsApp || '';
-            (document.getElementById('global-abacatepay-master-token') || {}).value = snap.data().abacatePayMasterToken || '';
+            const data = snap.data();
+            (document.getElementById('global-admin-whatsapp') || {}).value = data.adminWhatsApp || '';
+            (document.getElementById('global-abacatepay-master-token') || {}).value = data.abacatePayMasterToken || '';
+            (document.getElementById('global-invite-code') || {}).value = data.inviteCode || data.invite_code || 'CIA2026';
+          } else {
+            (document.getElementById('global-invite-code') || {}).value = 'CIA2026';
           }
         } catch(e) {
           console.error("Erro ao carregar settings", e);
@@ -1031,12 +1057,15 @@
       e.preventDefault();
       const adminWhatsApp = document.getElementById('global-admin-whatsapp').value.replace(/\D/g, '');
       const masterToken = document.getElementById('global-abacatepay-master-token').value.trim();
+      const inviteCode = (document.getElementById('global-invite-code').value || '').trim().toUpperCase() || 'CIA2026';
       try {
         await setDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'), {
           adminWhatsApp: adminWhatsApp,
-          abacatePayMasterToken: masterToken
+          abacatePayMasterToken: masterToken,
+          inviteCode: inviteCode
         }, { merge: true });
-        window.customAlert("Configuração salva com sucesso!");
+        localStorage.setItem('popfood_invite_code', inviteCode);
+        window.customAlert("Configuração salva com sucesso! Código de convite global atualizado para: " + inviteCode);
         toggleGlobalSettingsModal(false);
       } catch(err) {
         window.customAlert("Erro ao salvar opções globais: " + err.message);

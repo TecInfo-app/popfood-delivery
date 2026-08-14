@@ -1153,16 +1153,40 @@ storeId: window.currentStoreId
     // Call Register SDK API
     async function triggerRegisterAction(e) {
       e.preventDefault();
-      const secret = document.getElementById('register-secret').value.trim();
+      const secretInput = document.getElementById('register-secret').value.trim();
       const mailInput = document.getElementById('register-email').value.trim();
       const pass = document.getElementById('register-password').value.trim();
       const conf = document.getElementById('register-confirm-password').value.trim();
 
       const mail = mailInput.toLowerCase();
+      const userSecret = secretInput.toUpperCase();
 
-      // Simple security hardcoded block for invite code
-      if (secret !== "CIA2026") {
-        alert("Código administrativo inválido! O cadastro automático está restrito apenas para parceiros convidados.");
+      // Collect allowed invite codes from database, localStorage, and fallback CIA2026
+      let allowedCodes = ["CIA2026"];
+      const customLocalCode = localStorage.getItem('popfood_invite_code');
+      if (customLocalCode) allowedCodes.push(customLocalCode.toUpperCase());
+
+      try {
+        const gsSnap = await getDoc(doc(db, COLLECTIONS.restaurantProfile, 'GLOBAL_SETTINGS'));
+        if (gsSnap.exists()) {
+          const gsData = gsSnap.data();
+          if (gsData.inviteCode) allowedCodes.push(String(gsData.inviteCode).toUpperCase());
+          if (gsData.invite_code) allowedCodes.push(String(gsData.invite_code).toUpperCase());
+        }
+
+        const allProfilesSnap = await getDocs(collection(db, COLLECTIONS.restaurantProfile));
+        allProfilesSnap.forEach(docSnap => {
+          const p = docSnap.data();
+          if (p.inviteCode) allowedCodes.push(String(p.inviteCode).toUpperCase());
+          if (p.invite_code) allowedCodes.push(String(p.invite_code).toUpperCase());
+          if (p.settings && p.settings.inviteCode) allowedCodes.push(String(p.settings.inviteCode).toUpperCase());
+        });
+      } catch (e) {
+        console.warn("Notice loading dynamic invite codes:", e);
+      }
+
+      if (!allowedCodes.includes(userSecret)) {
+        alert("Código administrativo inválido! O cadastro automático está restrito apenas para parceiros convidados com o código correto.");
         return;
       }
 
