@@ -1365,6 +1365,7 @@ storeId: window.currentStoreId
         // --- BILLING EVALUATION ---
         if (docSnap.exists()) {
           const profileData = docSnap.data();
+          window.currentRestaurantProfile = profileData;
           const billingDay = profileData.billingDay;
           const monthlyFee = profileData.monthlyFee;
           const pixKey = profileData.pixKey;
@@ -1490,7 +1491,19 @@ storeId: window.currentStoreId
               reader.readAsDataURL(file);
             });
           }
-          await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: base64 });
+          
+          const profileDocRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+          const currentSettings = window.currentRestaurantProfile?.settings || {};
+          const categoryImages = { ...(currentSettings.categoryImages || {}) };
+          categoryImages[catId] = base64;
+          
+          await updateDoc(profileDocRef, {
+            settings: {
+              ...currentSettings,
+              categoryImages
+            }
+          });
+          
           refreshManagementDatabases();
         } catch (err) {
           console.error("Error uploading category image: ", err);
@@ -1504,7 +1517,18 @@ storeId: window.currentStoreId
       const confirmState = await window.customConfirm("Deseja realmente remover a foto desta categoria?");
       if (!confirmState) return;
       try {
-        await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: null });
+        const profileDocRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
+        const currentSettings = window.currentRestaurantProfile?.settings || {};
+        const categoryImages = { ...(currentSettings.categoryImages || {}) };
+        delete categoryImages[catId];
+        
+        await updateDoc(profileDocRef, {
+          settings: {
+            ...currentSettings,
+            categoryImages
+          }
+        });
+        
         refreshManagementDatabases();
       } catch (err) {
         console.error("Error removing category image: ", err);
@@ -1519,11 +1543,14 @@ storeId: window.currentStoreId
 
       (document.getElementById('lbl-categories-count') || {}).textContent = activeCategories.length;
 
+      const currentSettings = window.currentRestaurantProfile?.settings || {};
+      const categoryImages = currentSettings.categoryImages || {};
+
       activeCategories.forEach((cat, idx) => {
         const item = document.createElement('div');
         item.className = "bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-3 shadow-2xs";
         
-        const catImgUrl = cat.image || '';
+        const catImgUrl = categoryImages[cat.id] || '';
         const imgHtml = catImgUrl 
           ? `<div class="relative w-12 h-12 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 group">
                <img src="${catImgUrl}" class="w-full h-full object-cover">

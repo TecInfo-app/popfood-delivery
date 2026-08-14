@@ -4309,8 +4309,12 @@
               : "border-[1.5px] border-stone-200/80 group-hover:border-stone-300";
 
             let innerImgHtml = '';
-            if (cat.image) {
-              innerImgHtml = `<img src="${cat.image}" class="w-full h-full object-cover">`;
+            const currentSettings = restaurantProfile?.settings || {};
+            const categoryImages = currentSettings.categoryImages || {};
+            const catImage = categoryImages[cat.id] || cat.image;
+
+            if (catImage) {
+              innerImgHtml = `<img src="${catImage}" class="w-full h-full object-cover">`;
             } else {
               // Derive a nice emoji or fallback symbol
               let emoji = "🍽️";
