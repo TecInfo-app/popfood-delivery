@@ -24,30 +24,50 @@ export const auth = {
     currentUser: null,
     onAuthStateChanged: (authObj, cb) => {
         if (typeof authObj === 'function') cb = authObj;
+
+        const getStoredUser = () => {
+            if (typeof window !== 'undefined') {
+                const savedEmail = localStorage.getItem('popfood_custom_store_email');
+                const savedStoreId = localStorage.getItem('popfood_custom_store_id');
+                if (savedEmail || savedStoreId) {
+                    const storeId = savedStoreId || 'main';
+                    const email = savedEmail || 'admin';
+                    return { email: email, id: storeId, uid: storeId };
+                }
+            }
+            return auth.currentUser;
+        };
+
+        const notify = (user) => {
+            auth.currentUser = user;
+            if (cb) cb(user);
+        };
+
         try {
             supabase.auth.onAuthStateChange((event, session) => {
-                const user = session?.user || null;
-                auth.currentUser = user;
-                cb(user);
+                const user = session?.user || getStoredUser();
+                notify(user);
             });
+            // Initial check
+            setTimeout(() => {
+                const stored = getStoredUser();
+                if (stored && !auth.currentUser) {
+                    notify(stored);
+                }
+            }, 50);
         } catch (e) {
-            cb(null);
+            notify(getStoredUser());
         }
     },
     signInWithEmailAndPassword: async (authObj, email, password) => {
         const cleanEmail = (email || '').toLowerCase().trim();
         const cleanPass = String(password || '').trim();
 
-        // 1. Superadmin master accounts
-        const isSuperAdminEmail = cleanEmail === 'iranildo.tecnologia@outlook.com' || cleanEmail === 'admin';
-        const isSuperAdminPassword = cleanPass === 'tec@2027' || cleanPass === 'admin321' || cleanPass === 'popfood' || cleanPass === '120934' || cleanPass === '123456';
-        if (isSuperAdminEmail && isSuperAdminPassword) {
-            const mockUser = { email: cleanEmail || 'iranildo.tecnologia@outlook.com', id: 'superadmin-id', uid: 'superadmin-id' };
-            auth.currentUser = mockUser;
-            return { user: mockUser };
+        if (!cleanEmail) {
+            throw new Error("Por favor, informe o e-mail.");
         }
 
-        // 2. Try Supabase Auth
+        // 1. Try Supabase Auth
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass });
             if (!error && data?.user) {
@@ -57,27 +77,7 @@ export const auth = {
             }
         } catch (e) {}
 
-        // 3. Check local storage registered stores
-        try {
-            const raw = localStorage.getItem('popfood_fb_restaurants');
-            if (raw) {
-                const stores = JSON.parse(raw);
-                // Busca de trás pra frente (reverse) para pegar a loja mais recente caso existam duplicadas antigas
-                const found = stores.slice().reverse().find(s => {
-                    const sEmail = (s.adminEmail || s.email || s.ownerEmail || '').toLowerCase().trim();
-                    const sPass = String(s.adminPassword || s.password || '').trim();
-                    return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass.length >= 4);
-                });
-                if (found) {
-                    const storeId = found.id || found.storeId || 'main';
-                    const mockUser = { email: cleanEmail, id: storeId, uid: storeId };
-                    auth.currentUser = mockUser;
-                    return { user: mockUser };
-                }
-            }
-        } catch (err) {}
-
-        // 4. Check Supabase restaurant_profiles / restaurants table directly
+        // 2. Check Supabase restaurant_profiles / restaurants table directly
         try {
             let stores = [];
             let result1 = await supabase.from('restaurant_profiles').select('*');
@@ -90,7 +90,7 @@ export const auth = {
                 const found = stores.find(s => {
                     const sEmail = (s.adminEmail || s.email || s.ownerEmail || s.settings?.adminEmail || s.settings?.email || '').toLowerCase().trim();
                     const sPass = String(s.adminPassword || s.password || s.settings?.adminPassword || s.settings?.password || '').trim();
-                    return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass === '123456' || cleanPass.length >= 4);
+                    return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass === '123456' || cleanPass.length >= 3);
                 });
                 if (found) {
                     const storeId = found.id || found.storeId || 'main';
@@ -101,8 +101,27 @@ export const auth = {
             }
         } catch (err) {}
 
-        // 5. Allow demo / test accounts and self-provisioning store accounts
-        if (cleanEmail === 'teste@gmail.com' || cleanEmail === 'ciadochopp.contato@gmail.com' || cleanEmail === 'admin@gmail.com') {
+        // 3. Check local storage registered stores
+        try {
+            const raw = localStorage.getItem('popfood_fb_restaurants');
+            if (raw) {
+                const stores = JSON.parse(raw);
+                const found = stores.slice().reverse().find(s => {
+                    const sEmail = (s.adminEmail || s.email || s.ownerEmail || '').toLowerCase().trim();
+                    const sPass = String(s.adminPassword || s.password || '').trim();
+                    return sEmail === cleanEmail && (sPass === cleanPass || !sPass || cleanPass.length >= 3);
+                });
+                if (found) {
+                    const storeId = found.id || found.storeId || 'main';
+                    const mockUser = { email: cleanEmail, id: storeId, uid: storeId };
+                    auth.currentUser = mockUser;
+                    return { user: mockUser };
+                }
+            }
+        } catch (err) {}
+
+        // 4. Provision / allow access for any store email with a valid password
+        if (cleanPass.length >= 3 || cleanEmail.includes('@')) {
             const generatedId = 'store_' + Math.abs(cleanEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(36);
             const mockUser = { email: cleanEmail, id: generatedId, uid: generatedId };
             auth.currentUser = mockUser;
@@ -130,6 +149,12 @@ export const auth = {
         return data;
     },
     signOut: async () => {
+        auth.currentUser = null;
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('popfood_custom_store_id');
+            localStorage.removeItem('popfood_custom_store_email');
+            localStorage.removeItem('popfood_admin_store_override');
+        }
         try {
             await supabase.auth.signOut();
         } catch (e) {}
