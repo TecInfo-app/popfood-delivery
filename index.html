@@ -1615,10 +1615,13 @@ storeId: window.currentStoreId
       current.order = other.order || 0;
       other.order = tempOrder;
 
+      // Re-sort in memory for immediate UI update
+      activeCategories.sort((a,b) => (a.order || 0) - (b.order || 0));
+      refreshManagementDatabases();
+
       try {
         await updateDoc(doc(db, COLLECTIONS.categories, current.id), { order: current.order });
         await updateDoc(doc(db, COLLECTIONS.categories, other.id), { order: other.order });
-        
         refreshManagementDatabases();
       } catch (err) {
         console.error("Sorting transition error: ", err);
@@ -1637,13 +1640,17 @@ storeId: window.currentStoreId
           id: catId,
           name: nameIn,
           order: nextOrderIndex,
-          createdAt: new Date().toISOString()
-        ,
-storeId: window.currentStoreId
-};
+          createdAt: new Date().toISOString(),
+          storeId: window.currentStoreId
+        };
+
+        // Optimistic UI addition
+        activeCategories.push(block);
+        activeCategories.sort((a,b) => (a.order || 0) - (b.order || 0));
+        (document.getElementById('new-category-name') || {}).value = '';
+        refreshManagementDatabases();
 
         await setDoc(doc(db, COLLECTIONS.categories, catId), block);
-        (document.getElementById('new-category-name') || {}).value = '';
         refreshManagementDatabases();
       } catch(err) {
         console.error("Creating category fail: ", err);
@@ -1824,9 +1831,18 @@ storeId: window.currentStoreId
         storeId: window.currentStoreId
       };
 
+      // Optimistic update for instant UI feedback
+      const existingIdx = activeProducts.findIndex(p => String(p.id) === String(prdId));
+      if (existingIdx >= 0) {
+        activeProducts[existingIdx] = { ...activeProducts[existingIdx], ...productBlock };
+      } else {
+        activeProducts.unshift(productBlock);
+      }
+      toggleProductFormModal(false);
+      triggerProductsSearchFilter();
+
       try {
         await setDoc(doc(db, COLLECTIONS.products, prdId), productBlock, { merge: true });
-        toggleProductFormModal(false);
         refreshManagementDatabases();
       } catch (err) {
         console.error("Setting product fail: ", err);
@@ -1835,6 +1851,12 @@ storeId: window.currentStoreId
     }
 
     window.toggleProductPauseState = async function(prdId, isCurrentlyPaused) {
+      const prod = activeProducts.find(p => String(p.id) === String(prdId));
+      if (prod) {
+        prod.paused = !isCurrentlyPaused;
+        triggerProductsSearchFilter();
+      }
+
       try {
         await updateDoc(doc(db, COLLECTIONS.products, prdId), {
           paused: !isCurrentlyPaused
@@ -1878,10 +1900,13 @@ storeId: window.currentStoreId
           name: prd.name + " (Cópia)",
           pdvCode: prd.pdvCode ? prd.pdvCode + "-COPIA" : "COP-" + Math.floor(100 + Math.random() * 900).toString(),
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        ,
-storeId: window.currentStoreId
-};
+          updatedAt: new Date().toISOString(),
+          storeId: window.currentStoreId
+        };
+
+        // Optimistic UI addition: show the duplicated product immediately
+        activeProducts.unshift(clonedPrd);
+        triggerProductsSearchFilter();
 
         // Write new product to banco de dados
         await setDoc(doc(db, COLLECTIONS.products, newPrdId), clonedPrd);
@@ -2169,10 +2194,15 @@ storeId: window.currentStoreId
         prd.order = targetIdx;
         other.order = idx;
       }
+
+      // Re-sort and re-render immediately
+      activeProducts.sort((a, b) => (a.order || 0) - (b.order || 0));
+      triggerProductsSearchFilter();
       
       try {
         await updateDoc(doc(db, COLLECTIONS.products, prd.id), { order: prd.order });
         await updateDoc(doc(db, COLLECTIONS.products, other.id), { order: other.order });
+        refreshManagementDatabases();
       } catch (err) {
         console.error("Erro ao reordenar produtos: ", err);
       }
