@@ -1351,6 +1351,40 @@ window.copyStoreLink = function() {
             order.customer.type = "pickup";
           }
         }
+
+        // Financial totals & Discount Normalization
+        const itemsSum = Array.isArray(order.items) 
+          ? order.items.reduce((s, it) => s + (Number(it.totalItemPrice || it.price || 0) * Number(it.quantity || 1)), 0) 
+          : 0;
+        
+        if (order.subtotal === undefined || order.subtotal === null || isNaN(Number(order.subtotal)) || Number(order.subtotal) <= 0) {
+          order.subtotal = itemsSum;
+        } else {
+          order.subtotal = Number(order.subtotal);
+        }
+
+        order.deliveryFee = Number(order.deliveryFee || 0);
+        order.total = Number(order.total !== undefined ? order.total : (order.totalPrice || 0));
+
+        let explicitDiscount = (order.desconto !== undefined && order.desconto !== null) 
+          ? Number(order.desconto) 
+          : ((order.discount !== undefined && order.discount !== null) 
+            ? Number(order.discount) 
+            : ((order.discountAmount !== undefined && order.discountAmount !== null) 
+              ? Number(order.discountAmount) 
+              : ((Number(order.descontoCupom || 0)) + (Number(order.descontoFidelidade || 0)))));
+
+        // Fallback: If discount is 0 or missing, but subtotal + deliveryFee > total, compute the implied discount
+        if (!explicitDiscount && (order.subtotal + order.deliveryFee > order.total)) {
+          const diff = (order.subtotal + order.deliveryFee) - order.total;
+          if (diff > 0.009) {
+            explicitDiscount = diff;
+          }
+        }
+
+        order.desconto = explicitDiscount || 0;
+        order.discount = explicitDiscount || 0;
+        order.discountAmount = explicitDiscount || 0;
       }
       
       window.ensureCleanOrderProperties = ensureCleanOrderProperties;
@@ -3602,10 +3636,10 @@ Deseja cancelar o pedido e fazer o reembolso manualmente?`,
           }
         }
 
-        const deliveryFee = order.deliveryFee || 0;
-        const subtotal = order.subtotal || 0;
-        const discount = order.desconto || 0;
-        const total = order.total || 0;
+        const deliveryFee = Number(order.deliveryFee || 0);
+        const subtotal = Number(order.subtotal || 0);
+        const discount = Number(order.desconto || order.discount || order.discountAmount || 0);
+        const total = Number(order.total || 0);
         const toCollect = isOnlinePaid ? 0 : total;
 
         // 2. Generate RAW Plain Text Version for classic text printers
@@ -3723,7 +3757,8 @@ Deseja cancelar o pedido e fazer o reembolso manualmente?`,
         detailsText += formatLine("Valor total do pedido:", `R$ ${subtotal.toFixed(2).replace(".", ",")}`);
         detailsText += formatLine("Taxa de entrega:", `R$ ${deliveryFee.toFixed(2).replace(".", ",")}`);
         if (discount > 0) {
-          detailsText += formatLine("Desconto / Incentivos:", `-R$ ${discount.toFixed(2).replace(".", ",")}`);
+          const discLabel = order.cupomCode ? `Desconto (${order.cupomCode}):` : "Desconto / Cupom:";
+          detailsText += formatLine(discLabel, `-R$ ${discount.toFixed(2).replace(".", ",")}`);
         }
         detailsText += formatLine("Valor final do pedido:", `R$ ${total.toFixed(2).replace(".", ",")}`);
         detailsText += makeDivider("-");
@@ -3818,9 +3853,10 @@ Deseja cancelar o pedido e fazer o reembolso manualmente?`,
 
         let discountHtml = "";
         if (discount > 0) {
+          const discLabel = order.cupomCode ? `DESCONTO (${order.cupomCode}):` : "DESCONTO / CUPOM:";
           discountHtml = `
             <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-              <span>DESCONTO / INCENTIVOS:</span>
+              <span>${discLabel}</span>
               <span style="white-space: nowrap; margin-left: 8px; flex-shrink: 0;">-R$ ${discount.toFixed(2).replace(".", ",")}</span>
             </div>
           `;

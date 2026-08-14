@@ -1050,18 +1050,27 @@
       (document.getElementById('track-lbl-time') || {}).textContent = order.date;
 
       // Receipts
-      (document.getElementById('track-subtotal') || {}).textContent = `R$ ${order.subtotal.toFixed(2).replace('.', ',')}`;
+      const trackSubtotal = Number(order.subtotal || 0) || (order.items || []).reduce((s, it) => s + (Number(it.totalItemPrice || it.price || 0) * Number(it.quantity || 1)), 0);
+      const trackFee = Number(order.deliveryFee || 0);
+      const trackTotal = Number(order.total || 0);
+      let trackDiscount = Number(order.desconto || order.discount || order.discountAmount || 0);
+      if (!trackDiscount && (trackSubtotal + trackFee > trackTotal)) {
+        const diff = (trackSubtotal + trackFee) - trackTotal;
+        if (diff > 0.009) trackDiscount = diff;
+      }
+
+      (document.getElementById('track-subtotal') || {}).textContent = `R$ ${trackSubtotal.toFixed(2).replace('.', ',')}`;
       
       const discRow = document.getElementById('track-row-discount');
-      if (order.desconto && order.desconto > 0) {
+      if (trackDiscount > 0) {
         discRow.classList.remove('hidden');
-        (document.getElementById('track-desconto') || {}).textContent = `- R$ ${order.desconto.toFixed(2).replace('.', ',')}`;
+        (document.getElementById('track-desconto') || {}).textContent = `- R$ ${trackDiscount.toFixed(2).replace('.', ',')}`;
       } else {
         discRow.classList.add('hidden');
       }
 
-      (document.getElementById('track-taxa') || {}).textContent = `R$ ${order.deliveryFee.toFixed(2).replace('.', ',')}`;
-      (document.getElementById('track-total') || {}).textContent = `R$ ${order.total.toFixed(2).replace('.', ',')}`;
+      (document.getElementById('track-taxa') || {}).textContent = `R$ ${trackFee.toFixed(2).replace('.', ',')}`;
+      (document.getElementById('track-total') || {}).textContent = `R$ ${trackTotal.toFixed(2).replace('.', ',')}`;
 
       // Update chat unread badge
       const chatBadge = document.getElementById('chat-unread-badge');

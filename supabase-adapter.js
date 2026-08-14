@@ -365,6 +365,8 @@ function toDbFieldName(path, fieldName) {
         if (fieldName === 'paymentMethod' || fieldName === 'payment_method') return 'payment_method';
         if (fieldName === 'paymentStatus' || fieldName === 'payment_status') return 'payment_status';
         if (fieldName === 'couponCode' || fieldName === 'cupomCode' || fieldName === 'coupon_code') return 'coupon_code';
+        if (fieldName === 'desconto' || fieldName === 'discount' || fieldName === 'discountAmount') return 'discount';
+        if (fieldName === 'subtotal') return 'subtotal';
         if (fieldName === 'createdAt' || fieldName === 'created_at') return 'created_at';
         if (fieldName === 'totalPrice' || fieldName === 'total') return 'total';
         return fieldName;
@@ -718,12 +720,16 @@ function serializeRow(path, realPath, payload, existingSettings = {}) {
             serialized.total = Number(payload.totalPrice) || 0;
         }
 
+        if (payload.desconto !== undefined && serialized.discount === undefined && validCols.includes('discount')) {
+            serialized.discount = Number(payload.desconto) || 0;
+        }
+
         const extraKeys = [
             'chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 
             'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 
-            'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 
-            'subtotal', 'discount', 'discountAmount', 'descontoFidelidade', 
-            'fidelidadeAtivo', 'observacao', 'changeFor', 'trocoPara', 'customer'
+            'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 'cupomCode', 'cupom_code', 'cupomId',
+            'subtotal', 'discount', 'discountAmount', 'desconto', 'descontoCupom', 'descontoFidelidade', 
+            'fidelidadeAtivo', 'observacao', 'changeFor', 'trocoPara', 'troco', 'customer', 'isFirstOrder', 'cpf'
         ];
         const extraData = {};
         let hasExtra = false;
@@ -855,7 +861,44 @@ function deserializeRow(path, row) {
         if (row.discount !== undefined) {
             deserialized.discountAmount = Number(row.discount);
             deserialized.discount = Number(row.discount);
+            deserialized.desconto = Number(row.discount);
         }
+        if (row.desconto !== undefined) {
+            deserialized.desconto = Number(row.desconto);
+            deserialized.discount = Number(row.desconto);
+            deserialized.discountAmount = Number(row.desconto);
+        }
+
+        // Financial totals & implied discount fallback
+        const itemsSum = Array.isArray(deserialized.items) 
+            ? deserialized.items.reduce((s, it) => s + (Number(it.totalItemPrice || it.price || 0) * Number(it.quantity || 1)), 0) 
+            : 0;
+        if (deserialized.subtotal === undefined || deserialized.subtotal === null || isNaN(Number(deserialized.subtotal)) || Number(deserialized.subtotal) <= 0) {
+            deserialized.subtotal = itemsSum;
+        }
+
+        let explicitDiscount = (deserialized.desconto !== undefined && deserialized.desconto !== null) 
+            ? Number(deserialized.desconto) 
+            : ((deserialized.discount !== undefined && deserialized.discount !== null) 
+                ? Number(deserialized.discount) 
+                : ((deserialized.discountAmount !== undefined && deserialized.discountAmount !== null) 
+                    ? Number(deserialized.discountAmount) 
+                    : ((Number(deserialized.descontoCupom || 0)) + (Number(deserialized.descontoFidelidade || 0)))));
+
+        const finalTotal = Number(deserialized.total !== undefined ? deserialized.total : (deserialized.totalPrice || 0));
+        const finalFee = Number(deserialized.deliveryFee || 0);
+        const finalSub = Number(deserialized.subtotal || 0);
+
+        if (!explicitDiscount && (finalSub + finalFee > finalTotal)) {
+            const diff = (finalSub + finalFee) - finalTotal;
+            if (diff > 0.009) {
+                explicitDiscount = diff;
+            }
+        }
+
+        deserialized.desconto = explicitDiscount || 0;
+        deserialized.discount = explicitDiscount || 0;
+        deserialized.discountAmount = explicitDiscount || 0;
         if (row.customer_phone !== undefined) {
             deserialized.customerPhone = row.customer_phone;
         }
