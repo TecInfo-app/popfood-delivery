@@ -79,12 +79,14 @@ export const auth = {
 
         // 4. Check Supabase restaurant_profiles / restaurants table directly
         try {
-            let result = await supabase.from('restaurant_profiles').select('*');
-            if (result.error || !result.data || result.data.length === 0) {
-                result = await supabase.from('restaurants').select('*');
-            }
-            const stores = result.data;
-            if (!result.error && Array.isArray(stores) && stores.length > 0) {
+            let stores = [];
+            let result1 = await supabase.from('restaurant_profiles').select('*');
+            if (!result1.error && result1.data) stores = stores.concat(result1.data);
+            
+            let result2 = await supabase.from('restaurants').select('*');
+            if (!result2.error && result2.data) stores = stores.concat(result2.data);
+            
+            if (stores.length > 0) {
                 const found = stores.find(s => {
                     const sEmail = (s.adminEmail || s.email || s.ownerEmail || s.settings?.adminEmail || s.settings?.email || '').toLowerCase().trim();
                     const sPass = String(s.adminPassword || s.password || s.settings?.adminPassword || s.settings?.password || '').trim();
@@ -759,12 +761,15 @@ function deserializeRow(path, row) {
         }
         
         let parsedAddr = row.customer_address;
-        if (typeof row.customer_address === 'string' && row.customer_address.trim().startsWith('{')) {
+        let depth = 0;
+        while (typeof parsedAddr === 'string' && depth < 3) {
             try {
-                parsedAddr = JSON.parse(row.customer_address);
+                const next = JSON.parse(parsedAddr);
+                parsedAddr = next;
             } catch (e) {
-                // Ignore parsing error
+                break;
             }
+            depth++;
         }
 
         // Unpack from customer_address hack

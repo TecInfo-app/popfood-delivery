@@ -1258,10 +1258,15 @@ window.copyStoreLink = function() {
         if (!rawAddr) return "Endereço não informado";
         
         let parsed = rawAddr;
-        if (typeof rawAddr === 'string' && rawAddr.trim().startsWith('{')) {
+        let depth = 0;
+        while (typeof parsed === 'string' && depth < 3) {
           try {
-            parsed = JSON.parse(rawAddr);
-          } catch(e) {}
+            const next = JSON.parse(parsed);
+            parsed = next;
+          } catch(e) {
+            break;
+          }
+          depth++;
         }
         
         if (parsed && typeof parsed === 'object') {
@@ -1316,12 +1321,20 @@ window.copyStoreLink = function() {
         
         let rawAddr = order.customerAddress || order.address || (order.customer && order.customer.address);
         let parsed = null;
-        if (typeof rawAddr === 'string' && rawAddr.trim().startsWith('{')) {
+        let currentAddr = rawAddr;
+        let depth = 0;
+        while (typeof currentAddr === 'string' && depth < 3) {
           try {
-            parsed = JSON.parse(rawAddr);
-          } catch(e) {}
-        } else if (rawAddr && typeof rawAddr === 'object') {
-          parsed = rawAddr;
+            const next = JSON.parse(currentAddr);
+            currentAddr = next;
+          } catch(e) {
+            break;
+          }
+          depth++;
+        }
+        
+        if (currentAddr && typeof currentAddr === 'object') {
+          parsed = currentAddr;
         }
         
         if (parsed && typeof parsed === 'object') {
