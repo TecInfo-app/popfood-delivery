@@ -1209,9 +1209,6 @@ export const setDoc = async (docRef, data, options = {}) => {
     }
     saveLocalCollection(docRef.path, items);
 
-    // Notify local listeners immediately for instant UI response!
-    notifyListenersByPath(docRef.path);
-
     try {
         const realPath = await getRealTableName(docRef.path);
         
@@ -1263,6 +1260,9 @@ export const setDoc = async (docRef, data, options = {}) => {
     } catch (err) {
         console.warn(`Supabase upsert table ${docRef.path} skipped (saved locally):`, err?.message);
     }
+
+    // Notify listeners after remote write completes so getDocs returns fresh server data
+    await notifyListenersByPath(docRef.path);
 };
 
 export const updateDoc = async (docRef, data) => {
@@ -1271,9 +1271,6 @@ export const updateDoc = async (docRef, data) => {
     if (idx >= 0) {
         items[idx] = { ...items[idx], ...data };
         saveLocalCollection(docRef.path, items);
-        
-        // Notify local listeners immediately for instant UI response!
-        notifyListenersByPath(docRef.path);
     }
     try {
         const realPath = await getRealTableName(docRef.path);
@@ -1315,15 +1312,15 @@ export const updateDoc = async (docRef, data) => {
     } catch (err) {
         console.warn(`Supabase update table ${docRef.path} skipped (updated locally):`, err?.message);
     }
+
+    // Notify listeners after remote update completes
+    await notifyListenersByPath(docRef.path);
 };
 
 export const deleteDoc = async (docRef) => {
     let items = getLocalCollection(docRef.path);
     items = items.filter(i => String(i.id) !== String(docRef.id));
     saveLocalCollection(docRef.path, items);
-    
-    // Notify local listeners immediately for instant UI response!
-    notifyListenersByPath(docRef.path);
 
     try {
         const realPath = await getRealTableName(docRef.path);
@@ -1349,6 +1346,9 @@ export const deleteDoc = async (docRef) => {
     } catch (err) {
         console.warn(`Supabase delete table ${docRef.path} skipped:`, err?.message);
     }
+
+    // Notify listeners after remote delete completes so getDocs doesn't return stale deleted rows
+    await notifyListenersByPath(docRef.path);
 };
 
 // Real-time onSnapshot tracking utilizing Supabase channels

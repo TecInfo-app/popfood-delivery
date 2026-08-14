@@ -1654,6 +1654,9 @@ storeId: window.currentStoreId
       const confirmState = await window.customConfirm("Deseja realmente excluir esta categoria? Atenção: isso não excluirá os produtos, mas eles perderão o link da categoria!");
       if (!confirmState) return;
 
+      activeCategories = activeCategories.filter(c => String(c.id) !== String(catId));
+      refreshManagementDatabases();
+
       try {
         await deleteDoc(doc(db, COLLECTIONS.categories, catId));
         refreshManagementDatabases();
@@ -1845,6 +1848,9 @@ storeId: window.currentStoreId
     window.deleteProductAction = async function(prdId) {
       const state = await window.customConfirm("Deseja deletar este produto? Essa ação também apagará os complementos relativos configurados.");
       if (!state) return;
+
+      activeProducts = activeProducts.filter(p => String(p.id) !== String(prdId));
+      triggerProductsSearchFilter();
 
       try {
         await deleteDoc(doc(db, COLLECTIONS.products, prdId));
@@ -2120,17 +2126,18 @@ storeId: window.currentStoreId
 
       if (!confirm(`Tem certeza que deseja DELETAR ${selected.length} produtos? Esta ação não pode ser desfeita.`)) return;
 
+      const selectedSet = new Set(selected.map(String));
+      activeProducts = activeProducts.filter(p => !selectedSet.has(String(p.id)));
+      document.querySelectorAll('.product-selection-checkbox').forEach(cb => cb.checked = false);
+      updateSelectedProductsCount();
+      triggerProductsSearchFilter();
+
       try {
          for (const prdId of selected) {
             const ref = doc(db, COLLECTIONS.products, prdId);
             await deleteDoc(ref);
          }
-         
-         // Uncheck all and hide toolbar
-         document.querySelectorAll('.product-selection-checkbox').forEach(cb => cb.checked = false);
-         updateSelectedProductsCount();
-         // The snapshot listener will trigger and redraw automatically, but we can redraw manually too
-         // drawProductsCatalogViewer(document.getElementById('product-search-bar').value);
+         refreshManagementDatabases();
       } catch (e) {
          console.error("Erro ao deletar em massa:", e);
          alert("Ocorreu um erro ao deletar alguns produtos.");
