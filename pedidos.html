@@ -1241,6 +1241,107 @@ window.copyStoreLink = function() {
 
       window.fcmMessaging = messaging;
 
+      function getCleanAddress(order) {
+        if (!order) return "";
+        const isPickup = order.customer && (order.customer.type === "pickup" || order.customer.address === "Retirada no Restaurante" || order.customer.address === "Retirada no Local" || order.isPickup === true);
+        if (isPickup) return "Retirada no Restaurante";
+        
+        let rawAddr = null;
+        if (order.customer && order.customer.address) {
+          rawAddr = order.customer.address;
+        } else if (order.address) {
+          rawAddr = order.address;
+        } else if (order.customerAddress) {
+          rawAddr = order.customerAddress;
+        }
+        
+        if (!rawAddr) return "Endereço não informado";
+        
+        let parsed = rawAddr;
+        if (typeof rawAddr === 'string' && rawAddr.trim().startsWith('{')) {
+          try {
+            parsed = JSON.parse(rawAddr);
+          } catch(e) {}
+        }
+        
+        if (parsed && typeof parsed === 'object') {
+          const clean = { ...parsed };
+          delete clean._meta;
+          delete clean._META;
+          
+          const addressVal = clean.address || clean.ADDRESS || clean.street || clean.STREET || '';
+          const numberVal = clean.number || clean.NUMBER || clean.numero || clean.NUMERO || '';
+          const complementVal = clean.complement || clean.COMPLEMENT || clean.complemento || clean.COMPLEMENTO || '';
+          const referenceVal = clean.reference || clean.REFERENCE || clean.referencia || clean.REFERENCIA || '';
+          const neighborhoodVal = clean.neighborhood || clean.NEIGHBORHOOD || clean.bairro || clean.BAIRRO || '';
+          const cityVal = clean.city || clean.CITY || clean.cidade || clean.CIDADE || '';
+          const typeVal = clean.type || clean.TYPE || '';
+
+          let addrStr = addressVal;
+          if (numberVal) addrStr += `, Nº ${numberVal}`;
+          if (neighborhoodVal) addrStr += ` - ${neighborhoodVal}`;
+          if (cityVal) addrStr += `, ${cityVal}`;
+          if (complementVal) addrStr += ` (${complementVal})`;
+          if (referenceVal) addrStr += ` [Ref: ${referenceVal}]`;
+          
+          if (!addrStr.trim()) {
+            if (typeVal === "pickup" || clean.address === "Retirada no Restaurante" || clean.address === "Retirada no Local") {
+              return "Retirada no Restaurante";
+            }
+            return JSON.stringify(clean);
+          }
+          return addrStr;
+        }
+        
+        return String(rawAddr);
+      }
+
+      function ensureCleanOrderProperties(order) {
+        if (!order) return;
+        
+        const cleanAddress = getCleanAddress(order);
+        
+        if (!order.customer) {
+          order.customer = {
+            name: order.customerName || "Nome Não Definido",
+            phone: order.customerPhone || "Sem WhatsApp",
+            address: cleanAddress
+          };
+        } else {
+          order.customer.address = cleanAddress;
+        }
+        
+        order.address = cleanAddress;
+        order.customerAddress = cleanAddress;
+        
+        let rawAddr = order.customerAddress || order.address || (order.customer && order.customer.address);
+        let parsed = null;
+        if (typeof rawAddr === 'string' && rawAddr.trim().startsWith('{')) {
+          try {
+            parsed = JSON.parse(rawAddr);
+          } catch(e) {}
+        } else if (rawAddr && typeof rawAddr === 'object') {
+          parsed = rawAddr;
+        }
+        
+        if (parsed && typeof parsed === 'object') {
+          if (!order.customer.complement) {
+            order.customer.complement = parsed.complement || parsed.COMPLEMENT || parsed.complemento || parsed.COMPLEMENTO || '';
+          }
+          if (!order.customer.reference) {
+            order.customer.reference = parsed.reference || parsed.REFERENCE || parsed.referencia || parsed.REFERENCIA || '';
+          }
+          if (!order.customer.cep) {
+            order.customer.cep = parsed.cep || parsed.CEP || '';
+          }
+          if (parsed.type === "pickup" || parsed.address === "Retirada no Restaurante" || parsed.address === "Retirada no Local") {
+            order.customer.type = "pickup";
+          }
+        }
+      }
+      
+      window.ensureCleanOrderProperties = ensureCleanOrderProperties;
+
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready
           .then(function(registration) {
@@ -1965,7 +2066,9 @@ window.copyStoreLink = function() {
             const incomingOrders = [];
 
             snapshot.forEach((docSnap) => {
-              incomingOrders.push({ id: docSnap.id, ...docSnap.data() });
+              const orderData = { id: docSnap.id, ...docSnap.data() };
+              ensureCleanOrderProperties(orderData);
+              incomingOrders.push(orderData);
             });
 
             // Sort orders in memory to prevent requiring Firestore composite indexes
@@ -2623,6 +2726,8 @@ window.copyStoreLink = function() {
         currentOrderViewedId = orderId;
         const order = globalOrdersList.find((o) => o.id === orderId);
         if (!order) return;
+
+        ensureCleanOrderProperties(order);
 
         // Reset to details tab
         switchModalTab('details');
@@ -3358,6 +3463,9 @@ Deseja cancelar o pedido e fazer o reembolso manualmente?`,
       };
 
       window.triggerThermalComandaPrint = function (order) {
+        if (!order) return;
+        ensureCleanOrderProperties(order);
+        
         const parent = document.getElementById("receipt-print-layout");
         parent.innerHTML = "";
 
