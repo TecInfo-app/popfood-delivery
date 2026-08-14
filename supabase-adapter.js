@@ -1133,31 +1133,128 @@ export const getDocs = async (queryRef) => {
     }
 };
 
-// Active snapshot listeners for real-time reactivity
+// Active snapshot listeners for real-time reactivity with smart fingerprinting & polling
 const listeners = new Set();
 const activeSubscriptions = {};
 
-async function notifyListenersByPath(path) {
+function generateSnapshotFingerprint(snap, isDoc) {
+    try {
+        if (!snap) return '__null__';
+        if (isDoc) {
+            if (!snap.exists || !snap.exists()) return '__non_existent__';
+            return JSON.stringify(snap.data() || {});
+        } else {
+            if (!snap.docs || snap.docs.length === 0) return '__empty_0__';
+            return `${snap.docs.length}:` + snap.docs.map(d => `${d.id}=${JSON.stringify(d.data() || {})}`).join(';;');
+        }
+    } catch (e) {
+        return String(Date.now()) + Math.random();
+    }
+}
+
+async function syncListener(listener, force = false) {
+    if (listener.isSyncing) return;
+    listener.isSyncing = true;
+    try {
+        let snap;
+        if (listener.ref.type === 'doc') {
+            snap = await getDoc(listener.ref);
+        } else {
+            snap = await getDocs(listener.ref);
+        }
+        const fp = generateSnapshotFingerprint(snap, listener.ref.type === 'doc');
+        if (force || fp !== listener.lastFingerprint) {
+            listener.lastFingerprint = fp;
+            try {
+                listener.callback(snap);
+            } catch (cbErr) {
+                console.error("[onSnapshot Callback Error]:", cbErr);
+            }
+        }
+    } catch (err) {
+        console.warn(`[Snapshot Sync Error] path: ${listener.ref?.path}:`, err?.message);
+    } finally {
+        listener.isSyncing = false;
+    }
+}
+
+async function notifyListenersByPath(path, force = true) {
+    const promises = [];
     for (const listener of listeners) {
         if (listener.ref.path === path || 
             (path === 'restaurants' && listener.ref.path === 'restaurant_profiles') ||
             (path === 'restaurant_profiles' && listener.ref.path === 'restaurants') ||
             (path === 'clients' && listener.ref.path === 'customers') ||
-            (path === 'customers' && listener.ref.path === 'clients')) {
+            (path === 'customers' && listener.ref.path === 'clients') ||
+            (path.includes('categories') && listener.ref.path.includes('categories')) ||
+            (path.includes('products') && listener.ref.path.includes('products')) ||
+            (path.includes('complements') && listener.ref.path.includes('complements'))) {
             
-            try {
-                if (listener.ref.type === 'doc') {
-                    const snap = await getDoc(listener.ref);
-                    listener.callback(snap);
-                } else {
-                    const snap = await getDocs(listener.ref);
-                    listener.callback(snap);
-                }
-            } catch (err) {
-                console.error("Error notifying listener for path " + path + ":", err);
-            }
+            promises.push(syncListener(listener, force));
         }
     }
+    await Promise.allSettled(promises);
+}
+
+async function syncAllListeners(force = false) {
+    if (listeners.size === 0) return;
+    const promises = [];
+    for (const listener of listeners) {
+        promises.push(syncListener(listener, force));
+    }
+    await Promise.allSettled(promises);
+}
+
+// Global Polling Engine for multi-device sync
+let pollingIntervalTimer = null;
+const ACTIVE_POLL_INTERVAL = 2000;   // 2s when tab is active/visible
+const INACTIVE_POLL_INTERVAL = 8000; // 8s when tab is background/hidden
+
+function restartPollingLoop() {
+    if (pollingIntervalTimer) {
+        clearInterval(pollingIntervalTimer);
+        pollingIntervalTimer = null;
+    }
+    if (typeof window === 'undefined') return;
+    
+    const interval = (typeof document !== 'undefined' && document.hidden) 
+        ? INACTIVE_POLL_INTERVAL 
+        : ACTIVE_POLL_INTERVAL;
+
+    pollingIntervalTimer = setInterval(() => {
+        syncAllListeners(false);
+    }, interval);
+}
+
+// Setup adaptive polling and lifecycle triggers
+if (typeof window !== 'undefined') {
+    restartPollingLoop();
+
+    // Trigger instant sync on tab regain, focus, or network reconnection
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            restartPollingLoop();
+            if (!document.hidden) {
+                syncAllListeners(false);
+            }
+        });
+    }
+
+    window.addEventListener('focus', () => {
+        syncAllListeners(false);
+    });
+
+    window.addEventListener('online', () => {
+        console.log('[Supabase Adapter] Connection restored. Synchronizing all stores, categories and products...');
+        syncAllListeners(true);
+    });
+
+    window.addEventListener('pageshow', () => {
+        syncAllListeners(false);
+    });
+
+    // Expose manual sync trigger on window
+    window.syncDatabaseNow = () => syncAllListeners(true);
 }
 
 function subscribeToTableChanges(tableName, path) {
@@ -1166,7 +1263,7 @@ function subscribeToTableChanges(tableName, path) {
     console.log(`Subscribing to real-time changes for table: ${tableName}`);
     
     const channel = supabase
-        .channel(`public:${tableName}`)
+        .channel(`public:${tableName}_${Math.random().toString(36).substring(2, 7)}`)
         .on(
             'postgres_changes',
             {
@@ -1206,10 +1303,14 @@ function subscribeToTableChanges(tableName, path) {
                 saveLocalCollection(path, items);
                 
                 // Trigger real-time visual update!
-                notifyListenersByPath(path);
+                notifyListenersByPath(path, true);
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`[Supabase Realtime] Connected to table: ${tableName}`);
+            }
+        });
         
     activeSubscriptions[tableName] = channel;
 }
@@ -1368,17 +1469,19 @@ export const deleteDoc = async (docRef) => {
     await notifyListenersByPath(docRef.path);
 };
 
-// Real-time onSnapshot tracking utilizing Supabase channels
+// Real-time onSnapshot tracking utilizing Supabase channels & smart fingerprint polling
 export const onSnapshot = (ref, callback) => {
-    const listener = { ref, callback };
+    const listener = { 
+        id: Math.random().toString(36).substring(2, 9),
+        ref, 
+        callback,
+        lastFingerprint: null,
+        isSyncing: false
+    };
     listeners.add(listener);
     
-    // Initial fetch to load data immediately
-    if (ref.type === 'doc') {
-        getDoc(ref).then(callback);
-    } else {
-        getDocs(ref).then(callback);
-    }
+    // Initial fetch to load data immediately and store baseline fingerprint
+    syncListener(listener, true);
     
     // Subscribe to Postgres Realtime modifications
     getRealTableName(ref.path).then(realTable => {
