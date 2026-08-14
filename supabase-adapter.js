@@ -209,11 +209,13 @@ const tableColumns = {
         'id', 'name', 'description', 'logo_url', 'cover_url', 'phone', 'address', 'status', 'settings', 'merchant_tokens', 'created_at'
     ],
     categories: [
-        'id', 'store_id', 'storeId', 'name', 'order', 'sort_order', 'created_at', 'createdAt'
+        'id', 'storeId', 'name', 'order', 'createdAt'
     ],
     products: [
-        'id', 'store_id', 'category_id', 'name', 'description', 'price', 'promotional_price', 
-        'image_url', 'active', 'is_active', 'sort_order', 'complements', 'created_at', 'updated_at', 'category'
+        'id', 'store_id', 'name', 'description', 'price', 'category', 'image_url', 'is_active', 'created_at'
+    ],
+    complements: [
+        'id', 'storeId', 'name', 'mandatory', 'maxLimit', 'items', 'createdAt'
     ],
     coupons: [
         'id', 'store_id', 'code', 'discount_type', 'discount_value', 'min_order_value', 'active', 'created_at', 'expires_at'
@@ -350,7 +352,10 @@ function toDbFieldName(path, fieldName) {
     }
     
     if (fieldName === 'storeId') return 'store_id';
-    if (fieldName === 'categoryId') return 'category_id';
+    if (fieldName === 'categoryId') {
+        if (cleanPath === 'products' || cleanPath === 'product') return 'category';
+        return 'category_id';
+    }
     if (fieldName === 'image' || fieldName === 'imageUrl') return 'image_url';
     if (fieldName === 'order' || fieldName === 'sortOrder') return 'sort_order';
     if (fieldName === 'customerName') return 'customer_name';
@@ -457,6 +462,7 @@ function fromDbFieldName(path, fieldName) {
     
     if (fieldName === 'store_id') return 'storeId';
     if (fieldName === 'category_id') return 'categoryId';
+    if (fieldName === 'category' && (cleanPath === 'products' || cleanPath === 'product')) return 'categoryId';
     if (fieldName === 'image_url') return 'image';
     if (fieldName === 'sort_order') return 'order';
     if (fieldName === 'customer_name') return 'customerName';
@@ -749,6 +755,9 @@ function deserializeRow(path, row) {
         if (row.category_id && !deserialized.categoryId) {
             deserialized.categoryId = tryDecodeUuid(row.category_id);
         }
+        if (row.category && !deserialized.categoryId) {
+            deserialized.categoryId = row.category;
+        }
     }
 
     if (path === 'orders' || path === 'order' || path === 'COLLECTIONS.orders') {
@@ -962,9 +971,7 @@ export const getDocs = async (queryRef) => {
                     // Convert value to UUID if it's pointing to a UUID column
                     if (dbField === 'id' && checkIsUuidTable(realPath)) {
                         queryVal = getDeterministicUuid(queryVal);
-                    } else if (dbField === 'category_id' && (realPath === 'products' || realPath === 'product')) {
-                        queryVal = getDeterministicUuid(queryVal);
-                    }
+                    } 
                     
                     // If querying customer_phone in orders, clean non-digits if needed
                     if (dbField === 'customer_phone' && typeof queryVal === 'string') {
