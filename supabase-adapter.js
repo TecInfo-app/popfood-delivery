@@ -324,6 +324,10 @@ function toDbFieldName(path, fieldName) {
         if (fieldName === 'cover' || fieldName === 'coverUrl') return 'cover_url';
         if (fieldName === 'merchantTokens') return 'merchant_tokens';
         if (fieldName === 'createdAt' || fieldName === 'created_at') return 'created_at';
+        const validCols = tableColumns['restaurant_profiles'] || [];
+        if (!validCols.includes(fieldName)) {
+            return `settings->>${fieldName}`;
+        }
         return fieldName;
     }
     
