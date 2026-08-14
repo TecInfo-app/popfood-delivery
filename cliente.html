@@ -2049,15 +2049,10 @@
           });
       }
 
-      const urlStoreId = new URLSearchParams(window.location.search).get(
-        "store",
-      );
+      const urlStoreId = new URLSearchParams(window.location.search).get("store") || localStorage.getItem("popfood_last_store_id") || "cia-do-chopp";
       window.currentStoreId = urlStoreId;
-      if (!window.currentStoreId) {
-        alert(
-          "⚠️ Loja inválida. Por favor, acesse usando o link direto da loja. (Ex: ?store=ID)",
-        );
-      } else {
+      if (window.currentStoreId) {
+        localStorage.setItem("popfood_last_store_id", window.currentStoreId);
         // Append store ID dynamically to the orders bottom nav link
         const oBtn = document.getElementById("nav-tab-orders");
         if (oBtn) {
@@ -3685,6 +3680,7 @@
                 if (typeof window.setupDynamicPaymentMethods === "function") {
                   window.setupDynamicPaymentMethods();
                 }
+                renderCategoryFilterTabs();
                 renderCatalogItems();
                 fetchStoreCoupons();
                 calculateReceiptTotals();
@@ -4309,9 +4305,9 @@
               : "border-[1.5px] border-stone-200/80 group-hover:border-stone-300";
 
             let innerImgHtml = '';
-            const currentSettings = restaurantProfile?.settings || {};
+            const currentSettings = restaurantProfile?.settings || window.currentRestaurantProfile?.settings || {};
             const categoryImages = currentSettings.categoryImages || {};
-            const catImage = categoryImages[cat.id] || cat.image;
+            const catImage = categoryImages[cat.id] || cat.image || '';
 
             if (catImage) {
               innerImgHtml = `<img src="${catImage}" class="w-full h-full object-cover">`;
@@ -4654,10 +4650,11 @@
           return;
         }
 
+        const drawnProductIds = new Set();
         catsToDraw.forEach((category) => {
           // Filter elements belonging to category
           let relativeProducts = productsList.filter(
-            (p) => p.categoryId === category.id && !p.paused,
+            (p) => (p.categoryId === category.id || p.category === category.id || p.category_id === category.id || String(p.categoryId) === String(category.id) || (p.categoryId && category.name && p.categoryId.toLowerCase() === category.name.toLowerCase())) && !p.paused,
           );
 
           // Apply config to hide unavailable items
@@ -4680,6 +4677,7 @@
 
           if (relativeProducts.length === 0) return;
           drawnCount++;
+          relativeProducts.forEach(p => drawnProductIds.add(String(p.id)));
 
           const section = document.createElement("div");
           section.className = "space-y-4";
@@ -4701,6 +4699,31 @@
           section.appendChild(grid);
           parent.appendChild(section);
         });
+
+        // If in 'all' view without search query, also display any remaining active products under "Outros Produtos"
+        if (activeCategory === "all" && !searchQuery) {
+          let remainingProducts = productsList.filter(p => !p.paused && !drawnProductIds.has(String(p.id)));
+          if (restaurantProfile && restaurantProfile.mostrarIndisponiveis === false) {
+            remainingProducts = remainingProducts.filter(p => isProductCurrentlyAvailable(p));
+          }
+          if (remainingProducts.length > 0) {
+            drawnCount++;
+            const section = document.createElement("div");
+            section.className = "space-y-4";
+            const title = document.createElement("h3");
+            title.className = "font-display font-bold text-lg text-stone-800 tracking-tight mt-4 pb-1 select-none";
+            title.textContent = "Outros Produtos";
+            section.appendChild(title);
+            const grid = document.createElement("div");
+            grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+            remainingProducts.forEach((prod, pIdx) => {
+              const card = createProductCardElement(prod, pIdx);
+              grid.appendChild(card);
+            });
+            section.appendChild(grid);
+            parent.appendChild(section);
+          }
+        }
 
         if (drawnCount === 0) {
           parent.innerHTML = `

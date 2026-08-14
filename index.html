@@ -1366,6 +1366,12 @@ storeId: window.currentStoreId
         if (docSnap.exists()) {
           const profileData = docSnap.data();
           window.currentRestaurantProfile = profileData;
+          
+          // Re-render categories with fresh profile/settings images
+          renderCategoriesManager();
+          if (typeof renderCategoriesList === 'function') renderCategoriesList();
+          fillProductFormCategorySelect();
+
           const billingDay = profileData.billingDay;
           const monthlyFee = profileData.monthlyFee;
           const pixKey = profileData.pixKey;
@@ -1503,6 +1509,14 @@ storeId: window.currentStoreId
               categoryImages
             }
           });
+
+          // Also persist directly to category doc for redundancy
+          try {
+            await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: base64 });
+          } catch (cErr) {}
+
+          const targetCat = activeCategories.find(c => String(c.id) === String(catId));
+          if (targetCat) targetCat.image = base64;
           
           refreshManagementDatabases();
         } catch (err) {
@@ -1528,6 +1542,14 @@ storeId: window.currentStoreId
             categoryImages
           }
         });
+
+        // Also update category doc for redundancy
+        try {
+          await updateDoc(doc(db, COLLECTIONS.categories, catId), { image: '' });
+        } catch (cErr) {}
+
+        const targetCat = activeCategories.find(c => String(c.id) === String(catId));
+        if (targetCat) targetCat.image = '';
         
         refreshManagementDatabases();
       } catch (err) {

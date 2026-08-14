@@ -481,7 +481,8 @@ function matchesQueryFilter(item, field, op, value) {
 // Convert snake_case to camelCase with specific exceptions
 function fromDbFieldName(path, fieldName) {
     if (!fieldName) return fieldName;
-    if (path === 'restaurants' || path === 'restaurant_profiles' || path === 'COLLECTIONS.restaurants' || path === 'COLLECTIONS.restaurantProfiles') {
+    const cleanPath = (path || '').replace('COLLECTIONS.', '');
+    if (cleanPath === 'restaurants' || cleanPath === 'restaurant_profiles') {
         if (fieldName === 'logo_url') return 'logo';
         if (fieldName === 'cover_url') return 'cover';
         if (fieldName === 'merchant_tokens') return 'merchantTokens';
@@ -493,6 +494,7 @@ function fromDbFieldName(path, fieldName) {
     if (fieldName === 'category_id') return 'categoryId';
     if (fieldName === 'category' && (cleanPath === 'products' || cleanPath === 'product')) return 'categoryId';
     if (fieldName === 'image_url') return 'image';
+    if (fieldName === 'is_active' && (cleanPath === 'products' || cleanPath === 'product')) return 'active';
     if (fieldName === 'sort_order') return 'order';
     if (fieldName === 'customer_name') return 'customerName';
     if (fieldName === 'customer_phone') return 'customerPhone';
@@ -758,7 +760,8 @@ function deserializeRow(path, row) {
         deserialized[camelKey] = val;
     });
     
-    if (path === 'restaurants' || path === 'restaurant_profiles') {
+    const cleanPath = (path || '').replace('COLLECTIONS.', '');
+    if (cleanPath === 'restaurants' || cleanPath === 'restaurant_profiles') {
         if (row.settings && typeof row.settings === 'object') {
             Object.keys(row.settings).forEach(key => {
                 deserialized[key] = row.settings[key];
@@ -772,11 +775,13 @@ function deserializeRow(path, row) {
         }
     }
 
-    if (path === 'products' || path === 'product') {
+    if (cleanPath === 'products' || cleanPath === 'product') {
         if (row.active !== undefined) {
             deserialized.paused = !row.active;
         } else if (row.is_active !== undefined) {
             deserialized.paused = !row.is_active;
+        } else {
+            deserialized.paused = deserialized.paused !== undefined ? deserialized.paused : false;
         }
         if (row.image_url && !deserialized.image) {
             deserialized.image = row.image_url;
@@ -786,6 +791,12 @@ function deserializeRow(path, row) {
         }
         if (row.category && !deserialized.categoryId) {
             deserialized.categoryId = row.category;
+        }
+        if (!deserialized.categoryId && deserialized.category) {
+            deserialized.categoryId = deserialized.category;
+        }
+        if (!deserialized.storeId && row.store_id) {
+            deserialized.storeId = row.store_id;
         }
     }
 
@@ -1028,9 +1039,16 @@ export const getDocs = async (queryRef) => {
             throw new Error(error.message || 'Table query failed');
         }
         
-        let items = getLocalCollection(queryRef.path);
-        if ((queryRef.path === 'restaurants' || queryRef.path === 'restaurant_profiles') && items.length === 0) {
-            items = [{
+        let resultItems = [];
+        if (data && Array.isArray(data)) {
+            resultItems = data.map(s => deserializeRow(queryRef.path, s));
+            saveLocalCollection(queryRef.path, resultItems);
+        } else {
+            resultItems = getLocalCollection(queryRef.path);
+        }
+
+        if ((queryRef.path === 'restaurants' || queryRef.path === 'restaurant_profiles') && resultItems.length === 0) {
+            resultItems = [{
                 id: 'main',
                 name: 'PopFood Cia do Chopp',
                 phone: '11999999999',
@@ -1040,31 +1058,20 @@ export const getDocs = async (queryRef) => {
                 whatsappBotEnabled: true,
                 createdAt: new Date().toISOString()
             }];
-            saveLocalCollection(queryRef.path, items);
+            saveLocalCollection(queryRef.path, resultItems);
         }
-
-        const mergedMap = new Map();
-        items.forEach(i => mergedMap.set(String(i.id), i));
-        if (data && Array.isArray(data)) {
-            data.forEach(s => {
-                const cleanS = deserializeRow(queryRef.path, s);
-                mergedMap.set(String(cleanS.id), { ...(mergedMap.get(String(cleanS.id)) || {}), ...cleanS });
-            });
-        }
-        let mergedItems = Array.from(mergedMap.values());
-        saveLocalCollection(queryRef.path, mergedItems);
 
         if (queryRef.queryArgs) {
             queryRef.queryArgs.forEach(arg => {
                 if (arg.type === 'where') {
-                    mergedItems = mergedItems.filter(item => matchesQueryFilter(item, arg.field, arg.op, arg.value));
+                    resultItems = resultItems.filter(item => matchesQueryFilter(item, arg.field, arg.op, arg.value));
                 }
             });
         }
 
         return {
-            empty: mergedItems.length === 0,
-            docs: mergedItems.map(d => ({
+            empty: resultItems.length === 0,
+            docs: resultItems.map(d => ({
                 id: d.id,
                 data: () => d,
                 exists: () => true
