@@ -988,6 +988,15 @@ function deserializeRow(path, row) {
 }
 
 export const getDoc = async (docRef) => {
+    if (docRef.path === 'whatsapp_sessions') {
+        const items = getLocalCollection(docRef.path);
+        const found = items.find(i => String(i.id) === String(docRef.id));
+        return {
+            exists: () => !!found,
+            data: () => found || null,
+            id: docRef.id
+        };
+    }
     try {
         const realPath = await getRealTableName(docRef.path);
         let queryBuilder = supabase.from(realPath).select('*');
@@ -1059,6 +1068,19 @@ export const getDoc = async (docRef) => {
 };
 
 export const getDocs = async (queryRef) => {
+    if (queryRef.path === 'whatsapp_sessions') {
+        const items = getLocalCollection(queryRef.path);
+        return {
+            docs: items.map(item => ({
+                id: item.id,
+                data: () => item,
+                exists: () => true
+            })),
+            empty: items.length === 0,
+            size: items.length,
+            forEach: (cb) => items.forEach(item => cb({ id: item.id, data: () => item, exists: () => true }))
+        };
+    }
     try {
         const realPath = await getRealTableName(queryRef.path);
         let q = supabase.from(realPath).select('*');
@@ -1370,6 +1392,11 @@ export const setDoc = async (docRef, data, options = {}) => {
     }
     saveLocalCollection(docRef.path, items);
 
+    if (docRef.path === 'whatsapp_sessions') {
+        await notifyListenersByPath(docRef.path);
+        return;
+    }
+
     try {
         const realPath = await getRealTableName(docRef.path);
         
@@ -1432,6 +1459,10 @@ export const updateDoc = async (docRef, data) => {
     if (idx >= 0) {
         items[idx] = { ...items[idx], ...data };
         saveLocalCollection(docRef.path, items);
+    }
+    if (docRef.path === 'whatsapp_sessions') {
+        await notifyListenersByPath(docRef.path);
+        return;
     }
     try {
         const realPath = await getRealTableName(docRef.path);
