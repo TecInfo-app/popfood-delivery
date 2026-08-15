@@ -1012,10 +1012,19 @@ window.copyStoreLink = function() {
       </div>
       
       <div class="space-y-4">
+        <div id="whatsapp-server-error-msg" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium text-left shadow-sm space-y-1">
+          <p class="font-bold flex items-center gap-1.5 text-amber-800">
+            <span>⚠️</span> Servidor do Robô Indisponível
+          </p>
+          <p class="text-[11px] text-amber-700/90 leading-relaxed">
+            Não foi possível comunicar com o servidor backend do WhatsApp. Se você hospeda seu app no GitHub Pages, informe a URL do seu servidor backend (Node/Express) abaixo no campo <strong>URL do Servidor Backend</strong> para conectar o robô.
+          </p>
+        </div>
+
         <div id="whatsapp-status-container" class="p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
           <p class="text-sm text-gray-600 font-semibold mb-2">Verificando status do WhatsApp...</p>
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <button type="button" onclick="forceResetWhatsapp()" class="mt-2 bg-white text-red-600 font-bold py-1.5 px-3 rounded text-xs hover:bg-red-50 transition-colors border border-red-200 shadow-sm">
+          <button type="button" onclick="forceResetWhatsapp()" class="mt-2 bg-white text-red-600 font-bold py-1.5 px-3 rounded text-xs hover:bg-red-50 transition-colors border border-red-200 shadow-sm cursor-pointer">
             Forçar Reset (Se estiver travado)
           </button>
         </div>
@@ -1106,6 +1115,13 @@ window.copyStoreLink = function() {
           <p class="text-[9px] text-gray-400">Por padrão, apontamos para <strong class="text-gray-600">https://tecinfo-app.github.io/PopFood</strong>. O robô irá gerar o link completo de pedidos para cada cliente usando este endereço.</p>
         </div>
 
+        <!-- BACKEND SERVER URL CONFIGURATION -->
+        <div class="space-y-1 bg-amber-50/60 p-3 rounded-xl border border-amber-200/60">
+          <label class="block text-[10px] font-bold text-amber-900 uppercase">URL do Servidor Backend (API do Robô / Express) ⚙️</label>
+          <input type="url" id="whatsapp-backend-url" placeholder="Ex: https://meu-servidor.onrender.com" class="w-full text-xs p-2.5 border border-amber-200 rounded-lg focus:outline-none bg-white" onchange="localStorage.setItem('popfood_backend_url', this.value.trim())">
+          <p class="text-[9px] text-amber-800/80">Se seu site estiver hospedado no GitHub Pages, informe a URL onde o servidor Node.js/Express do robô do WhatsApp está rodando (Render, Railway, VPS, etc.). Deixe em branco se rodar localmente ou na mesma hospedagem.</p>
+        </div>
+
         <!-- WELCOME MESSAGE -->
         <div class="space-y-1">
           <label class="block text-[10px] font-bold text-gray-500 uppercase">1. Mensagem de Boas-Vindas / Menu Principal 🍟</label>
@@ -1144,11 +1160,16 @@ window.copyStoreLink = function() {
     import { getMessaging, getToken, onMessage } from './supabase-adapter.js';
 
     const getApiUrl = (endpoint) => {
+      const backendInput = (document.getElementById('whatsapp-backend-url') || {}).value;
+      const customUrl = (backendInput && backendInput.trim()) ? backendInput.trim() : (localStorage.getItem('popfood_backend_url') || '');
+      if (customUrl) {
+        return `${customUrl.replace(/\/$/, '')}${endpoint}`;
+      }
       const isLocalOrPlatform = window.location.hostname === 'localhost' || 
                                  window.location.hostname === '127.0.0.1' || 
                                  window.location.hostname.includes('run.app') ||
                                  window.location.hostname.includes('webcontainer.io');
-      const base = isLocalOrPlatform ? '' : 'https://ais-pre-jraklxxmgcz65uhxsjfntd-756386363755.us-east1.run.app';
+      const base = isLocalOrPlatform ? '' : window.location.origin;
       return `${base}${endpoint}`;
     };
 
@@ -1220,9 +1241,18 @@ window.copyStoreLink = function() {
         if (res.ok) {
           const data = await res.json();
           updateWhatsappUI(data);
+          const errBox = document.getElementById('whatsapp-server-error-msg');
+          if (errBox) errBox.classList.add('hidden');
+        } else {
+          updateWhatsappUI({ status: 'disconnected', connected: false });
+          const errBox = document.getElementById('whatsapp-server-error-msg');
+          if (errBox) errBox.classList.remove('hidden');
         }
       } catch (e) {
-        console.error("Failed to fetch WhatsApp status via HTTP", e);
+        console.warn("Failed to fetch WhatsApp status via HTTP", e);
+        updateWhatsappUI({ status: 'disconnected', connected: false });
+        const errBox = document.getElementById('whatsapp-server-error-msg');
+        if (errBox) errBox.classList.remove('hidden');
       }
     }
 
@@ -1323,10 +1353,17 @@ window.copyStoreLink = function() {
     window.saveWhatsappBotConfig = async function() {
       if (!window.currentStoreId) return;
       const linkUrl = document.getElementById('whatsapp-link-url').value.trim();
+      const backendUrl = (document.getElementById('whatsapp-backend-url') || {}).value.trim();
       const welcome = document.getElementById('whatsapp-welcome-msg').value;
       const hours = document.getElementById('whatsapp-hours-msg').value;
       const order = document.getElementById('whatsapp-order-msg').value;
       const status = document.getElementById('whatsapp-status-msg').value;
+
+      if (backendUrl) {
+        localStorage.setItem('popfood_backend_url', backendUrl);
+      } else {
+        localStorage.removeItem('popfood_backend_url');
+      }
       
       const btn = document.getElementById('btn-save-whatsapp-config');
       if (btn) {
@@ -1337,6 +1374,7 @@ window.copyStoreLink = function() {
       try {
         await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
           whatsappLinkUrl: linkUrl,
+          whatsappBackendUrl: backendUrl,
           whatsappWelcome: welcome,
           whatsappHours: hours,
           whatsappOrder: order,
@@ -1715,6 +1753,10 @@ window.copyStoreLink = function() {
           (document.getElementById('whatsapp-bot-active') || {}).checked = profileData.whatsappBotPaused !== true;
           
           // Populate custom whatsapp bot settings
+          const savedBackendUrl = profileData.whatsappBackendUrl || localStorage.getItem('popfood_backend_url') || '';
+          (document.getElementById('whatsapp-backend-url') || {}).value = savedBackendUrl;
+          if (savedBackendUrl) localStorage.setItem('popfood_backend_url', savedBackendUrl);
+
           (document.getElementById('whatsapp-link-url') || {}).value = profileData.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
           (document.getElementById('whatsapp-welcome-msg') || {}).value = profileData.whatsappWelcome || 'Olá! Bem-vindo(a) ao *{name}*! 🍔🍕\n_{description}_\n\nDigite o número da opção desejada:\n1️⃣ *Cardápio*\n2️⃣ *Horário de Funcionamento*\n3️⃣ *Fazer Pedido*\n4️⃣ *Status do Pedido*';
           (document.getElementById('whatsapp-hours-msg') || {}).value = profileData.whatsappHours || '🕒 *Nosso horário de funcionamento:*\nDas {openTime} às {closeTime}\nDias: {operatingDays}';
