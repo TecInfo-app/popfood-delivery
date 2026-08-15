@@ -224,21 +224,103 @@ export function listenToWhatsappActions() {
   console.log("Listening to real-time WhatsApp actions on banco de dados.");
 }
 
+async function ensureAuthFolderFromDb(storeId: string) {
+  const dirPath = path.join(process.cwd(), `baileys_auth_info_${storeId}`);
+  const credsPath = path.join(dirPath, 'creds.json');
+  if (!fs.existsSync(credsPath)) {
+    try {
+      const profile = await getRestaurantProfileWithCache(storeId);
+      const savedCreds = profile?.settings?.whatsapp_creds || profile?.whatsapp_creds;
+      if (savedCreds) {
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+        fs.writeFileSync(credsPath, typeof savedCreds === 'string' ? savedCreds : JSON.stringify(savedCreds, null, 2));
+        console.log(`[WhatsApp] Restored session creds from Supabase for store ${storeId}`);
+      }
+    } catch (e) {
+      console.error(`[WhatsApp] Error restoring creds from Supabase for ${storeId}:`, e);
+    }
+  }
+}
+
+async function updateWhatsappCredsInDb(storeId: string, credsObj: any) {
+  if (!db) return;
+  try {
+    let tableName = 'restaurant_profiles';
+    let queryField = 'id';
+
+    const { data: p1 } = await db.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+    let settings = p1?.settings || {};
+    if (!p1) {
+      const { data: p2 } = await db.from('restaurant_profiles').select('settings').eq('store_id', storeId).maybeSingle();
+      if (p2) {
+        settings = p2.settings || {};
+        queryField = 'store_id';
+      } else {
+        const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
+        if (p3) {
+          settings = p3.settings || {};
+          tableName = 'restaurants';
+        } else {
+          const { data: p4 } = await db.from('restaurants').select('settings').eq('store_id', storeId).maybeSingle();
+          if (p4) {
+            settings = p4.settings || {};
+            tableName = 'restaurants';
+            queryField = 'store_id';
+          }
+        }
+      }
+    }
+
+    const newSettings = { ...settings, whatsapp_creds: credsObj };
+    await db.from(tableName)
+      .update({ settings: newSettings, updated_at: new Date().toISOString() })
+      .eq(queryField, storeId);
+  } catch (err) {
+    console.error(`[WhatsApp Bot] Error updating whatsapp creds in DB for ${storeId}:`, err);
+  }
+}
+
 async function restoreSavedSessions() {
   try {
     const cwd = process.cwd();
-    const files = fs.readdirSync(cwd);
-    for (const f of files) {
-      if (f.startsWith('baileys_auth_info_')) {
-        const storeId = f.replace('baileys_auth_info_', '');
-        const credsPath = path.join(cwd, f, 'creds.json');
-        if (fs.existsSync(credsPath)) {
-          console.log(`[WhatsApp Bot] Found existing credentials for store: ${storeId}. Restoring session...`);
-          startWhatsappSession(storeId).catch((err) => {
-            console.error(`[WhatsApp Bot] Failed to restore session for store ${storeId}:`, err);
-          });
+    const localStores = new Set<string>();
+    
+    try {
+      const files = fs.readdirSync(cwd);
+      for (const f of files) {
+        if (f.startsWith('baileys_auth_info_')) {
+          const storeId = f.replace('baileys_auth_info_', '');
+          const credsPath = path.join(cwd, f, 'creds.json');
+          if (fs.existsSync(credsPath)) {
+            localStores.add(storeId);
+          }
         }
       }
+    } catch (e) {}
+
+    if (db) {
+      try {
+        const { data: profiles } = await db.from('restaurant_profiles').select('id, store_id, settings');
+        if (profiles) {
+          for (const p of profiles) {
+            const storeId = p.id || p.store_id;
+            const hasCreds = p.settings?.whatsapp_creds || p.whatsapp_connected || p.settings?.whatsappConnected || p.settings?.whatsappQr;
+            if (storeId && hasCreds) {
+              localStores.add(storeId);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    for (const storeId of localStores) {
+      console.log(`[WhatsApp Bot] Restoring session for store: ${storeId}`);
+      await ensureAuthFolderFromDb(storeId);
+      startWhatsappSession(storeId).catch((err) => {
+        console.error(`[WhatsApp Bot] Failed to restore session for store ${storeId}:`, err);
+      });
     }
   } catch (e) {
     console.error("[WhatsApp Bot] Error restoring saved sessions:", e);
@@ -337,6 +419,7 @@ async function startWhatsappSession(storeId) {
     status: 'connecting'
   });
 
+  await ensureAuthFolderFromDb(storeId);
   const { state, saveCreds } = await useMultiFileAuthState(`baileys_auth_info_${storeId}`);
   let version: any = [2, 3000, 1017531234];
   try {
@@ -370,7 +453,19 @@ async function startWhatsappSession(storeId) {
     initialPromise: null
   };
   sessions.set(storeId, sessionState);
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', async () => {
+    await saveCreds();
+    try {
+      const credsPath = path.join(process.cwd(), `baileys_auth_info_${storeId}`, 'creds.json');
+      if (fs.existsSync(credsPath)) {
+        const credsContent = fs.readFileSync(credsPath, 'utf8');
+        const credsObj = JSON.parse(credsContent);
+        await updateWhatsappCredsInDb(storeId, credsObj);
+      }
+    } catch (e) {
+      console.error(`[WhatsApp] Error backing up creds to Supabase for ${storeId}:`, e);
+    }
+  });
 
   sessionState.initialPromise = new Promise((resolve) => {
     let resolved = false;
