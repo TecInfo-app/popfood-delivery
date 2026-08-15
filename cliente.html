@@ -1347,7 +1347,7 @@
               id="panel-desconto"
               class="flex justify-between items-center text-emerald-600 h-0 overflow-hidden transition-all"
             >
-              <span class="font-bold">Desconto de Cupom</span>
+              <span id="lbl-desconto-title" class="font-bold flex items-center gap-1">🏷️ Desconto de Cupom</span>
               <span id="lbl-desconto" class="font-black text-sm">- R$ 0,00</span>
             </div>
 
@@ -1356,8 +1356,17 @@
               id="panel-desconto-fidelidade"
               class="flex justify-between items-center text-emerald-600 hidden transition-all"
             >
-              <span class="font-bold">Desconto Fidelidade Ativo</span>
+              <span id="lbl-desconto-fidelidade-title" class="font-bold flex items-center gap-1">🎁 Desconto Fidelidade</span>
               <span id="lbl-desconto-fidelidade" class="font-black text-sm">- R$ 0,00</span>
+            </div>
+
+            <!-- Destaque para Descontos Cumulativos (quando ambos estão ativos) -->
+            <div
+              id="panel-desconto-total-combinado"
+              class="hidden flex justify-between items-center text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 transition-all text-xs my-1"
+            >
+              <span class="font-bold flex items-center gap-1">🎉 Total Economizado (Somado)</span>
+              <span id="lbl-desconto-total-combinado" class="font-black text-sm text-emerald-700">- R$ 0,00</span>
             </div>
 
             <!-- Taxa de entrega -->
@@ -6165,15 +6174,13 @@
           return sum + item.totalItemPrice * item.quantity;
         }, 0);
 
-        // Recalculate manual coupon discount
+        // Recalculate manual or automatic coupon discount
         let discount = 0;
         if (typeof appliedDiscountCoupon !== "undefined" && appliedDiscountCoupon) {
-          if (appliedDiscountCoupon.type === "percentual") {
-            discount = subtotal * (appliedDiscountCoupon.value / 100);
-          } else {
-            discount = appliedDiscountCoupon.value;
-          }
-          discount = Math.min(subtotal, discount);
+          const isPercent = (appliedDiscountCoupon.type === "percentual" || appliedDiscountCoupon.discountType === "percentual" || appliedDiscountCoupon.discount_type === "percentual");
+          const cVal = parseFloat(appliedDiscountCoupon.value || appliedDiscountCoupon.discountValue || appliedDiscountCoupon.discount_value || 0);
+          discount = isPercent ? subtotal * (cVal / 100) : cVal;
+          discount = Math.min(subtotal, Math.max(0, discount));
         }
 
         // Recalculate automatic loyalty discount
@@ -8046,7 +8053,7 @@
           }
         }
 
-        // Recalculate manual coupon discount
+        // Recalculate manual or automatic coupon discount
         let discount = 0;
         const discPanel = document.getElementById("panel-desconto");
 
@@ -8062,6 +8069,13 @@
 
           discPanel.classList.remove("h-0", "hidden");
           discPanel.classList.add("py-0.5", "flex");
+
+          const titleEl = document.getElementById("lbl-desconto-title");
+          if (titleEl) {
+            const codeText = appliedDiscountCoupon.code ? ` (${appliedDiscountCoupon.code})` : '';
+            titleEl.textContent = `🏷️ Desconto Cupom${codeText}`;
+          }
+
           (document.getElementById("lbl-desconto") || {}).textContent =
             `- R$ ${discount.toFixed(2).replace(".", ",")}`;
         } else {
@@ -8091,12 +8105,27 @@
 
           if (loyaltyPanel) {
             loyaltyPanel.classList.remove("hidden");
+            loyaltyPanel.classList.add("py-0.5", "flex");
             (document.getElementById("lbl-desconto-fidelidade") || {}).textContent =
               `- R$ ${loyaltyDisc.toFixed(2).replace(".", ",")}`;
           }
         } else {
           if (loyaltyPanel) {
             loyaltyPanel.classList.add("hidden");
+            loyaltyPanel.classList.remove("py-0.5", "flex");
+          }
+        }
+
+        // Combined discount badge panel if both are active
+        const combinedPanel = document.getElementById("panel-desconto-total-combinado");
+        if (combinedPanel) {
+          if (discount > 0 && loyaltyDisc > 0) {
+            const totalDisc = discount + loyaltyDisc;
+            combinedPanel.classList.remove("hidden");
+            (document.getElementById("lbl-desconto-total-combinado") || {}).textContent =
+              `- R$ ${totalDisc.toFixed(2).replace(".", ",")}`;
+          } else {
+            combinedPanel.classList.add("hidden");
           }
         }
 
@@ -8111,6 +8140,8 @@
           subtotal - discount - loyaltyDisc + displayDeliveryFee,
         );
         (document.getElementById("lbl-total") || {}).textContent =
+          `R$ ${total.toFixed(2).replace(".", ",")}`;
+        (document.getElementById("btn-submit-total") || {}).textContent =
           `R$ ${total.toFixed(2).replace(".", ",")}`;
         updateFloatingCartBar();
       }
@@ -8264,9 +8295,10 @@
           if (discVal > 0) {
             const discRow = document.createElement("div");
             discRow.className = "flex justify-between items-center text-green-600 font-medium mt-1";
+            const codeText = appliedDiscountCoupon && appliedDiscountCoupon.code ? ` (${appliedDiscountCoupon.code})` : '';
             discRow.innerHTML = `
-              <span>Desconto de Cupom</span>
-              <span>- R$ ${discVal.toFixed(2).replace(".", ",")}</span>
+              <span>🏷️ Desconto Cupom${codeText}</span>
+              <span class="font-bold">- R$ ${discVal.toFixed(2).replace(".", ",")}</span>
             `;
             summaryContainer.appendChild(discRow);
           }
@@ -8274,10 +8306,19 @@
             const lDiscRow = document.createElement("div");
             lDiscRow.className = "flex justify-between items-center text-green-600 font-medium mt-1";
             lDiscRow.innerHTML = `
-              <span>Desconto de Fidelidade</span>
-              <span>- R$ ${loyaltyDisc.toFixed(2).replace(".", ",")}</span>
+              <span>🎁 Desconto Fidelidade</span>
+              <span class="font-bold">- R$ ${loyaltyDisc.toFixed(2).replace(".", ",")}</span>
             `;
             summaryContainer.appendChild(lDiscRow);
+          }
+          if (discVal > 0 && loyaltyDisc > 0) {
+            const totalDiscRow = document.createElement("div");
+            totalDiscRow.className = "flex justify-between items-center text-emerald-700 bg-emerald-50 px-2 py-1 rounded font-bold mt-1 text.xs";
+            totalDiscRow.innerHTML = `
+              <span>🎉 Total Economizado (Somado)</span>
+              <span>- R$ ${(discVal + loyaltyDisc).toFixed(2).replace(".", ",")}</span>
+            `;
+            summaryContainer.appendChild(totalDiscRow);
           }
           if (feeToUse > 0) {
             const feeRow = document.createElement("div");
