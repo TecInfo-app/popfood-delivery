@@ -1041,6 +1041,18 @@ export const getDoc = async (docRef) => {
         let queryBuilder = supabase.from(realPath).select('*');
         const docId = docRef.id;
         
+        if ((realPath === 'categories' || docRef.path.includes('categories')) && payload.image !== undefined) {
+            try {
+                const storeId = payload.storeId || payload.store_id || window.currentStoreId;
+                if (storeId) {
+                    const { data: profile } = await supabase.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+                    const settings = profile?.settings || {};
+                    if (!settings.categoryImages) settings.categoryImages = {};
+                    settings.categoryImages[docRef.id] = payload.image;
+                    await supabase.from('restaurant_profiles').update({ settings }).eq('id', storeId);
+                }
+            } catch(e) {}
+        }
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             queryBuilder = queryBuilder.eq('id', docId);
         } else if (checkIsUuidTable(realPath)) {
@@ -1450,7 +1462,7 @@ export const setDoc = async (docRef, data, options = {}) => {
             if (suffix === 'logo') {
                 const logoVal = payload.logo || payload.image;
                 settings.logo = logoVal;
-                updatePayload = { logo: logoVal, settings };
+                updatePayload = { settings }; if (realPath === 'restaurant_profiles') updatePayload.logo_url = logoVal; else updatePayload.logo = logoVal;
             } else {
                 const bannerVal = payload.banner || payload[`banner${suffix}`] || Object.values(payload)[0];
                 const idxNum = parseInt(suffix, 10);
@@ -1478,7 +1490,9 @@ export const setDoc = async (docRef, data, options = {}) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const serialized = serializeRow(docRef.path, realPath, payload);
+            const { data: existingData } = await supabase.from(realPath).select('settings').eq('id', docRef.id).maybeSingle();
+            const existingSettings = existingData?.settings || {};
+            const serialized = serializeRow(docRef.path, realPath, payload, existingSettings);
             serialized.id = docRef.id;
             await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
         } else {
@@ -1510,8 +1524,24 @@ export const updateDoc = async (docRef, data) => {
     try {
         const realPath = await getRealTableName(docRef.path);
         
+        if ((realPath === 'categories' || docRef.path.includes('categories')) && data.image !== undefined) {
+            try {
+                const items = getLocalCollection(docRef.path);
+                const idx = items.findIndex(i => String(i.id) === String(docRef.id));
+                const storeId = data.storeId || data.store_id || (items[idx]?.storeId) || window.currentStoreId;
+                if (storeId) {
+                    const { data: profile } = await supabase.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+                    const settings = profile?.settings || {};
+                    if (!settings.categoryImages) settings.categoryImages = {};
+                    settings.categoryImages[docRef.id] = data.image;
+                    await supabase.from('restaurant_profiles').update({ settings }).eq('id', storeId);
+                }
+            } catch(e) {}
+        }
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const serialized = serializeRow(docRef.path, realPath, data);
+            const { data: existingData } = await supabase.from(realPath).select('settings').eq('id', docRef.id).maybeSingle();
+            const existingSettings = existingData?.settings || {};
+            const serialized = serializeRow(docRef.path, realPath, data, existingSettings);
             await supabase.from(realPath).update(serialized).eq('id', docRef.id);
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
