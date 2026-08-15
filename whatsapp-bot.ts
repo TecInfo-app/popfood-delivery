@@ -167,23 +167,38 @@ async function updateWhatsappDocInDb(storeId: string, data: any) {
       whatsapp_connected: data.connected === true,
     };
 
-    // First try by id
-    let { data: profile } = await db.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+    let profile = null;
+    let tableName = 'restaurant_profiles';
     let queryField = 'id';
 
-    // If not found, try by store_id
-    if (!profile) {
+    const { data: p1 } = await db.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+    if (p1) {
+      profile = p1;
+    } else {
       const { data: p2 } = await db.from('restaurant_profiles').select('settings').eq('store_id', storeId).maybeSingle();
       if (p2) {
         profile = p2;
         queryField = 'store_id';
+      } else {
+        const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
+        if (p3) {
+          profile = p3;
+          tableName = 'restaurants';
+        } else {
+          const { data: p4 } = await db.from('restaurants').select('settings').eq('store_id', storeId).maybeSingle();
+          if (p4) {
+            profile = p4;
+            tableName = 'restaurants';
+            queryField = 'store_id';
+          }
+        }
       }
     }
 
     if (profile) {
       const currentSettings = profile.settings || {};
       const newSettings = { ...currentSettings, ...payloadFields };
-      await db.from('restaurant_profiles')
+      await db.from(tableName)
         .update({ settings: newSettings, updated_at: new Date().toISOString() })
         .eq(queryField, storeId);
     }
@@ -234,25 +249,30 @@ export function initWhatsappBot(dbInstance) {
 }
 
 export async function getWhatsappQr(storeId) {
-  if (sessions.has(storeId)) {
-    const session = sessions.get(storeId);
-    if (session.connected) return { connected: true };
-    
-    // If not connected, clean up the old socket and session to start fresh
-    if (session.sock) {
-      try {
-        session.sock.ev.removeAllListeners();
-        session.sock.end(undefined);
-      } catch (e) {}
+  try {
+    if (sessions.has(storeId)) {
+      const session = sessions.get(storeId);
+      if (session.connected) return { connected: true };
+      
+      // If not connected, clean up the old socket and session to start fresh
+      if (session.sock) {
+        try {
+          session.sock.ev.removeAllListeners();
+          session.sock.end(undefined);
+        } catch (e) {}
+      }
+      sessions.delete(storeId);
     }
-    sessions.delete(storeId);
-  }
-  
-  // Clean up any old invalid credentials folder so Baileys is forced to generate a new QR code
-  clearAuthDirectory(storeId);
+    
+    // Clean up any old invalid credentials folder so Baileys is forced to generate a new QR code
+    clearAuthDirectory(storeId);
 
-  // Create new session
-  return await startWhatsappSession(storeId);
+    // Create new session
+    return await startWhatsappSession(storeId);
+  } catch (err: any) {
+    console.error(`[WhatsApp] getWhatsappQr Error for ${storeId}:`, err);
+    return { error: err?.message || 'Failed to initialize WhatsApp session' };
+  }
 }
 
 export async function getWhatsappStatus(storeId) {
