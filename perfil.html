@@ -1161,7 +1161,7 @@ window.copyStoreLink = function() {
 
     const getApiUrl = (endpoint) => {
       const backendInput = (document.getElementById('whatsapp-backend-url') || {}).value;
-      const customUrl = (backendInput && backendInput.trim()) ? backendInput.trim() : (localStorage.getItem('popfood_backend_url') || '');
+      const customUrl = (backendInput && backendInput.trim()) ? backendInput.trim() : (localStorage.getItem('popfood_backend_url') || 'https://popfood-whatsapp-bot.onrender.com');
 
       if (customUrl) {
         return `${customUrl.replace(/\/$/, '')}${endpoint}`;
@@ -1170,7 +1170,7 @@ window.copyStoreLink = function() {
                                  window.location.hostname === '127.0.0.1' || 
                                  window.location.hostname.includes('run.app') ||
                                  window.location.hostname.includes('webcontainer.io');
-      const base = isLocalOrPlatform ? '' : window.location.origin;
+      const base = isLocalOrPlatform ? '' : 'https://popfood-whatsapp-bot.onrender.com';
       return `${base}${endpoint}`;
     };
 
@@ -1759,7 +1759,7 @@ window.copyStoreLink = function() {
           (document.getElementById('whatsapp-bot-active') || {}).checked = profileData.whatsappBotPaused !== true;
           
           // Populate custom whatsapp bot settings
-          const savedBackendUrl = profileData.whatsappBackendUrl || localStorage.getItem('popfood_backend_url') || '';
+          const savedBackendUrl = profileData.whatsappBackendUrl || localStorage.getItem('popfood_backend_url') || 'https://popfood-whatsapp-bot.onrender.com';
           (document.getElementById('whatsapp-backend-url') || {}).value = savedBackendUrl;
           if (savedBackendUrl) localStorage.setItem('popfood_backend_url', savedBackendUrl);
 
