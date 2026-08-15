@@ -32,6 +32,7 @@ const COUPONS_CACHE_TTL_MS = 300000; // 5 minutes
 const ORDERS_CACHE_TTL_MS = 15000; // 15 seconds
 
 async function getRestaurantProfileWithCache(storeId: string): Promise<any | null> {
+  if (!storeId) return null;
   const cached = profileCache.get(storeId);
   const now = Date.now();
   if (cached && (now - cached.fetchedAt < PROFILE_CACHE_TTL_MS)) {
@@ -39,9 +40,37 @@ async function getRestaurantProfileWithCache(storeId: string): Promise<any | nul
     return cached.profile;
   }
 
-  console.log(`[Cache Miss] Fetching profile from banco de dados for store ${storeId}`);
-  const { data: profile, error } = await db.from('restaurants').select('*').eq('store_id', storeId).single();
-  if (error || !profile) return null;
+  console.log(`[Cache Miss] Fetching profile from Supabase for store ${storeId}`);
+  let profile: any = null;
+
+  try {
+    // 1. Try restaurant_profiles by id
+    const { data: p1 } = await db.from('restaurant_profiles').select('*').eq('id', storeId).maybeSingle();
+    if (p1) profile = p1;
+
+    // 2. Try restaurant_profiles by store_id
+    if (!profile) {
+      const { data: p2 } = await db.from('restaurant_profiles').select('*').eq('store_id', storeId).maybeSingle();
+      if (p2) profile = p2;
+    }
+
+    // 3. Try restaurants by id
+    if (!profile) {
+      const { data: p3 } = await db.from('restaurants').select('*').eq('id', storeId).maybeSingle();
+      if (p3) profile = p3;
+    }
+
+    // 4. Try restaurants by store_id
+    if (!profile) {
+      const { data: p4 } = await db.from('restaurants').select('*').eq('store_id', storeId).maybeSingle();
+      if (p4) profile = p4;
+    }
+  } catch (err) {
+    console.error(`[WhatsApp Bot] Error fetching profile for store ${storeId}:`, err);
+  }
+
+  if (!profile) return null;
+
   profileCache.set(storeId, {
     profile,
     fetchedAt: now
@@ -50,6 +79,7 @@ async function getRestaurantProfileWithCache(storeId: string): Promise<any | nul
 }
 
 async function getStoreCouponsWithCache(storeId: string): Promise<any[]> {
+  if (!storeId) return [];
   const cached = couponsCache.get(storeId);
   const now = Date.now();
   if (cached && (now - cached.fetchedAt < COUPONS_CACHE_TTL_MS)) {
@@ -57,19 +87,33 @@ async function getStoreCouponsWithCache(storeId: string): Promise<any[]> {
     return cached.coupons;
   }
 
-  console.log(`[Cache Miss] Fetching coupons from banco de dados for store ${storeId}`);
-  const { data: couponsData, error } = await db.from('coupons').select('*').eq('store_id', storeId).eq('active', true);
-  const coupons: any[] = couponsData || [];
+  console.log(`[Cache Miss] Fetching coupons from Supabase for store ${storeId}`);
+  let coupons: any[] = [];
+  try {
+    const { data: c1 } = await db.from('coupons').select('*').eq('store_id', storeId);
+    if (c1 && c1.length > 0) {
+      coupons = c1;
+    } else {
+      const { data: c2 } = await db.from('coupons').select('*').eq('storeId', storeId);
+      if (c2 && c2.length > 0) coupons = c2;
+    }
+  } catch (err) {
+    console.error(`[WhatsApp Bot] Error fetching coupons for store ${storeId}:`, err);
+  }
+
+  // Filter active coupons if active field exists
+  const filtered = coupons.filter(c => c.active === true || c.active === 'true' || c.active === 1 || c.active === undefined);
 
   couponsCache.set(storeId, {
-    coupons,
+    coupons: filtered,
     fetchedAt: now
   });
 
-  return coupons;
+  return filtered;
 }
 
 async function getStoreOrdersWithCache(storeId: string): Promise<any[]> {
+  if (!storeId) return [];
   const cached = ordersCache.get(storeId);
   const now = Date.now();
   if (cached && (now - cached.fetchedAt < ORDERS_CACHE_TTL_MS)) {
@@ -77,9 +121,19 @@ async function getStoreOrdersWithCache(storeId: string): Promise<any[]> {
     return cached.orders;
   }
 
-  console.log(`[Cache Miss] Fetching orders from banco de dados for store ${storeId}`);
-  const { data: ordersData, error } = await db.from('orders').select('*').eq('store_id', storeId);
-  const orders: any[] = ordersData || [];
+  console.log(`[Cache Miss] Fetching orders from Supabase for store ${storeId}`);
+  let orders: any[] = [];
+  try {
+    const { data: o1 } = await db.from('orders').select('*').eq('store_id', storeId);
+    if (o1 && o1.length > 0) {
+      orders = o1;
+    } else {
+      const { data: o2 } = await db.from('orders').select('*').eq('storeId', storeId);
+      if (o2 && o2.length > 0) orders = o2;
+    }
+  } catch (err) {
+    console.error(`[WhatsApp Bot] Error fetching orders for store ${storeId}:`, err);
+  }
 
   ordersCache.set(storeId, {
     orders,
@@ -104,26 +158,34 @@ function clearAuthDirectory(storeId) {
 async function updateWhatsappDocInDb(storeId: string, data: any) {
   if (!db) return;
   try {
-    const payload = {
+    const payloadFields = {
       whatsappQr: data.qr || null,
       whatsappStatus: data.status || (data.connected ? 'connected' : 'disconnected'),
       whatsappConnected: data.connected === true,
       whatsapp_qr: data.qr || null,
       whatsapp_status: data.status || (data.connected ? 'connected' : 'disconnected'),
       whatsapp_connected: data.connected === true,
-      updated_at: new Date().toISOString()
     };
 
-    // Update in restaurant_profiles
-    const { error: err1 } = await db.from('restaurant_profiles').update(payload).eq('id', storeId);
-    if (err1) {
-      await db.from('restaurant_profiles').update(payload).eq('store_id', storeId);
+    // First try by id
+    let { data: profile } = await db.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
+    let queryField = 'id';
+
+    // If not found, try by store_id
+    if (!profile) {
+      const { data: p2 } = await db.from('restaurant_profiles').select('settings').eq('store_id', storeId).maybeSingle();
+      if (p2) {
+        profile = p2;
+        queryField = 'store_id';
+      }
     }
 
-    // Update in restaurants
-    const { error: err2 } = await db.from('restaurants').update(payload).eq('id', storeId);
-    if (err2) {
-      await db.from('restaurants').update(payload).eq('store_id', storeId);
+    if (profile) {
+      const currentSettings = profile.settings || {};
+      const newSettings = { ...currentSettings, ...payloadFields };
+      await db.from('restaurant_profiles')
+        .update({ settings: newSettings, updated_at: new Date().toISOString() })
+        .eq(queryField, storeId);
     }
   } catch (err) {
     console.error(`[WhatsApp Bot] Error updating doc in Supabase for ${storeId}:`, err);
