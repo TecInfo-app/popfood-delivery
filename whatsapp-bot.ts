@@ -1,4 +1,9 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
+import * as baileysPkg from '@whiskeysockets/baileys';
+const makeWASocket = (baileysPkg as any).default?.default || (baileysPkg as any).default || (baileysPkg as any).makeWASocket || baileysPkg;
+const useMultiFileAuthState = (baileysPkg as any).default?.useMultiFileAuthState || baileysPkg.useMultiFileAuthState;
+const DisconnectReason = (baileysPkg as any).default?.DisconnectReason || baileysPkg.DisconnectReason;
+const fetchLatestBaileysVersion = (baileysPkg as any).default?.fetchLatestBaileysVersion || baileysPkg.fetchLatestBaileysVersion;
+const Browsers = (baileysPkg as any).default?.Browsers || baileysPkg.Browsers;
 import QRCode from 'qrcode';
 // Removed firebase/banco de dados
 import { createClient } from '@supabase/supabase-js';
