@@ -873,7 +873,7 @@ function isOrderRecent(order: any, maxHours = 48): boolean {
 function formatOrderStatusMessage(order: any, storeId: string, profile: any): string {
   const st = getStatusLabel(order.status);
 
-  const customBaseUrl = profile?.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+  const customBaseUrl = profile?.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
   const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
   const trackUrl = `${normalizedBaseUrl}/acompanhamento.html?store=${storeId}&order=${order.id}`;
 
@@ -939,7 +939,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
       .map((d: any) => typeof d === 'number' ? (dayNames[d] || d) : d)
       .join(', ');
 
-    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
     const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
     const link = `${normalizedBaseUrl}/cliente.html?store=${storeId}`;
 
@@ -989,7 +989,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
       return;
     }
 
-    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
     const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
     const link = `${normalizedBaseUrl}/cliente.html?store=${storeId}`;
 
@@ -1035,7 +1035,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
       return;
     }
 
-    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
     const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
     const link = `${normalizedBaseUrl}/cliente.html?store=${storeId}`;
 
@@ -1052,7 +1052,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
 
   if (isGreetingIntent) {
     if (hasActiveOrder) {
-      const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+      const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
       const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
       const trackUrl = `${normalizedBaseUrl}/acompanhamento.html?store=${storeId}&order=${activeOrder.id}`;
       const totalVal = Number(activeOrder.total || 0).toFixed(2).replace('.', ',');
@@ -1092,7 +1092,7 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
 
   // 3. Cardápio atualizado (Envia o link do cardápio online com fotos ao invés da lista de texto, reduzindo drasticamente as leituras do banco de dados)
   if (lowerText === '1' || lowerText.includes('cardapio') || lowerText.includes('cardápio') || lowerText.includes('produtos') || lowerText.includes('catalogo') || lowerText.includes('catálogo')) {
-    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/PopFood';
+    const customBaseUrl = profile.whatsappLinkUrl || 'https://tecinfo-app.github.io/popfood-delivery';
     const normalizedBaseUrl = customBaseUrl.endsWith('/') ? customBaseUrl.slice(0, -1) : customBaseUrl;
     const link = `${normalizedBaseUrl}/cliente.html?store=${storeId}`;
     
