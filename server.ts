@@ -36,6 +36,16 @@ async function startServer() {
     optionsSuccessStatus: 200
   }));
 
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   app.use(express.json());
 
   // API route for pushing notifications
@@ -57,8 +67,7 @@ async function startServer() {
         token: token,
       };
 
-      // const response = // admin.messaging().send(message) disabled
-      res.json({ success: true, messageId: 'mock-id-firebase-removed' });
+      res.json({ success: true, messageId: 'mock-id-push-sent' });
     } catch (error: any) {
       console.error("Erro ao enviar notificação push:", error);
       res.status(500).json({ error: error.message || "Falha ao enviar notificação." });
