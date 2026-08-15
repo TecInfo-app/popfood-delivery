@@ -1005,6 +1005,32 @@ export const getDoc = async (docRef) => {
             id: docRef.id
         };
     }
+    const docId = docRef.id;
+    if (docId.endsWith('_logo') || docId.includes('_banner')) {
+        const baseStoreId = docId.replace(/(_logo|_banner[0-2])$/, '');
+        const suffix = docId.endsWith('_logo') ? 'logo' : docId.match(/_banner([0-2])/)?.[1];
+        try {
+            const realPath = await getRealTableName(docRef.path);
+            const { data } = await supabase.from(realPath).select('*').or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`).maybeSingle();
+            if (data) {
+                const settings = data.settings || {};
+                let val = null;
+                if (suffix === 'logo') {
+                    val = data.logo || settings.logo;
+                } else {
+                    const idx = parseInt(suffix, 10);
+                    val = data.banners?.[idx] || settings.banners?.[idx] || data[`banner${idx}`];
+                }
+                if (val) {
+                    return {
+                        exists: () => true,
+                        data: () => ({ [suffix === 'logo' ? 'logo' : `banner${suffix}`]: val, id: docId }),
+                        id: docId
+                    };
+                }
+            }
+        } catch (e) {}
+    }
     try {
         const realPath = await getRealTableName(docRef.path);
         let queryBuilder = supabase.from(realPath).select('*');
@@ -1399,6 +1425,38 @@ export const setDoc = async (docRef, data, options = {}) => {
     saveLocalCollection(docRef.path, items);
 
     if (docRef.path === 'whatsapp_sessions') {
+        await notifyListenersByPath(docRef.path);
+        return;
+    }
+
+    const docId = docRef.id;
+    if (docId.endsWith('_logo') || docId.includes('_banner')) {
+        const baseStoreId = docId.replace(/(_logo|_banner[0-2])$/, '');
+        const suffix = docId.endsWith('_logo') ? 'logo' : docId.match(/_banner([0-2])/)?.[1];
+        try {
+            const realPath = await getRealTableName(docRef.path);
+            const { data: existingData } = await supabase.from(realPath).select('*').or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`).maybeSingle();
+            let settings = existingData?.settings || {};
+            let updatePayload = {};
+            if (suffix === 'logo') {
+                const logoVal = payload.logo || payload.image;
+                settings.logo = logoVal;
+                updatePayload = { logo: logoVal, settings };
+            } else {
+                const bannerVal = payload.banner || payload[`banner${suffix}`] || Object.values(payload)[0];
+                const idxNum = parseInt(suffix, 10);
+                if (!settings.banners) settings.banners = [];
+                settings.banners[idxNum] = bannerVal;
+                updatePayload = { settings };
+            }
+            if (existingData) {
+                await supabase.from(realPath).update(updatePayload).or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`);
+            } else {
+                await supabase.from(realPath).insert({ id: baseStoreId, store_id: baseStoreId, ...updatePayload });
+            }
+        } catch (e) {
+            console.warn("Error saving logo/banner to Supabase store:", e);
+        }
         await notifyListenersByPath(docRef.path);
         return;
     }

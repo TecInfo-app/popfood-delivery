@@ -376,18 +376,7 @@ window.copyStoreLink = function() {
               <input type="number" step="0.01" min="0" id="store-min-order-value" placeholder="0.00 (Opcional)" class="w-full text-xs p-2.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
             </div>
 
-            <div class="space-y-1 bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
-              <div class="flex items-center justify-between">
-                <label class="block text-[10px] font-bold text-amber-900 uppercase">🔑 Código de Convite (Novas Lojas Parceiras)</label>
-              </div>
-              <div class="flex gap-2">
-                <input type="text" id="store-invite-code" placeholder="Ex: CIA2026" class="w-full text-xs font-mono font-bold p-2.5 border border-amber-200 rounded-lg focus:outline-none bg-white text-amber-900 tracking-wider uppercase">
-                <button type="button" onclick="generateRandomInviteCode()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition-colors cursor-pointer whitespace-nowrap">
-                  Gerar 🎲
-                </button>
-              </div>
-              <p class="text-[9px] text-amber-700/80 font-medium">Novos parceiros deverão digitar este código secreto na tela de cadastro.</p>
-            </div>
+
             
             <!-- Legacy Payment Integration Config (Hidden and Cleared) -->
             <input type="hidden" id="mp-access-token" value="">
