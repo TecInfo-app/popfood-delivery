@@ -14,9 +14,10 @@ dotenv.config();
 import { initWhatsappBot, getWhatsappQr, getWhatsappStatus, stopWhatsappSession } from './whatsapp-bot.js';
 
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
+const rawUrl = process.env.SUPABASE_URL || '';
+const supabaseUrl = rawUrl.replace('xx1bagladzeezdenfbrq', 'xxlbagladzeezdenfbrq');
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl || 'https://xxlbagladzeezdenfbrq.supabase.co', supabaseServiceKey);
 
 const resolvedDirname = typeof __dirname !== 'undefined'
   ? __dirname

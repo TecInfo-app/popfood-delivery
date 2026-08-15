@@ -15,7 +15,8 @@ const getEnv = (key, fallback) => {
     return fallback;
 };
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL', 'https://xxlbagladzeezdenfbrq.supabase.co');
+const rawSupabaseUrl = getEnv('VITE_SUPABASE_URL', 'https://xxlbagladzeezdenfbrq.supabase.co');
+const supabaseUrl = rawSupabaseUrl.replace('xx1bagladzeezdenfbrq', 'xxlbagladzeezdenfbrq');
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4bGJhZ2xhZHplZXpkZW5mYnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNzIwNDEsImV4cCI6MjEwMTY0ODA0MX0.6-RbagE7tpaVc8RFGfwPDxWg7CswhyuIXjRRf-g1OSc');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
