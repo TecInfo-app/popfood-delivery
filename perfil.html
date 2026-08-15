@@ -1290,16 +1290,24 @@ window.copyStoreLink = function() {
           updateWhatsappUI(data);
         }
       } catch (httpErr) {
-        console.error("Failed to load WhatsApp QR via HTTP", httpErr);
+        console.warn("Failed to load WhatsApp QR via HTTP", httpErr);
         const statusCont = document.getElementById('whatsapp-status-container');
         if (statusCont) statusCont.classList.add('hidden');
         const disconnCont = document.getElementById('whatsapp-disconnected-container');
         if (disconnCont) disconnCont.classList.remove('hidden');
+
+        const errBox = document.getElementById('whatsapp-server-error-msg');
+        if (errBox) errBox.classList.remove('hidden');
         
+        const isGitHub = window.location.hostname.includes('github.io');
+        const msg = isGitHub 
+          ? "O GitHub Pages não executa o servidor backend do robô (Node.js). Informe a URL do seu servidor backend (Render/Railway/VPS) no campo 'URL do Servidor Backend' abaixo e clique em Salvar."
+          : "Não foi possível conectar ao servidor do robô do WhatsApp. Verifique se o servidor backend está rodando.";
+
         if (window.customAlert) {
-          window.customAlert("Falha ao gerar o código QR. Por favor, tente novamente.");
+          window.customAlert(msg);
         } else {
-          alert("Falha ao gerar o código QR. Por favor, tente novamente.");
+          alert(msg);
         }
       }
     };
