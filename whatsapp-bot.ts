@@ -103,7 +103,31 @@ function clearAuthDirectory(storeId) {
 
 async function updateWhatsappDocInDb(storeId: string, data: any) {
   if (!db) return;
-  // Stubbed for Supabase
+  try {
+    const payload = {
+      whatsappQr: data.qr || null,
+      whatsappStatus: data.status || (data.connected ? 'connected' : 'disconnected'),
+      whatsappConnected: data.connected === true,
+      whatsapp_qr: data.qr || null,
+      whatsapp_status: data.status || (data.connected ? 'connected' : 'disconnected'),
+      whatsapp_connected: data.connected === true,
+      updated_at: new Date().toISOString()
+    };
+
+    // Update in restaurant_profiles
+    const { error: err1 } = await db.from('restaurant_profiles').update(payload).eq('id', storeId);
+    if (err1) {
+      await db.from('restaurant_profiles').update(payload).eq('store_id', storeId);
+    }
+
+    // Update in restaurants
+    const { error: err2 } = await db.from('restaurants').update(payload).eq('id', storeId);
+    if (err2) {
+      await db.from('restaurants').update(payload).eq('store_id', storeId);
+    }
+  } catch (err) {
+    console.error(`[WhatsApp Bot] Error updating doc in Supabase for ${storeId}:`, err);
+  }
 }
 
 let actionsListenerUnsubscribe = null;
