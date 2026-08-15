@@ -1011,7 +1011,7 @@ export const getDoc = async (docRef) => {
         const docId = docRef.id;
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            queryBuilder = queryBuilder.or(`id.eq.${docId},storeId.eq.${docId}`);
+            queryBuilder = queryBuilder.or(`id.eq.${docId},store_id.eq.${docId}`);
         } else if (checkIsUuidTable(realPath)) {
             const uuidId = getDeterministicUuid(docId);
             queryBuilder = queryBuilder.eq('id', uuidId);
@@ -1031,18 +1031,21 @@ export const getDoc = async (docRef) => {
                     id: docRef.id
                 };
             }
-            // If it's the main restaurant, return default test store profile
-            if ((docRef.path === 'restaurants' || docRef.path === 'restaurant_profiles') && docRef.id === 'main') {
+            // If it's a restaurant profile, return default store profile based on id
+            if ((docRef.path === 'restaurants' || docRef.path === 'restaurant_profiles')) {
+                const storeName = docRef.id === 'cia-do-chopp' ? 'Cia do Chopp' : 'PopFood Cia do Chopp';
                 return {
                     exists: () => true,
                     data: () => ({
-                        id: 'main',
-                        name: 'PopFood Cia do Chopp',
+                        id: docRef.id,
+                        storeId: docRef.id,
+                        name: storeName,
                         phone: '11999999999',
                         adminEmail: 'iranildo.tecnologia@outlook.com',
                         isSuperAdmin: true,
                         active: true,
-                        whatsappBotEnabled: true
+                        whatsappBotEnabled: true,
+                        createdAt: new Date().toISOString()
                     }),
                     id: docRef.id
                 };
@@ -1438,7 +1441,7 @@ export const updateDoc = async (docRef, data) => {
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const serialized = serializeRow(docRef.path, realPath, data);
-            await supabase.from(realPath).update(serialized).or(`id.eq.${docRef.id},storeId.eq.${docRef.id}`);
+            await supabase.from(realPath).update(serialized).or(`id.eq.${docRef.id},store_id.eq.${docRef.id}`);
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
@@ -1461,7 +1464,7 @@ export const deleteDoc = async (docRef) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            await supabase.from(realPath).delete().or(`id.eq.${docRef.id},storeId.eq.${docRef.id}`);
+            await supabase.from(realPath).delete().or(`id.eq.${docRef.id},store_id.eq.${docRef.id}`);
         } else {
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
             await supabase.from(realPath).delete().eq('id', targetId);
