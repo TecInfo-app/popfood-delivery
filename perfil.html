@@ -1161,11 +1161,7 @@ window.copyStoreLink = function() {
 
     const getApiUrl = (endpoint) => {
       const backendInput = (document.getElementById('whatsapp-backend-url') || {}).value;
-      let customUrl = (backendInput && backendInput.trim()) ? backendInput.trim() : (localStorage.getItem('popfood_backend_url') || '');
-      
-      if (!customUrl && window.location.hostname.includes('github.io')) {
-        customUrl = 'https://ais-dev-jraklxxmgcz65uhxsjfntd-756386363755.us-east1.run.app';
-      }
+      const customUrl = (backendInput && backendInput.trim()) ? backendInput.trim() : (localStorage.getItem('popfood_backend_url') || '');
 
       if (customUrl) {
         return `${customUrl.replace(/\/$/, '')}${endpoint}`;
@@ -1799,10 +1795,7 @@ window.copyStoreLink = function() {
           (document.getElementById('whatsapp-bot-active') || {}).checked = profileData.whatsappBotPaused !== true;
           
           // Populate custom whatsapp bot settings
-          let savedBackendUrl = profileData.whatsappBackendUrl || localStorage.getItem('popfood_backend_url') || '';
-          if (!savedBackendUrl && window.location.hostname.includes('github.io')) {
-            savedBackendUrl = 'https://ais-dev-jraklxxmgcz65uhxsjfntd-756386363755.us-east1.run.app';
-          }
+          const savedBackendUrl = profileData.whatsappBackendUrl || localStorage.getItem('popfood_backend_url') || '';
           (document.getElementById('whatsapp-backend-url') || {}).value = savedBackendUrl;
           if (savedBackendUrl) localStorage.setItem('popfood_backend_url', savedBackendUrl);
 
