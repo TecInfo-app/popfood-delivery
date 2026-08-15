@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  const { data: d2, error: e2 } = await supabase.from('restaurant_profiles').select('*').limit(1);
-  console.log("restaurant_profiles:", d2, e2);
+  const { data, error } = await supabase.from('restaurants').select('*').limit(1);
+  console.log("restaurants data:", data);
 }
 run();

@@ -47,28 +47,15 @@ async function getRestaurantProfileWithCache(storeId: string): Promise<any | nul
 
   console.log(`[Cache Miss] Fetching profile from Supabase for store ${storeId}`);
   let profile: any = null;
-
   try {
     // 1. Try restaurant_profiles by id
     const { data: p1 } = await db.from('restaurant_profiles').select('*').eq('id', storeId).maybeSingle();
     if (p1) profile = p1;
 
-    // 2. Try restaurant_profiles by store_id
-    if (!profile) {
-      const { data: p2 } = await db.from('restaurant_profiles').select('*').eq('store_id', storeId).maybeSingle();
-      if (p2) profile = p2;
-    }
-
-    // 3. Try restaurants by id
+    // 2. Try restaurants by id
     if (!profile) {
       const { data: p3 } = await db.from('restaurants').select('*').eq('id', storeId).maybeSingle();
       if (p3) profile = p3;
-    }
-
-    // 4. Try restaurants by store_id
-    if (!profile) {
-      const { data: p4 } = await db.from('restaurants').select('*').eq('store_id', storeId).maybeSingle();
-      if (p4) profile = p4;
     }
   } catch (err) {
     console.error(`[WhatsApp Bot] Error fetching profile for store ${storeId}:`, err);
@@ -180,23 +167,10 @@ async function updateWhatsappDocInDb(storeId: string, data: any) {
     if (p1) {
       profile = p1;
     } else {
-      const { data: p2 } = await db.from('restaurant_profiles').select('settings').eq('store_id', storeId).maybeSingle();
-      if (p2) {
-        profile = p2;
-        queryField = 'store_id';
-      } else {
-        const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
-        if (p3) {
-          profile = p3;
-          tableName = 'restaurants';
-        } else {
-          const { data: p4 } = await db.from('restaurants').select('settings').eq('store_id', storeId).maybeSingle();
-          if (p4) {
-            profile = p4;
-            tableName = 'restaurants';
-            queryField = 'store_id';
-          }
-        }
+      const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
+      if (p3) {
+        profile = p3;
+        tableName = 'restaurants';
       }
     }
 
@@ -253,23 +227,10 @@ async function updateWhatsappCredsInDb(storeId: string, credsObj: any) {
     const { data: p1 } = await db.from('restaurant_profiles').select('settings').eq('id', storeId).maybeSingle();
     let settings = p1?.settings || {};
     if (!p1) {
-      const { data: p2 } = await db.from('restaurant_profiles').select('settings').eq('store_id', storeId).maybeSingle();
-      if (p2) {
-        settings = p2.settings || {};
-        queryField = 'store_id';
-      } else {
-        const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
-        if (p3) {
-          settings = p3.settings || {};
-          tableName = 'restaurants';
-        } else {
-          const { data: p4 } = await db.from('restaurants').select('settings').eq('store_id', storeId).maybeSingle();
-          if (p4) {
-            settings = p4.settings || {};
-            tableName = 'restaurants';
-            queryField = 'store_id';
-          }
-        }
+      const { data: p3 } = await db.from('restaurants').select('settings').eq('id', storeId).maybeSingle();
+      if (p3) {
+        settings = p3.settings || {};
+        tableName = 'restaurants';
       }
     }
 
@@ -302,10 +263,11 @@ async function restoreSavedSessions() {
 
     if (db) {
       try {
-        const { data: profiles } = await db.from('restaurant_profiles').select('id, store_id, settings');
+        const { data: profiles, error } = await db.from('restaurant_profiles').select('id, settings');
+        if (error) console.error("Error fetching profiles:", error);
         if (profiles) {
           for (const p of profiles) {
-            const storeId = p.id || p.store_id;
+            const storeId = p.id;
             const hasCreds = p.settings?.whatsapp_creds || p.whatsapp_connected || p.settings?.whatsappConnected || p.settings?.whatsappQr;
             if (storeId && hasCreds) {
               localStores.add(storeId);

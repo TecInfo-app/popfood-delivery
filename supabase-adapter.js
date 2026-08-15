@@ -1011,7 +1011,11 @@ export const getDoc = async (docRef) => {
         const suffix = docId.endsWith('_logo') ? 'logo' : docId.match(/_banner([0-2])/)?.[1];
         try {
             const realPath = await getRealTableName(docRef.path);
-            const { data } = await supabase.from(realPath).select('*').or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`).maybeSingle();
+            let filterStr = `id.eq.${baseStoreId}`;
+            if (realPath !== 'restaurants' && realPath !== 'restaurant_profiles') {
+                filterStr += `,store_id.eq.${baseStoreId}`;
+            }
+            const { data } = await supabase.from(realPath).select('*').or(filterStr).maybeSingle();
             if (data) {
                 const settings = data.settings || {};
                 let val = null;
@@ -1037,7 +1041,7 @@ export const getDoc = async (docRef) => {
         const docId = docRef.id;
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            queryBuilder = queryBuilder.or(`id.eq.${docId},store_id.eq.${docId}`);
+            queryBuilder = queryBuilder.eq('id', docId);
         } else if (checkIsUuidTable(realPath)) {
             const uuidId = getDeterministicUuid(docId);
             queryBuilder = queryBuilder.eq('id', uuidId);
@@ -1435,7 +1439,11 @@ export const setDoc = async (docRef, data, options = {}) => {
         const suffix = docId.endsWith('_logo') ? 'logo' : docId.match(/_banner([0-2])/)?.[1];
         try {
             const realPath = await getRealTableName(docRef.path);
-            const { data: existingData } = await supabase.from(realPath).select('*').or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`).maybeSingle();
+            let filterStr = `id.eq.${baseStoreId}`;
+            if (realPath !== 'restaurants' && realPath !== 'restaurant_profiles') {
+                filterStr += `,store_id.eq.${baseStoreId}`;
+            }
+            const { data: existingData } = await supabase.from(realPath).select('*').or(filterStr).maybeSingle();
             let settings = existingData?.settings || {};
             let updatePayload = {};
             if (suffix === 'logo') {
@@ -1450,7 +1458,11 @@ export const setDoc = async (docRef, data, options = {}) => {
                 updatePayload = { settings };
             }
             if (existingData) {
-                await supabase.from(realPath).update(updatePayload).or(`id.eq.${baseStoreId},store_id.eq.${baseStoreId}`);
+                let filterStr = `id.eq.${baseStoreId}`;
+                if (realPath !== 'restaurants' && realPath !== 'restaurant_profiles') {
+                    filterStr += `,store_id.eq.${baseStoreId}`;
+                }
+                await supabase.from(realPath).update(updatePayload).or(filterStr);
             } else {
                 await supabase.from(realPath).insert({ id: baseStoreId, store_id: baseStoreId, ...updatePayload });
             }
@@ -1499,7 +1511,7 @@ export const updateDoc = async (docRef, data) => {
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
             const serialized = serializeRow(docRef.path, realPath, data);
-            await supabase.from(realPath).update(serialized).or(`id.eq.${docRef.id},store_id.eq.${docRef.id}`);
+            await supabase.from(realPath).update(serialized).eq('id', docRef.id);
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
@@ -1522,7 +1534,7 @@ export const deleteDoc = async (docRef) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            await supabase.from(realPath).delete().or(`id.eq.${docRef.id},store_id.eq.${docRef.id}`);
+            await supabase.from(realPath).delete().eq('id', docRef.id);
         } else {
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
             await supabase.from(realPath).delete().eq('id', targetId);
