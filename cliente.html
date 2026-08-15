@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Cardápio - PopFood Delivery</title>
     <script type="importmap">
 {
@@ -156,14 +156,47 @@
         color: #895129 !important;
       }
 
-      /* Previne zoom automático indesejado no iOS/iPhone ao focar em inputs/selects e ao dar dois toques rápidos */
+      /* Previne zoom automático indesejado no iOS/iPhone e previne movimentação da tela de fundo */
       html, body {
         touch-action: manipulation;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        overscroll-behavior-x: none;
       }
+
+      /* Previne seleção acidental de texto na navegação mantendo em inputs */
+      body {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      input, select, textarea, [contenteditable="true"] {
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+      }
+
       @media screen and (max-width: 768px) {
         input, select, textarea, [contenteditable="true"] {
           font-size: 16px !important;
         }
+      }
+
+      /* Trava a tela de fundo completamente quando modais/gavetas estiverem abertas */
+      html.overflow-hidden,
+      body.overflow-hidden {
+        overflow: hidden !important;
+        height: 100vh !important;
+        touch-action: none !important;
+        overscroll-behavior: none !important;
+      }
+
+      /* Contenção de toque e rolagem de sobreposições/modais */
+      .fixed.inset-0 {
+        overscroll-behavior: contain;
+        touch-action: manipulation;
+        -webkit-overflow-scrolling: touch;
       }
     </style>
   </head>
@@ -313,20 +346,9 @@
         id="category-selector-section"
         class="mb-3 sticky top-[72px] bg-brand-light/95 z-30 backdrop-blur-sm transition-all duration-200 py-2 border-b border-stone-200/60"
       >
-        <div class="flex items-center gap-3 px-4">
-          <!-- Sidebar drawer button -->
-          <button
-            onclick="toggleCategoryDrawer(true)"
-            class="flex items-center justify-center text-stone-700 hover:bg-stone-200/50 p-2 rounded-xl cursor-pointer transition-colors w-11 h-11 shrink-0 border border-stone-200 bg-white shadow-2xs"
-            title="Ver Todas"
-          >
-            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-          
+        <div class="px-4">
           <!-- Category Circles Carrousel -->
-          <div id="category-circles-container" class="flex-grow flex items-center gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-1 select-none">
+          <div id="category-circles-container" class="w-full flex items-center gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-1 select-none">
             <!-- Dynamically populated circles with photos -->
           </div>
         </div>
@@ -2047,6 +2069,52 @@
         onSnapshot,
         where,
       } from './supabase-adapter.js';
+
+      // Block pinch-to-zoom gestures on mobile browsers (iOS Safari / WebViews)
+      document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+      document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
+      document.addEventListener("gestureend", function (e) { e.preventDefault(); }, { passive: false });
+
+      // Synchronize modal scroll lock across all overlays
+      window.syncModalScrollLock = function () {
+        setTimeout(() => {
+          const activeModals = document.querySelectorAll(".fixed.inset-0:not(.hidden)");
+          if (activeModals.length > 0) {
+            document.body.classList.add("overflow-hidden");
+            document.documentElement.classList.add("overflow-hidden");
+          } else {
+            document.body.classList.remove("overflow-hidden");
+            document.documentElement.classList.remove("overflow-hidden");
+          }
+        }, 30);
+      };
+
+      // Prevent background touch scrolling when touching modal backdrops
+      document.addEventListener("touchmove", function (e) {
+        if (document.body.classList.contains("overflow-hidden")) {
+          const scrollable = e.target.closest(".overflow-y-auto, .overflow-auto, .overflow-x-auto");
+          if (!scrollable) {
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
+
+      // Automatically observe all fixed modal overlays to lock/unlock scroll
+      function initModalObserver() {
+        window.syncModalScrollLock();
+        const observer = new MutationObserver(function () {
+          window.syncModalScrollLock();
+        });
+        document.querySelectorAll(".fixed.inset-0").forEach(function (modal) {
+          observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initModalObserver);
+      } else {
+        initModalObserver();
+      }
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready
