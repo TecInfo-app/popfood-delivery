@@ -228,7 +228,7 @@ const tableColumns = {
         'minimumOrderPrice', 'abacatePayToken', 'mpAccessToken', 'mpPublicKey', 
         'stripePublicKey', 'stripeSecretKey', 'latitude', 'longitude', 'deliveryRates', 
         'loyaltyActive', 'loyaltyMinOrders', 'loyaltyType', 'loyaltyValue', 'createdAt', 'updatedAt',
-        'status', 'settings', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
+        'status', 'merchantTokens', 'whatsappBotEnabled', 'active', 'isSuperAdmin', 'adminEmail', 'adminPassword'
     ],
     restaurant_profiles: [
         'id', 'name', 'description', 'logo_url', 'cover_url', 'phone', 'address', 'status', 'settings', 'merchant_tokens', 'created_at'
@@ -607,6 +607,10 @@ function serializeRow(path, realPath, payload, existingSettings = {}) {
                     if (validCols.includes('logo_url')) serialized['logo_url'] = payload[key];
                 } else if (key === 'cover') {
                     if (validCols.includes('cover_url')) serialized['cover_url'] = payload[key];
+                } else if (key === 'banner') {
+                    if (validCols.includes('logo')) serialized['logo'] = payload[key];
+                } else if (key === 'linkUrl' || key === 'link_url') {
+                    if (validCols.includes('description')) serialized['description'] = payload[key];
                 } else {
                     settings[key] = payload[key];
                 }
@@ -788,6 +792,10 @@ function deserializeRow(path, row) {
         }
         if (row.cover_url && !deserialized.cover) {
             deserialized.cover = row.cover_url;
+        }
+        if (row.id && String(row.id).includes('_banner')) {
+            deserialized.banner = row.logo || deserialized.banner || null;
+            deserialized.linkUrl = row.description || deserialized.linkUrl || '';
         }
     }
 
@@ -1003,12 +1011,7 @@ export const getDoc = async (docRef) => {
         const docId = docRef.id;
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docId);
-            if (isUuid || realPath === 'restaurant_profiles') {
-                queryBuilder = queryBuilder.eq('id', docId);
-            } else {
-                queryBuilder = queryBuilder.eq('storeId', docId);
-            }
+            queryBuilder = queryBuilder.or(`id.eq.${docId},storeId.eq.${docId}`);
         } else if (checkIsUuidTable(realPath)) {
             const uuidId = getDeterministicUuid(docId);
             queryBuilder = queryBuilder.eq('id', uuidId);
@@ -1401,43 +1404,9 @@ export const setDoc = async (docRef, data, options = {}) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
-            let existingUuid = null;
-            if (isUuid || realPath === 'restaurant_profiles') {
-                existingUuid = docRef.id;
-            } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
-                if (found) {
-                    existingUuid = found.id;
-                }
-            }
-
-            let existingSettings = {};
-            try {
-                const targetId = existingUuid || docRef.id;
-                const { data: foundRow } = await supabase.from(realPath).select('settings').eq('id', targetId).maybeSingle();
-                if (foundRow && foundRow.settings) {
-                    existingSettings = typeof foundRow.settings === 'string'
-                        ? JSON.parse(foundRow.settings)
-                        : foundRow.settings;
-                }
-            } catch (e) {
-                console.warn("Could not load existing settings for setDoc:", e);
-            }
-
-            const serialized = serializeRow(docRef.path, realPath, payload, existingSettings);
-            if (!isUuid && realPath !== 'restaurant_profiles') {
-                serialized.storeId = docRef.id;
-            }
-            if (existingUuid) {
-                serialized.id = existingUuid;
-                await supabase.from(realPath).update(serialized).eq('id', existingUuid);
-            } else {
-                if (!isUuid && realPath !== 'restaurant_profiles') {
-                    delete serialized.id;
-                }
-                await supabase.from(realPath).insert(serialized);
-            }
+            const serialized = serializeRow(docRef.path, realPath, payload);
+            serialized.id = docRef.id;
+            await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
         } else {
             const serialized = serializeRow(docRef.path, realPath, payload);
             if (checkIsUuidTable(realPath)) {
@@ -1468,34 +1437,8 @@ export const updateDoc = async (docRef, data) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
-            let targetUuid = null;
-            if (isUuid || realPath === 'restaurant_profiles') {
-                targetUuid = docRef.id;
-            } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
-                if (found) {
-                    targetUuid = found.id;
-                }
-            }
-
-            let existingSettings = {};
-            try {
-                const targetId = targetUuid || docRef.id;
-                const { data: foundRow } = await supabase.from(realPath).select('settings').eq('id', targetId).maybeSingle();
-                if (foundRow && foundRow.settings) {
-                    existingSettings = typeof foundRow.settings === 'string'
-                        ? JSON.parse(foundRow.settings)
-                        : foundRow.settings;
-                }
-            } catch (e) {
-                console.warn("Could not load existing settings for updateDoc:", e);
-            }
-
-            if (targetUuid) {
-                const serialized = serializeRow(docRef.path, realPath, data, existingSettings);
-                await supabase.from(realPath).update(serialized).eq('id', targetUuid);
-            }
+            const serialized = serializeRow(docRef.path, realPath, data);
+            await supabase.from(realPath).update(serialized).or(`id.eq.${docRef.id},storeId.eq.${docRef.id}`);
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
@@ -1518,19 +1461,7 @@ export const deleteDoc = async (docRef) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(docRef.id);
-            let targetUuid = null;
-            if (isUuid) {
-                targetUuid = docRef.id;
-            } else {
-                const { data: found } = await supabase.from(realPath).select('id').eq('storeId', docRef.id).maybeSingle();
-                if (found) {
-                    targetUuid = found.id;
-                }
-            }
-            if (targetUuid) {
-                await supabase.from(realPath).delete().eq('id', targetUuid);
-            }
+            await supabase.from(realPath).delete().or(`id.eq.${docRef.id},storeId.eq.${docRef.id}`);
         } else {
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
             await supabase.from(realPath).delete().eq('id', targetId);
