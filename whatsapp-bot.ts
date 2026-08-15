@@ -479,28 +479,35 @@ async function startWhatsappSession(storeId) {
   });
 
   sock.ev.on('messages.upsert', async (m) => {
-    if (m.type !== 'notify') return;
+    console.log(`[WhatsApp Bot] messages.upsert received for store ${storeId}, type:`, m.type, 'count:', m.messages?.length);
     for (const msg of (m.messages || [])) {
       try {
         if (!msg.message || msg.key.fromMe) continue;
         const senderId = msg.key.remoteJid || '';
         const participantId = msg.key.participant || (msg as any).participant || (msg.key as any).participantAlt || (msg.key as any).remoteJidAlt || '';
         
+        let innerMsg = msg.message;
+        if (innerMsg?.ephemeralMessage?.message) innerMsg = innerMsg.ephemeralMessage.message;
+        if (innerMsg?.viewOnceMessage?.message) innerMsg = innerMsg.viewOnceMessage.message;
+        if (innerMsg?.viewOnceMessageV2?.message) innerMsg = innerMsg.viewOnceMessageV2.message;
+        if (innerMsg?.documentWithCaptionMessage?.message) innerMsg = innerMsg.documentWithCaptionMessage.message;
+
         const text = 
-          msg.message.conversation ||
-          msg.message.extendedTextMessage?.text ||
-          msg.message.imageMessage?.caption ||
-          msg.message.videoMessage?.caption ||
-          msg.message.documentMessage?.caption ||
-          msg.message.buttonsResponseMessage?.selectedButtonId ||
-          msg.message.buttonsResponseMessage?.selectedDisplayText ||
-          msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
-          msg.message.listResponseMessage?.title ||
-          msg.message.templateButtonReplyMessage?.selectedId ||
-          msg.message.templateButtonReplyMessage?.selectedDisplayText ||
-          msg.message.interactiveResponseMessage?.body?.text ||
+          innerMsg?.conversation ||
+          innerMsg?.extendedTextMessage?.text ||
+          innerMsg?.imageMessage?.caption ||
+          innerMsg?.videoMessage?.caption ||
+          innerMsg?.documentMessage?.caption ||
+          innerMsg?.buttonsResponseMessage?.selectedButtonId ||
+          innerMsg?.buttonsResponseMessage?.selectedDisplayText ||
+          innerMsg?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+          innerMsg?.listResponseMessage?.title ||
+          innerMsg?.templateButtonReplyMessage?.selectedId ||
+          innerMsg?.templateButtonReplyMessage?.selectedDisplayText ||
+          innerMsg?.interactiveResponseMessage?.body?.text ||
           '';
 
+        console.log(`[WhatsApp Bot] Incoming message from ${senderId}: "${text}"`);
         await handleIncomingMessage(storeId, sock, senderId, text.trim(), participantId, msg);
       } catch (msgErr) {
         console.error(`[WhatsApp Bot] Error processing incoming message for ${storeId}:`, msgErr);
