@@ -478,10 +478,19 @@ async function startWhatsappSession(storeId) {
     });
   });
 
+  try {
+    sock.ev.on('*' as any, (event: string, data: any) => {
+      if (event !== 'connection.update' && event !== 'creds.update') {
+        console.log(`[WhatsApp Event ${storeId}] ${event}`);
+      }
+    });
+  } catch (e) {}
+
   sock.ev.on('messages.upsert', async (m) => {
     console.log(`[WhatsApp Bot] messages.upsert received for store ${storeId}, type:`, m.type, 'count:', m.messages?.length);
     for (const msg of (m.messages || [])) {
       try {
+        console.log(`[WhatsApp Bot] Raw message object from ${msg.key.remoteJid}:`, JSON.stringify({ fromMe: msg.key.fromMe, hasMessage: !!msg.message, type: msg.message ? Object.keys(msg.message) : [] }));
         if (!msg.message || msg.key.fromMe) continue;
         const senderId = msg.key.remoteJid || '';
         const participantId = msg.key.participant || (msg as any).participant || (msg.key as any).participantAlt || (msg.key as any).remoteJidAlt || '';
