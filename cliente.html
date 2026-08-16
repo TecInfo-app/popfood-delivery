@@ -3809,6 +3809,28 @@
           ];
           const bannerVals = [null, null, null];
 
+          bannerDocs.forEach((bDoc, idx) => {
+            onSnapshot(
+              doc(db, COLLECTIONS.restaurantProfile, bDoc),
+              (snap) => {
+                if (snap.exists()) {
+                  const bData = snap.data();
+                  if (bData && (bData.banner || bData.logo)) {
+                    bannerVals[idx] = { banner: bData.banner || bData.logo, linkUrl: bData.linkUrl || "" };
+                  } else {
+                    bannerVals[idx] = null;
+                  }
+                } else {
+                  bannerVals[idx] = null;
+                }
+                renderBannersCarousel();
+              },
+              (err) => {
+                console.error("Error syncing banner " + idx, err);
+              }
+            );
+          });
+
           function renderBannersCarousel() {
             const bannersDiv = document.getElementById("banners-container");
             if (!bannersDiv) return;

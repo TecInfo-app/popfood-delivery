@@ -1544,6 +1544,7 @@ window.copyStoreLink = function() {
         loadPromotionalCouponsList();
         // Fetch Campaign History
         loadNotificationCampaigns();
+        if (typeof window.setupAutoSaveListeners === "function") window.setupAutoSaveListeners();
       });
 
       document.getElementById('profile-meta-form').onsubmit = saveRestaurantProfileDetails;
@@ -2086,11 +2087,19 @@ window.copyStoreLink = function() {
           bannerSnaps.forEach((bSnap) => {
             if (bSnap.exists()) {
               const bData = bSnap.data();
-              if (bData && bData.banner) {
-                bannersList.push({ banner: bData.banner, linkUrl: bData.linkUrl || "" });
+              if (bData && (bData.banner || bData.logo)) {
+                bannersList.push({ banner: bData.banner || bData.logo, linkUrl: bData.linkUrl || "" });
               }
             }
           });
+
+          if (bannersList.length === 0 && profileData && profileData.banners && Array.isArray(profileData.banners)) {
+            bannersList = profileData.banners.map(item => {
+              if (typeof item === 'string') return { banner: item, linkUrl: "" };
+              return { banner: item.banner || item.image || "", linkUrl: item.linkUrl || "" };
+            }).filter(item => item.banner);
+          }
+
           renderStoreBannersList();
         } catch (bannersErr) {
           console.error("Error loading banners:", bannersErr);
@@ -2148,7 +2157,13 @@ window.copyStoreLink = function() {
           await setDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId + "_logo"), {
             logo: base64
           }, { merge: true });
-          alert("Logomarca updated!");
+          try {
+            await updateDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+              logo: base64,
+              logoUrl: base64
+            });
+          } catch(e) {}
+          alert("Logomarca atualizada com sucesso!");
         } catch (err) {
           (document.getElementById('logo-preview-img') || {}).src = oldSrc;
           if (oldHidden) {
@@ -2222,18 +2237,24 @@ window.copyStoreLink = function() {
 
     // Helper to rewrite and save all banners consecutively (banner0, banner1, banner2)
     async function saveAllBannersToDb() {
+      const bannersArr = [];
       for (let i = 0; i < 3; i++) {
         const docRef = doc(db, COLLECTIONS.restaurantProfile, `${window.currentStoreId}_banner${i}`);
         if (i < bannersList.length) {
           let item = bannersList[i];
-          if (typeof item === 'string') {
-            await setDoc(docRef, { banner: item, linkUrl: "" });
-          } else {
-            await setDoc(docRef, { banner: item.banner, linkUrl: item.linkUrl || "" });
-          }
+          let itemObj = typeof item === 'string' ? { banner: item, linkUrl: "" } : { banner: item.banner, linkUrl: item.linkUrl || "" };
+          bannersArr.push(itemObj);
+          await setDoc(docRef, itemObj);
         } else {
           await deleteDoc(docRef);
         }
+      }
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), {
+          banners: bannersArr
+        });
+      } catch (e) {
+        console.warn("Could not sync banners array to main profile:", e);
       }
     }
 
@@ -2485,6 +2506,191 @@ window.copyStoreLink = function() {
           alert("❌ Coordenadas não localizadas! Sugestão: remova o nome do bairro (Alberto Maia) e certifique-se que o número da casa está separado por vírgula.");
         }
       }
+    };
+
+    
+    let autoSaveTimeout = null;
+    let autoSaveListenersInitialized = false;
+
+    function showAutoSaveStatus(status) {
+      let badge = document.getElementById('autosave-status-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'autosave-status-badge';
+        badge.className = 'fixed bottom-5 right-5 z-[9999] px-3.5 py-2 rounded-xl text-xs font-bold shadow-xl transition-all duration-300 flex items-center gap-2 pointer-events-none opacity-0 translate-y-3';
+        document.body.appendChild(badge);
+      }
+      
+      if (status === 'saving') {
+        badge.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span><span class="bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 shadow-md flex items-center gap-1.5">💾 Salvando automaticamente...</span>`;
+        badge.classList.remove('opacity-0', 'translate-y-3');
+        badge.classList.add('opacity-100', 'translate-y-0');
+      } else if (status === 'saved') {
+        badge.innerHTML = `<span class="bg-emerald-600 text-white px-3.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 font-bold">✓ Alterações salvas no banco</span>`;
+        badge.classList.remove('opacity-0', 'translate-y-3');
+        badge.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+          badge.classList.remove('opacity-100', 'translate-y-0');
+          badge.classList.add('opacity-0', 'translate-y-3');
+        }, 2200);
+      } else if (status === 'error') {
+        badge.innerHTML = `<span class="bg-red-600 text-white px-3.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5">❌ Falha ao salvar</span>`;
+        badge.classList.remove('opacity-0', 'translate-y-3');
+        badge.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+          badge.classList.remove('opacity-100', 'translate-y-0');
+          badge.classList.add('opacity-0', 'translate-y-3');
+        }, 3000);
+      }
+    }
+
+    window.autoSaveRestaurantProfile = async function() {
+      if (!window.currentStoreId) return;
+      showAutoSaveStatus('saving');
+
+      const name = (document.getElementById('store-name') || {}).value?.trim() || '';
+      const desc = (document.getElementById('store-desc') || {}).value?.trim() || '';
+      const phone = (document.getElementById('store-phone') || {}).value?.trim() || '';
+      const cep = (document.getElementById('store-cep') || {}).value?.trim()?.replace(/\D/g, '') || '';
+      const address = (document.getElementById('store-address') || {}).value?.trim() || '';
+      const minOrderValue = parseFloat((document.getElementById('store-min-order-value') || {}).value) || 0;
+      const inviteCode = ((document.getElementById('store-invite-code') || {}).value || '').trim().toUpperCase() || 'CIA2026';
+      const open = (document.getElementById('store-open') || {}).value || '';
+      const close = (document.getElementById('store-close') || {}).value || '';
+
+      const opDaysCheckboxes = document.querySelectorAll('input[name="op-day"]');
+      const opDays = [];
+      opDaysCheckboxes.forEach(cb => {
+        if (cb.checked) opDays.push(parseInt(cb.value));
+      });
+
+      const paymentMethods = {
+        offlinePix: !!(document.getElementById('pay-offline-pix') || {}).checked,
+        offlineCard: !!(document.getElementById('pay-offline-card') || {}).checked,
+        offlineMoney: !!(document.getElementById('pay-offline-money') || {}).checked,
+        onlinePix: !!(document.getElementById('pay-online-pix') || {}).checked,
+        onlineCard: !!(document.getElementById('pay-online-card') || {}).checked
+      };
+
+      const onlineGateway = (document.getElementById('online-gateway') || {}).value || 'abacatepay';
+      const abacatePayToken = ((document.getElementById('abacatepay-token') || {}).value || '').trim();
+      const asaasApiKey = ((document.getElementById('asaas-api-key') || {}).value || '').trim();
+      const asaasEnv = (document.getElementById('asaas-env') || {}).value || 'production';
+
+      const destaquesAtivo = !!(document.getElementById('profile-destaques-ativo') || {}).checked;
+      const destaquesTipoElem = document.querySelector('input[name="profile-destaques-tipo"]:checked');
+      const destaquesTipo = destaquesTipoElem ? destaquesTipoElem.value : 'mais_pedidos';
+      const mostrarIndisponiveis = !!(document.getElementById('profile-mostrar-indisponiveis') || {}).checked;
+
+      const loyaltyActive = !!(document.getElementById('loyalty-active') || {}).checked;
+      const loyaltyType = (document.getElementById('loyalty-type') || {}).value || 'percentual';
+      const loyaltyValue = parseFloat((document.getElementById('loyalty-value') || {}).value) || 0;
+      let loyaltyMinOrders = parseInt((document.getElementById('loyalty-min-orders') || {}).value) || 3;
+      if (isNaN(loyaltyMinOrders) || loyaltyMinOrders < 1) loyaltyMinOrders = 3;
+
+      const billingDay = parseInt((document.getElementById('store-billing-day') || {}).value, 10) || null;
+
+      const rates = {};
+      const times = {};
+      for (let km = 1; km <= 10; km++) {
+        const rInput = document.getElementById(`rate-km-${km}`);
+        const tInput = document.getElementById(`time-km-${km}`);
+        if (rInput) rates[km] = parseFloat(rInput.value || 0);
+        if (tInput) times[km] = parseInt(tInput.value || 0);
+      }
+
+      const whatsappBotPaused = !(document.getElementById('whatsapp-bot-active') || {}).checked;
+      const whatsappBackendUrl = ((document.getElementById('whatsapp-backend-url') || {}).value || '').trim();
+      const whatsappLinkUrl = ((document.getElementById('whatsapp-link-url') || {}).value || '').trim();
+      const whatsappWelcome = ((document.getElementById('whatsapp-welcome-msg') || {}).value || '').trim();
+      const whatsappHours = ((document.getElementById('whatsapp-hours-msg') || {}).value || '').trim();
+      const whatsappOrder = ((document.getElementById('whatsapp-order-msg') || {}).value || '').trim();
+      const whatsappStatus = ((document.getElementById('whatsapp-status-msg') || {}).value || '').trim();
+
+      const profileObj = {
+        id: window.currentStoreId,
+        storeId: window.currentStoreId,
+        name,
+        description: desc,
+        phone,
+        cep,
+        address,
+        minOrderValue,
+        inviteCode,
+        openTime: open,
+        closeTime: close,
+        operatingDays: opDays,
+        onlineGateway,
+        abacatePayToken,
+        asaasApiKey,
+        asaasEnv,
+        paymentMethods,
+        destaquesAtivo,
+        destaquesTipo,
+        mostrarIndisponiveis,
+        deliveryRates: rates,
+        deliveryTimes: times,
+        loyaltyActive,
+        loyaltyType,
+        loyaltyValue,
+        loyaltyMinOrders,
+        billingDay,
+        latitude: typeof currentStoreLatitude !== 'undefined' ? currentStoreLatitude : null,
+        longitude: typeof currentStoreLongitude !== 'undefined' ? currentStoreLongitude : null,
+        whatsappBotPaused,
+        whatsappBackendUrl,
+        whatsappLinkUrl,
+        whatsappWelcome,
+        whatsappHours,
+        whatsappOrder,
+        whatsappStatus,
+        show: true
+      };
+
+      try {
+        await updateDoc(doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId), profileObj);
+        showAutoSaveStatus('saved');
+      } catch (err) {
+        console.error("Auto-save error:", err);
+        showAutoSaveStatus('error');
+      }
+    };
+
+    window.triggerDebouncedAutoSave = function(delay = 800) {
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(() => {
+        window.autoSaveRestaurantProfile();
+      }, delay);
+    };
+
+    window.setupAutoSaveListeners = function() {
+      if (autoSaveListenersInitialized) return;
+      autoSaveListenersInitialized = true;
+
+      const containerIds = [
+        'profile-meta-form',
+        'profile-payments-form',
+        'tab-cardapio',
+        'tab-taxas',
+        'tab-fidelidade',
+        'tab-assinatura',
+        'tab-whatsapp'
+      ];
+
+      containerIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        el.addEventListener('input', (e) => {
+          if (e.target.closest('#coupon-modal-form') || e.target.closest('#notification-modal-form')) return;
+          window.triggerDebouncedAutoSave(800);
+        });
+
+        el.addEventListener('change', (e) => {
+          if (e.target.closest('#coupon-modal-form') || e.target.closest('#notification-modal-form')) return;
+          window.triggerDebouncedAutoSave(200);
+        });
+      });
     };
 
     // Save profile meta properties

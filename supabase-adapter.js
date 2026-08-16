@@ -1027,9 +1027,17 @@ export const getDoc = async (docRef) => {
                     val = data.banners?.[idx] || settings.banners?.[idx] || data[`banner${idx}`];
                 }
                 if (val) {
+                    const bannerImg = typeof val === 'object' && val ? (val.banner || val.image || val) : val;
+                    const linkUrl = typeof val === 'object' && val ? (val.linkUrl || val.link || '') : '';
                     return {
                         exists: () => true,
-                        data: () => ({ [suffix === 'logo' ? 'logo' : `banner${suffix}`]: val, id: docId }),
+                        data: () => ({
+                            banner: bannerImg,
+                            linkUrl: linkUrl,
+                            logo: bannerImg,
+                            [`banner${suffix}`]: val,
+                            id: docId
+                        }),
                         id: docId
                     };
                 }
