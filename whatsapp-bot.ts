@@ -935,7 +935,14 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
     const closeTime = profile.closeTime || '--:--';
     
     const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-    const operatingDays = (profile.operatingDays || [])
+    let rawOpDays = profile.operatingDays;
+    if (typeof rawOpDays === 'string') {
+      try { rawOpDays = JSON.parse(rawOpDays); } catch (e) { rawOpDays = [0,1,2,3,4,5,6]; }
+    }
+    if (!Array.isArray(rawOpDays) || rawOpDays.length === 0) {
+      rawOpDays = [0,1,2,3,4,5,6];
+    }
+    const operatingDays = rawOpDays
       .map((d: any) => typeof d === 'number' ? (dayNames[d] || d) : d)
       .join(', ');
 
@@ -1124,10 +1131,19 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
 
     let reply = "🎫 *Cupons de Desconto Ativos:*\n\n";
     activeCoupons.forEach(c => {
-      reply += `🏷️ *CÓDIGO: ${c.code}*\n`;
-      const desc = c.type === 'percentual' ? `${c.value}% de desconto` : `R$ ${Number(c.value).toFixed(2).replace('.', ',')} de desconto`;
+      const code = c.code || c.id || 'CUPOM';
+      const cType = c.type || c.discountType || c.discount_type || 'percentual';
+      const rawVal = c.value !== undefined ? c.value : (c.discountValue !== undefined ? c.discountValue : (c.discount_value !== undefined ? c.discount_value : 0));
+      const numVal = parseFloat(rawVal) || 0;
+      
+      reply += `🏷️ *CÓDIGO: ${code}*\n`;
+      const desc = cType === 'percentual' ? `${numVal}% de desconto` : `R$ ${numVal.toFixed(2).replace('.', ',')} de desconto`;
       reply += `🎁 ${desc}\n`;
-      if (c.minValue) reply += `⚠️ Pedido mínimo: R$ ${Number(c.minValue).toFixed(2).replace('.', ',')}\n`;
+      
+      const minVal = c.minValue !== undefined ? c.minValue : (c.min_value !== undefined ? c.min_value : c.minOrderValue);
+      if (minVal && parseFloat(minVal) > 0) {
+        reply += `⚠️ Pedido mínimo: R$ ${parseFloat(minVal).toFixed(2).replace('.', ',')}\n`;
+      }
       if (c.firstOrderOnly) reply += `✨ Válido apenas para o primeiro pedido\n`;
       reply += `\n`;
     });
@@ -1139,7 +1155,8 @@ async function handleIncomingMessage(storeId: string, sock: any, senderId: strin
 
   // 6. Programa Fidelidade
   if (lowerText === '6' || lowerText.includes('fidelidade') || lowerText.includes('programa fidelidade') || lowerText.includes('pontos')) {
-    if (!profile.loyaltyActive) {
+    const isLoyaltyActive = profile.loyaltyActive === true || profile.loyaltyActive === 'true' || profile.loyaltyActive === 1;
+    if (!isLoyaltyActive) {
       await sock.sendMessage(senderId, { text: "🏆 *Programa Fidelidade*\n\nNosso programa de fidelidade não está ativo no momento. Continue acompanhando nossas novidades!" });
       return;
     }
