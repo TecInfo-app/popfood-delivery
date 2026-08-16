@@ -32,7 +32,7 @@ const profileCache = new Map<string, CachedProfile>();
 const couponsCache = new Map<string, CachedCoupons>();
 const ordersCache = new Map<string, CachedOrders>();
 
-const PROFILE_CACHE_TTL_MS = 60000; // 1 minute
+const PROFILE_CACHE_TTL_MS = 5000; // 1 minute
 const COUPONS_CACHE_TTL_MS = 300000; // 5 minutes
 const ORDERS_CACHE_TTL_MS = 15000; // 15 seconds
 
@@ -46,27 +46,49 @@ async function getRestaurantProfileWithCache(storeId: string): Promise<any | nul
   }
 
   console.log(`[Cache Miss] Fetching profile from Supabase for store ${storeId}`);
-  let profile: any = null;
+  let rawRow: any = null;
   try {
     // 1. Try restaurant_profiles by id
     const { data: p1 } = await db.from('restaurant_profiles').select('*').eq('id', storeId).maybeSingle();
-    if (p1) profile = p1;
+    if (p1) rawRow = p1;
 
     // 2. Try restaurants by id
-    if (!profile) {
+    if (!rawRow) {
       const { data: p3 } = await db.from('restaurants').select('*').eq('id', storeId).maybeSingle();
-      if (p3) profile = p3;
+      if (p3) rawRow = p3;
     }
   } catch (err) {
     console.error(`[WhatsApp Bot] Error fetching profile for store ${storeId}:`, err);
   }
 
-  if (!profile) return null;
+  if (!rawRow) return null;
+
+  const settings = (typeof rawRow.settings === 'object' && rawRow.settings) ? rawRow.settings : {};
+
+  const profile = {
+    ...settings,
+    ...rawRow,
+    name: rawRow.name || settings.name || 'Nosso Restaurante',
+    description: rawRow.description || settings.description || '',
+    phone: rawRow.phone || settings.phone || '',
+    openTime: rawRow.openTime || settings.openTime || rawRow.open_time || settings.open_time || '--:--',
+    closeTime: rawRow.closeTime || settings.closeTime || rawRow.close_time || settings.close_time || '--:--',
+    operatingDays: rawRow.operatingDays !== undefined ? rawRow.operatingDays : (settings.operatingDays !== undefined ? settings.operatingDays : (rawRow.operating_days !== undefined ? rawRow.operating_days : [0,1,2,3,4,5,6])),
+    loyaltyActive: rawRow.loyaltyActive !== undefined ? rawRow.loyaltyActive : (settings.loyaltyActive !== undefined ? settings.loyaltyActive : (rawRow.loyalty_active !== undefined ? rawRow.loyalty_active : false)),
+    loyaltyType: rawRow.loyaltyType || settings.loyaltyType || rawRow.loyalty_type || 'percentual',
+    loyaltyValue: rawRow.loyaltyValue !== undefined ? rawRow.loyaltyValue : (settings.loyaltyValue !== undefined ? settings.loyaltyValue : (rawRow.loyalty_value !== undefined ? rawRow.loyalty_value : 0)),
+    loyaltyMinOrders: rawRow.loyaltyMinOrders !== undefined ? rawRow.loyaltyMinOrders : (settings.loyaltyMinOrders !== undefined ? settings.loyaltyMinOrders : (rawRow.loyalty_min_orders !== undefined ? rawRow.loyalty_min_orders : 3)),
+    whatsappHours: rawRow.whatsappHours || settings.whatsappHours,
+    whatsappWelcome: rawRow.whatsappWelcome || settings.whatsappWelcome,
+    whatsappOrder: rawRow.whatsappOrder || settings.whatsappOrder,
+    whatsappBotPaused: rawRow.whatsappBotPaused !== undefined ? rawRow.whatsappBotPaused : settings.whatsappBotPaused,
+  };
 
   profileCache.set(storeId, {
     profile,
     fetchedAt: now
   });
+
   return profile;
 }
 
