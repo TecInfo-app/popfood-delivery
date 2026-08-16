@@ -3947,28 +3947,6 @@
               startTimer();
             }
           }
-
-          bannerDocs.forEach((docId, index) => {
-            onSnapshot(
-              doc(db, COLLECTIONS.restaurantProfile, docId),
-              (bSnap) => {
-                if (bSnap.exists()) {
-                  const data = bSnap.data();
-                  if (data && data.banner) {
-                    bannerVals[index] = { banner: data.banner, linkUrl: data.linkUrl || "" };
-                  } else {
-                    bannerVals[index] = null;
-                  }
-                } else {
-                  bannerVals[index] = null;
-                }
-                renderBannersCarousel();
-              },
-              (bErr) => {
-                console.error(`Error loading banner${index}:`, bErr);
-              },
-            );
-          });
         } catch (err) {
           console.error("Error setting up profile sync: ", err);
         }

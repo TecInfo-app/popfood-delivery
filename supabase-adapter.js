@@ -1490,11 +1490,15 @@ export const setDoc = async (docRef, data, options = {}) => {
         const realPath = await getRealTableName(docRef.path);
         
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const { data: existingData } = await supabase.from(realPath).select('settings').eq('id', docRef.id).maybeSingle();
+            const { data: existingData } = await supabase.from(realPath).select('*').eq('id', docRef.id).maybeSingle();
             const existingSettings = existingData?.settings || {};
             const serialized = serializeRow(docRef.path, realPath, payload, existingSettings);
-            serialized.id = docRef.id;
-            await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
+            if (existingData) {
+                await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+            } else {
+                serialized.id = docRef.id;
+                await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
+            }
         } else {
             const serialized = serializeRow(docRef.path, realPath, payload);
             if (checkIsUuidTable(realPath)) {
@@ -1539,7 +1543,7 @@ export const updateDoc = async (docRef, data) => {
             } catch(e) {}
         }
         if (realPath === 'restaurants' || realPath === 'restaurant_profiles') {
-            const { data: existingData } = await supabase.from(realPath).select('settings').eq('id', docRef.id).maybeSingle();
+            const { data: existingData } = await supabase.from(realPath).select('*').eq('id', docRef.id).maybeSingle();
             const existingSettings = existingData?.settings || {};
             const serialized = serializeRow(docRef.path, realPath, data, existingSettings);
             await supabase.from(realPath).update(serialized).eq('id', docRef.id);
