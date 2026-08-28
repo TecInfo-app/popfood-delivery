@@ -664,7 +664,8 @@
   </div>
 
   <script type="module">
-    import { db, auth, Timestamp, COLLECTIONS, collection, query, where, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from './supabase-adapter.js';
+    import { db, auth, Timestamp, COLLECTIONS, collection, query, where,
+        uploadImageToStorage, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from './supabase-adapter.js';
 
     window.currentStoreId = null;
 
@@ -1503,13 +1504,12 @@ storeId: window.currentStoreId
         try {
           let base64;
           if (window.optimizeAndConvertToBase64) {
-            base64 = await window.optimizeAndConvertToBase64(file, 950);
+            let b64 = await window.optimizeAndConvertToBase64(file, 950);
+            const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
+            blob.name = file.name || 'image.jpg';
+            base64 = await uploadImageToStorage(blob, 'categories');
           } else {
-            const reader = new FileReader();
-            base64 = await new Promise((resolve) => {
-              reader.onload = (ev) => resolve(ev.target.result);
-              reader.readAsDataURL(file);
-            });
+            base64 = await uploadImageToStorage(file, 'categories');
           }
           
           const profileDocRef = doc(db, COLLECTIONS.restaurantProfile, window.currentStoreId);
@@ -1772,20 +1772,12 @@ storeId: window.currentStoreId
 
       try {
         if (window.optimizeAndConvertToBase64) {
-          imageBase64Data = await window.optimizeAndConvertToBase64(file, 950);
+          let b64 = await window.optimizeAndConvertToBase64(file, 950);
+          const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
+          blob.name = file.name || 'image.jpg';
+          imageBase64Data = await uploadImageToStorage(blob, 'products');
         } else {
-          // Fallback if not loaded
-          if (file.size > 950 * 1024) {
-            alert("🔒 Atenção: O arquivo da imagem excede os limites de segurança da plataforma: Máximo 950KB compatível com banco de dados!");
-            fileInput.value = '';
-            return;
-          }
-          imageBase64Data = await new Promise((resolve, reject) => {
-             const reader = new FileReader();
-             reader.onload = () => resolve(reader.result);
-             reader.onerror = reject;
-             reader.readAsDataURL(file);
-          });
+          imageBase64Data = await uploadImageToStorage(file, 'products');
         }
         preview.src = imageBase64Data;
         preview.classList.remove('hidden');
@@ -2535,19 +2527,12 @@ storeId: window.currentStoreId
       try {
         let base64;
         if (window.optimizeAndConvertToBase64) {
-          base64 = await window.optimizeAndConvertToBase64(file, 950);
+          let b64 = await window.optimizeAndConvertToBase64(file, 950);
+          const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
+          blob.name = file.name || 'image.jpg';
+          base64 = await uploadImageToStorage(blob, 'complements');
         } else {
-          if (file.size > 950 * 1024) {
-            alert("🔒 Erro: Imagem do complemento excede 950KB.");
-            fileInput.value = '';
-            return;
-          }
-          base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+          base64 = await uploadImageToStorage(file, 'complements');
         }
           
         const docRef = doc(db, COLLECTIONS.complements, activeComplementProduct.id);
@@ -2590,18 +2575,12 @@ storeId: window.currentStoreId
           
         try {
           if (window.optimizeAndConvertToBase64) {
-            optionImage = await window.optimizeAndConvertToBase64(file, 950);
+            let b64 = await window.optimizeAndConvertToBase64(file, 950);
+            const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
+            blob.name = file.name || 'image.jpg';
+            optionImage = await uploadImageToStorage(blob, 'complements');
           } else {
-            if (file.size > 950 * 1024) {
-              alert("🔒 Erro: Imagem do complemento excede limite de 950KB.");
-              return;
-            }
-            optionImage = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = (err) => reject(err);
-              reader.readAsDataURL(file);
-            });
+            optionImage = await uploadImageToStorage(file, 'complements');
           }
         } catch (e) {
           alert("Erro ao ler/otimizar arquivo da imagem.");

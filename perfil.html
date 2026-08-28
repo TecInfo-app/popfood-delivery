@@ -1372,7 +1372,8 @@ window.copyStoreLink = function() {
   </div>
 
   <script type="module">
-    import { db, auth, Timestamp, COLLECTIONS, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onAuthStateChanged, where, query, onSnapshot, signOut, app } from './supabase-adapter.js';
+    import { db, auth, Timestamp, COLLECTIONS, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onAuthStateChanged, where,
+        uploadImageToStorage, query, onSnapshot, signOut, app } from './supabase-adapter.js';
     import { getMessaging, getToken, onMessage } from './supabase-adapter.js';
 
     const getApiUrl = (endpoint) => {

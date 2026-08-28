@@ -1635,3 +1635,24 @@ window.addEventListener('storage', (e) => {
         notifyListenersByPath(path);
     }
 });
+
+
+export const uploadImageToStorage = async (file, folder = 'uploads') => {
+    try {
+        const ext = file.name.split('.').pop();
+        const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+        
+        const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+        });
+
+        if (error) throw error;
+
+        const { data: urlData } = supabase.storage.from('images').getPublicUrl(fileName);
+        return urlData.publicUrl;
+    } catch (e) {
+        console.error('Error uploading image:', e);
+        throw e;
+    }
+};

@@ -289,7 +289,8 @@ window.copyStoreLink = function() {
   </div>
 
   <script type="module">
-    import { db, auth, Timestamp, COLLECTIONS, collection, getDocs, doc, getDoc, query, where, orderBy, onAuthStateChanged, onSnapshot, signOut } from './supabase-adapter.js';
+    import { db, auth, Timestamp, COLLECTIONS, collection, getDocs, doc, getDoc, query, where,
+        uploadImageToStorage, orderBy, onAuthStateChanged, onSnapshot, signOut } from './supabase-adapter.js';
 
     window.logoutAdmin = async function() {
       localStorage.removeItem('popfood_custom_store_id');
