@@ -248,7 +248,7 @@ const tableColumns = {
     ],
     orders: [
         'id', 'store_id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'payment_method', 
-        'payment_status', 'total', 'items', 'delivery_fee', 'coupon_code', 'created_at'
+        'payment_status', 'total', 'items', 'delivery_fee', 'coupon_code', 'created_at', 'chat_messages', 'has_unread_customer_message', 'has_unread_store_message', 'ai_chat_enabled'
     ],
     customers: [
         'id', 'store_id', 'name', 'phone', 'email', 'total_orders', 'ltv', 'created_at', 'address'
@@ -391,6 +391,10 @@ function toDbFieldName(path, fieldName) {
     if (fieldName === 'image' || fieldName === 'imageUrl') return 'image_url';
     if (fieldName === 'order' || fieldName === 'sortOrder') return 'sort_order';
     if (fieldName === 'customerName') return 'customer_name';
+    if (fieldName === 'chatMessages') return 'chat_messages';
+    if (fieldName === 'hasUnreadCustomerMessage') return 'has_unread_customer_message';
+    if (fieldName === 'hasUnreadStoreMessage') return 'has_unread_store_message';
+    if (fieldName === 'aiChatEnabled') return 'ai_chat_enabled';
     if (fieldName === 'customerPhone') return 'customer_phone';
     if (fieldName === 'customerAddress') return 'customer_address';
     if (fieldName === 'deliveryFee') return 'delivery_fee';
@@ -500,6 +504,10 @@ function fromDbFieldName(path, fieldName) {
     if (fieldName === 'is_active' && (cleanPath === 'products' || cleanPath === 'product')) return 'active';
     if (fieldName === 'sort_order') return 'order';
     if (fieldName === 'customer_name') return 'customerName';
+    if (fieldName === 'chat_messages') return 'chatMessages';
+    if (fieldName === 'has_unread_customer_message') return 'hasUnreadCustomerMessage';
+    if (fieldName === 'has_unread_store_message') return 'hasUnreadStoreMessage';
+    if (fieldName === 'ai_chat_enabled') return 'aiChatEnabled';
     if (fieldName === 'customer_phone') return 'customerPhone';
     if (fieldName === 'customer_address') return 'customerAddress';
     if (fieldName === 'delivery_fee') return 'deliveryFee';
@@ -730,8 +738,8 @@ function serializeRow(path, realPath, payload, existingSettings = {}) {
         }
 
         const extraKeys = [
-            'chatMessages', 'chat_messages', 'deliveryPin', 'delivery_pin', 
-            'hasUnreadCustomerMessage', 'hasUnreadStoreMessage', 'rating', 
+            'deliveryPin', 'delivery_pin', 
+            'rating', 
             'fcmToken', 'fcm_token', 'couponCode', 'coupon_code', 'cupomCode', 'cupom_code', 'cupomId',
             'subtotal', 'discount', 'discountAmount', 'desconto', 'descontoCupom', 'descontoFidelidade', 
             'fidelidadeAtivo', 'observacao', 'changeFor', 'trocoPara', 'troco', 'customer', 'isFirstOrder', 'cpf'
