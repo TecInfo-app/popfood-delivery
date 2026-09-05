@@ -765,10 +765,10 @@ function serializeRow(path, realPath, payload, existingSettings = {}) {
                 addrObj = { address: addrObj };
             }
             if (typeof addrObj === 'object') {
-                serialized.customer_address = { 
+                serialized.customer_address = JSON.stringify({ 
                     ...addrObj, 
                     _meta: { ...(addrObj._meta || {}), ...extraData } 
-                };
+                });
             }
         }
     }
@@ -1510,17 +1510,20 @@ export const setDoc = async (docRef, data, options = {}) => {
             const existingSettings = existingData?.settings || {};
             const serialized = serializeRow(docRef.path, realPath, payload, existingSettings);
             if (existingData) {
-                await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+                const { error } = await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+                if (error) throw new Error(error.message);
             } else {
                 serialized.id = docRef.id;
-                await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
+                const { error } = await supabase.from(realPath).upsert(serialized, { onConflict: 'id' });
+                if (error) throw new Error(error.message);
             }
         } else {
             const serialized = serializeRow(docRef.path, realPath, payload);
             if (checkIsUuidTable(realPath)) {
                 serialized.id = getDeterministicUuid(docRef.id);
             }
-            await supabase.from(realPath).upsert(serialized);
+            const { error } = await supabase.from(realPath).upsert(serialized);
+            if (error) throw new Error(error.message);
         }
     } catch (err) {
         console.warn(`Supabase upsert table ${docRef.path} skipped (saved locally):`, err?.message);
@@ -1562,11 +1565,13 @@ export const updateDoc = async (docRef, data) => {
             const { data: existingData } = await supabase.from(realPath).select('*').eq('id', docRef.id).maybeSingle();
             const existingSettings = existingData?.settings || {};
             const serialized = serializeRow(docRef.path, realPath, data, existingSettings);
-            await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+            const { error } = await supabase.from(realPath).update(serialized).eq('id', docRef.id);
+            if (error) throw new Error(error.message);
         } else {
             const serialized = serializeRow(docRef.path, realPath, data);
             const targetId = checkIsUuidTable(realPath) ? getDeterministicUuid(docRef.id) : docRef.id;
-            await supabase.from(realPath).update(serialized).eq('id', targetId);
+            const { error } = await supabase.from(realPath).update(serialized).eq('id', targetId);
+            if (error) throw new Error(error.message);
         }
     } catch (err) {
         console.warn(`Supabase update table ${docRef.path} skipped (updated locally):`, err?.message);
