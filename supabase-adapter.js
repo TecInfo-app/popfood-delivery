@@ -370,6 +370,9 @@ function toDbFieldName(path, fieldName) {
         if (fieldName === 'subtotal') return 'subtotal';
         if (fieldName === 'createdAt' || fieldName === 'created_at') return 'created_at';
         if (fieldName === 'totalPrice' || fieldName === 'total') return 'total';
+        if (fieldName === 'chatMessages' || fieldName === 'chat_messages') return 'chat_messages';
+        if (fieldName === 'hasUnreadCustomerMessage' || fieldName === 'has_unread_customer_message') return 'has_unread_customer_message';
+        if (fieldName === 'hasUnreadStoreMessage' || fieldName === 'has_unread_store_message') return 'has_unread_store_message';
         return fieldName;
     }
 
