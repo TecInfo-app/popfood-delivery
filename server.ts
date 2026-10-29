@@ -14,10 +14,11 @@ dotenv.config();
 import { initWhatsappBot, getWhatsappQr, getWhatsappStatus, stopWhatsappSession } from './whatsapp-bot.js';
 
 
-const rawUrl = process.env.SUPABASE_URL || '';
+const rawUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://xxlbagladzeezdenfbrq.supabase.co';
 const supabaseUrl = rawUrl.replace('xx1bagladzeezdenfbrq', 'xxlbagladzeezdenfbrq');
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
-const supabase = createClient(supabaseUrl || 'https://xxlbagladzeezdenfbrq.supabase.co', supabaseServiceKey);
+const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4bGJhZ2xhZHplZXpkZW5mYnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNzIwNDEsImV4cCI6MjEwMTY0ODA0MX0.6-RbagE7tpaVc8RFGfwPDxWg7CswhyuIXjRRf-g1OSc';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY || defaultKey;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const resolvedDirname = typeof __dirname !== 'undefined'
   ? __dirname

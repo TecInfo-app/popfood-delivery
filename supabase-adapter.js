@@ -1338,10 +1338,10 @@ async function syncAllListeners(force = false) {
     await Promise.allSettled(promises);
 }
 
-// Global Polling Engine for multi-device sync
+// Global Polling Engine for multi-device sync - throttled to conserve API egress since Realtime WebSockets are active
 let pollingIntervalTimer = null;
-const ACTIVE_POLL_INTERVAL = 2000;   // 2s when tab is active/visible
-const INACTIVE_POLL_INTERVAL = 8000; // 8s when tab is background/hidden
+const ACTIVE_POLL_INTERVAL = 10000;   // 10s when tab is active/visible
+const INACTIVE_POLL_INTERVAL = 45000; // 45s when tab is background/hidden
 
 function restartPollingLoop() {
     if (pollingIntervalTimer) {
@@ -1659,7 +1659,7 @@ export const uploadImageToStorage = async (file, folder = 'uploads') => {
         const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
         
         const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
-            cacheControl: '3600',
+            cacheControl: '31536000, public, immutable',
             upsert: false
         });
 

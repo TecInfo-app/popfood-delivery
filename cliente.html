@@ -3850,7 +3850,7 @@
               let b64 = typeof item === 'string' ? item : item.banner;
               let linkUrl = typeof item === 'string' ? '' : (item.linkUrl || '');
               
-              let imgHtml = `<img src="${b64}" class="w-full h-full object-cover select-none">`;
+              let imgHtml = `<img src="${b64}" loading="lazy" decoding="async" class="w-full h-full object-cover select-none">`;
               if (linkUrl) {
                 bannersDiv.innerHTML = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="w-full h-full block cursor-pointer">${imgHtml}</a>`;
               } else {
@@ -3860,10 +3860,10 @@
               bannersDiv.classList.remove("hidden");
               let trackHtml = activeBanners
                 .map(
-                  (item) => {
+                  (item, idx) => {
                     let b64 = typeof item === 'string' ? item : item.banner;
                     let linkUrl = typeof item === 'string' ? '' : (item.linkUrl || '');
-                    let imgHtml = `<img src="${b64}" class="w-full h-full object-cover select-none">`;
+                    let imgHtml = `<img src="${b64}" ${idx === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" class="w-full h-full object-cover select-none">`;
                     if (linkUrl) {
                       imgHtml = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="w-full h-full block cursor-pointer">${imgHtml}</a>`;
                     }
@@ -4400,7 +4400,7 @@
             const catImage = categoryImages[cat.id] || cat.image || '';
 
             if (catImage) {
-              innerImgHtml = `<img src="${catImage}" class="w-full h-full object-cover">`;
+              innerImgHtml = `<img src="${catImage}" loading="lazy" decoding="async" class="w-full h-full object-cover">`;
             } else {
               // Derive a nice emoji or fallback symbol
               let emoji = "🍽️";
@@ -4554,7 +4554,7 @@
           `;
         }
         imgDiv.innerHTML = `
-          <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out">
+          <img src="${imgUrl}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out">
           ${badgeHtml}
         `;
         card.appendChild(imgDiv);
@@ -4642,7 +4642,7 @@
 
         card.innerHTML = `
           <div class="w-[140px] h-[140px] rounded-2xl bg-orange-50/50 relative overflow-hidden shadow-sm border border-stone-100 mb-2">
-            <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out">
+            <img src="${imgUrl}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out">
             ${badgeHtml}
             ${isAvailable ? `<div class="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-brand-primary/90 text-white flex items-center justify-center shadow-md backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg></div>` : ""}
           </div>
@@ -5147,7 +5147,7 @@
 
                 let optImgHtml = "";
                 if (opt.image) {
-                  optImgHtml = `<img src="${opt.image}" class="w-12 h-12 rounded-xl object-cover mr-2.5 border border-stone-100 flex-shrink-0 animate-card-fade ${isOutOfStock ? 'opacity-50 grayscale' : ''}">`;
+                  optImgHtml = `<img src="${opt.image}" loading="lazy" decoding="async" class="w-12 h-12 rounded-xl object-cover mr-2.5 border border-stone-100 flex-shrink-0 animate-card-fade ${isOutOfStock ? 'opacity-50 grayscale' : ''}">`;
                 }
 
                 if (isMulti) {
@@ -6116,7 +6116,7 @@
 
           itemRow.innerHTML = `
           <div class="relative w-16 h-16 rounded-xl overflow-hidden border border-stone-100/80 bg-stone-50 shrink-0 shadow-3xs flex items-center justify-center">
-            <img src="${imgUrl}" class="w-full h-full object-cover">
+            <img src="${imgUrl}" loading="lazy" decoding="async" class="w-full h-full object-cover">
           </div>
           
           <div class="flex-grow min-w-0 pr-2 pb-1">

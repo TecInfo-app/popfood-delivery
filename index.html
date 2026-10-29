@@ -1504,7 +1504,7 @@ storeId: window.currentStoreId
         try {
           let base64;
           if (window.optimizeAndConvertToBase64) {
-            let b64 = await window.optimizeAndConvertToBase64(file, 950);
+            let b64 = await window.optimizeAndConvertToBase64(file, 120);
             const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
             blob.name = file.name || 'image.jpg';
             base64 = await uploadImageToStorage(blob, 'categories');
@@ -1772,7 +1772,7 @@ storeId: window.currentStoreId
 
       try {
         if (window.optimizeAndConvertToBase64) {
-          let b64 = await window.optimizeAndConvertToBase64(file, 950);
+          let b64 = await window.optimizeAndConvertToBase64(file, 120);
           const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
           blob.name = file.name || 'image.jpg';
           imageBase64Data = await uploadImageToStorage(blob, 'products');
@@ -2527,7 +2527,7 @@ storeId: window.currentStoreId
       try {
         let base64;
         if (window.optimizeAndConvertToBase64) {
-          let b64 = await window.optimizeAndConvertToBase64(file, 950);
+          let b64 = await window.optimizeAndConvertToBase64(file, 120);
           const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
           blob.name = file.name || 'image.jpg';
           base64 = await uploadImageToStorage(blob, 'complements');
@@ -2575,7 +2575,7 @@ storeId: window.currentStoreId
           
         try {
           if (window.optimizeAndConvertToBase64) {
-            let b64 = await window.optimizeAndConvertToBase64(file, 950);
+            let b64 = await window.optimizeAndConvertToBase64(file, 120);
             const blob = window.base64ToBlob(b64, file.type || 'image/jpeg');
             blob.name = file.name || 'image.jpg';
             optionImage = await uploadImageToStorage(blob, 'complements');

@@ -1,7 +1,10 @@
-window.optimizeAndConvertToBase64 = function(file, maxKB = 950) {
+window.optimizeAndConvertToBase64 = function(file, maxKB = 120) {
   return new Promise((resolve, reject) => {
     if (!file) return reject("No file provided");
     
+    // Strict enforcement: ensure maxKB never exceeds 120KB for maximum egress and bandwidth efficiency
+    const targetMaxKB = Math.min(Number(maxKB) || 120, 120);
+
     // Show loading overlay
     let overlay = document.getElementById('image-optimization-overlay');
     if (!overlay) {
@@ -52,14 +55,14 @@ window.optimizeAndConvertToBase64 = function(file, maxKB = 950) {
       const img = new Image();
       img.src = event.target.result;
       img.onload = function() {
-        statusText.textContent = "Comprimindo...";
+        statusText.textContent = "Otimizando qualidade...";
         progressBar.style.width = "60%";
         
         let width = img.width;
         let height = img.height;
         
-        // Max dimensions to avoid huge canvases
-        const MAX_DIM = 1200; 
+        // Max dimensions 800px: crisp on mobile/retina, drastically reduces memory and storage egress
+        const MAX_DIM = 800; 
         if (width > height) {
           if (width > MAX_DIM) {
             height = Math.round(height * (MAX_DIM / width));
@@ -78,14 +81,14 @@ window.optimizeAndConvertToBase64 = function(file, maxKB = 950) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Iterative compression to hit target size
-        let quality = 0.9;
+        // Start compression at quality 0.82 (ideal balance between crystal clear visuals and small payload)
+        let quality = 0.82;
         let dataUrl = canvas.toDataURL('image/jpeg', quality);
         let sizeKB = Math.round(dataUrl.length * 3 / 4 / 1024); // approx size in KB
         
         const compress = () => {
-          if (sizeKB > maxKB && quality > 0.1) {
-            quality -= 0.1;
+          if (sizeKB > targetMaxKB && quality > 0.15) {
+            quality -= 0.08;
             dataUrl = canvas.toDataURL('image/jpeg', quality);
             sizeKB = Math.round(dataUrl.length * 3 / 4 / 1024);
             setTimeout(compress, 10); // yield to UI

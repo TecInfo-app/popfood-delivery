@@ -10,7 +10,7 @@ export const uploadImageToStorage = async (file, folder = 'uploads') => {
         const fileName = \`\${folder}/\${Date.now()}_\${Math.random().toString(36).substring(2, 7)}.\${ext}\`;
         
         const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
-            cacheControl: '3600',
+            cacheControl: '31536000, public, immutable',
             upsert: false
         });
 

@@ -286,7 +286,9 @@ async function restoreSavedSessions() {
     if (db) {
       try {
         const { data: profiles, error } = await db.from('restaurant_profiles').select('id, settings');
-        if (error) console.error("Error fetching profiles:", error);
+        if (error) {
+          console.warn("[WhatsApp Bot] Notice fetching restaurant_profiles:", error.message || error);
+        }
         if (profiles) {
           for (const p of profiles) {
             const storeId = p.id;
@@ -296,7 +298,20 @@ async function restoreSavedSessions() {
             }
           }
         }
-      } catch (e) {}
+
+        // Also check restaurants table if any
+        const { data: restStores } = await db.from('restaurants').select('id, storeId, whatsappBotEnabled');
+        if (restStores) {
+          for (const r of restStores) {
+            const sId = r.storeId || r.id;
+            if (sId && r.whatsappBotEnabled) {
+              localStores.add(sId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[WhatsApp Bot] Error fetching profiles on boot:", e);
+      }
     }
 
     for (const storeId of localStores) {
